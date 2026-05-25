@@ -145,3 +145,26 @@ BEGIN
     );
 END;
 GO
+
+IF OBJECT_ID(N'dbo.BranchTables', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.BranchTables
+    (
+        TableId UNIQUEIDENTIFIER NOT NULL CONSTRAINT PK_BranchTables PRIMARY KEY,
+        TenantId UNIQUEIDENTIFIER NOT NULL,
+        BranchId UNIQUEIDENTIFIER NOT NULL,
+        Name NVARCHAR(80) NOT NULL,
+        DisplayOrder INT NOT NULL CONSTRAINT DF_BranchTables_DisplayOrder DEFAULT (0),
+        QrToken NVARCHAR(80) NOT NULL,
+        IsActive BIT NOT NULL CONSTRAINT DF_BranchTables_IsActive DEFAULT (1),
+        CreatedAtUtc DATETIME2(3) NOT NULL CONSTRAINT DF_BranchTables_CreatedAtUtc DEFAULT (SYSUTCDATETIME()),
+        UpdatedAtUtc DATETIME2(3) NULL,
+        RowVersion ROWVERSION NOT NULL,
+        CONSTRAINT FK_BranchTables_Tenants FOREIGN KEY (TenantId) REFERENCES dbo.Tenants (TenantId),
+        CONSTRAINT FK_BranchTables_Branches FOREIGN KEY (BranchId) REFERENCES dbo.Branches (BranchId),
+        CONSTRAINT CK_BranchTables_DisplayOrder CHECK (DisplayOrder >= 0),
+        CONSTRAINT UQ_BranchTables_TenantId_BranchId_Name UNIQUE (TenantId, BranchId, Name),
+        CONSTRAINT UQ_BranchTables_QrToken UNIQUE (QrToken)
+    );
+END;
+GO

@@ -61,7 +61,9 @@ app.MapHealthChecks("/health/live");
 app.MapAuthEndpoints();
 app.MapAdminBranchEndpoints();
 app.MapAdminMenuEndpoints();
+app.MapAdminTableEndpoints();
 app.MapPublicMenuEndpoints();
+app.MapPublicQrEndpoints();
 app.MapTenantBranchEndpoints();
 
 app.Run();

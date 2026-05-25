@@ -18,7 +18,7 @@ Core flow:
 
 ## Current State
 
-Base project structure has been created. The first backend foundation slice now supports tenants, branches, branch order settings, owner registration, login, JWT authentication, tenant context resolution, authenticated admin branch/settings APIs, and menu category/item foundations through SQL Server stored procedures and minimal v1 APIs.
+Base project structure has been created. The first backend foundation slice now supports tenants, branches, branch order settings, owner registration, login, JWT authentication, tenant context resolution, authenticated admin branch/settings APIs, menu category/item foundations, branch table management, and QR token public menu resolution through SQL Server stored procedures and minimal v1 APIs.
 
 ## What Changed
 
@@ -54,6 +54,12 @@ Base project structure has been created. The first backend foundation slice now 
 - Added authenticated admin menu category/item APIs that resolve `TenantId` from `ITenantContext`.
 - Added public branch menu read API for QR menu browsing.
 - Added application unit tests for menu category and item validation behavior.
+- Added branch table SQL table, stored procedures, and indexes.
+- Added application branch table service, validation, QR token generation, repository interface, and public QR menu contracts.
+- Added infrastructure branch table repository that calls stored procedures only.
+- Added authenticated admin table APIs for create/list/update/deactivate and QR token regeneration.
+- Added public QR token menu API that resolves branch/table/order settings context before returning menu categories and items.
+- Added application unit tests for table validation, name normalization, QR token generation, and public QR menu shaping.
 
 ## Files Changed
 
@@ -78,7 +84,9 @@ Base project structure has been created. The first backend foundation slice now 
 - `src/backend/QRApp.Api/Endpoints/AuthEndpoints.cs`
 - `src/backend/QRApp.Api/Endpoints/AdminBranchEndpoints.cs`
 - `src/backend/QRApp.Api/Endpoints/AdminMenuEndpoints.cs`
+- `src/backend/QRApp.Api/Endpoints/AdminTableEndpoints.cs`
 - `src/backend/QRApp.Api/Endpoints/PublicMenuEndpoints.cs`
+- `src/backend/QRApp.Api/Endpoints/PublicQrEndpoints.cs`
 - `src/backend/QRApp.Application/QRApp.Application.csproj`
 - `src/backend/QRApp.Application/AssemblyReference.cs`
 - `src/backend/QRApp.Domain/QRApp.Domain.csproj`
@@ -92,6 +100,7 @@ Base project structure has been created. The first backend foundation slice now 
 - `src/backend/QRApp.Infrastructure/Auth/SqlAuthRepository.cs`
 - `src/backend/QRApp.Infrastructure/Menus/SqlMenuCategoryRepository.cs`
 - `src/backend/QRApp.Infrastructure/Menus/SqlMenuItemRepository.cs`
+- `src/backend/QRApp.Infrastructure/Tables/SqlBranchTableRepository.cs`
 - `src/backend/QRApp.Infrastructure/Tenants/SqlTenantRepository.cs`
 - `src/backend/QRApp.Infrastructure/Branches/SqlBranchRepository.cs`
 - `src/backend/QRApp.Infrastructure/BranchOrderSettings/SqlBranchOrderSettingsRepository.cs`
@@ -117,6 +126,10 @@ Base project structure has been created. The first backend foundation slice now 
 - `src/backend/QRApp.Application/Menus/IMenuItemService.cs`
 - `src/backend/QRApp.Application/Menus/MenuCategoryService.cs`
 - `src/backend/QRApp.Application/Menus/MenuItemService.cs`
+- `src/backend/QRApp.Application/Tables/BranchTableContracts.cs`
+- `src/backend/QRApp.Application/Tables/IBranchTableRepository.cs`
+- `src/backend/QRApp.Application/Tables/IBranchTableService.cs`
+- `src/backend/QRApp.Application/Tables/BranchTableService.cs`
 - `src/backend/QRApp.Application/Tenants/TenantContracts.cs`
 - `src/backend/QRApp.Application/Tenants/ITenantRepository.cs`
 - `src/backend/QRApp.Application/Tenants/ITenantService.cs`
@@ -137,6 +150,7 @@ Base project structure has been created. The first backend foundation slice now 
 - `tests/QRApp.Application.Tests/Auth/AuthServiceTests.cs`
 - `tests/QRApp.Application.Tests/Menus/MenuCategoryServiceTests.cs`
 - `tests/QRApp.Application.Tests/Menus/MenuItemServiceTests.cs`
+- `tests/QRApp.Application.Tests/Tables/BranchTableServiceTests.cs`
 - `tests/QRApp.Application.Tests/Tenants/TenantServiceTests.cs`
 - `tests/QRApp.Application.Tests/Branches/BranchServiceTests.cs`
 - `src/frontend/package.json`
@@ -165,13 +179,16 @@ Base project structure has been created. The first backend foundation slice now 
   - `BranchOrderSettings`
   - `MenuCategories`
   - `MenuItems`
+  - `BranchTables`
 - `Branches` and `BranchOrderSettings` include `TenantId`.
 - `TenantUsers` links authenticated users to tenants and stores role codes.
 - `MenuCategories` and `MenuItems` are branch-scoped and include `TenantId`.
+- `BranchTables` is branch-scoped, includes `TenantId`, and stores the unique QR token for each table.
 - Tenant-owned stored procedures filter by `TenantId`.
 - Added tenant/branch/settings indexes.
 - Added user email and tenant-user lookup indexes.
 - Added menu category and item indexes for admin branch listing and public QR menu reads.
+- Added branch table indexes for admin branch listing and QR token lookup.
 - Foundation SQL is consolidated into one file per folder:
   - `database/tables/001_Foundation_Tables.sql`
   - `database/procedures/001_Foundation_Procedures.sql`
@@ -193,6 +210,13 @@ Base project structure has been created. The first backend foundation slice now 
   - `MenuItem_GetListByBranch`
   - `MenuItem_Deactivate`
   - `PublicMenu_GetByBranch`
+- Table and QR stored procedures:
+  - `BranchTable_Create`
+  - `BranchTable_Update`
+  - `BranchTable_GetListByBranch`
+  - `BranchTable_Deactivate`
+  - `BranchTable_RegenerateQrToken`
+  - `PublicMenu_GetByQrToken`
 
 ## API Changes
 
@@ -217,7 +241,13 @@ Base project structure has been created. The first backend foundation slice now 
 - Added `GET /api/v1/admin/branches/{branchId}/menu-items`.
 - Added `PUT /api/v1/admin/branches/{branchId}/menu-items/{menuItemId}`.
 - Added `DELETE /api/v1/admin/branches/{branchId}/menu-items/{menuItemId}`.
+- Added `POST /api/v1/admin/branches/{branchId}/tables`.
+- Added `GET /api/v1/admin/branches/{branchId}/tables`.
+- Added `PUT /api/v1/admin/branches/{branchId}/tables/{tableId}`.
+- Added `DELETE /api/v1/admin/branches/{branchId}/tables/{tableId}`.
+- Added `POST /api/v1/admin/branches/{branchId}/tables/{tableId}/qr-token/regenerate`.
 - Added `GET /api/v1/public/branches/{branchId}/menu`.
+- Added `GET /api/v1/public/qr/{qrToken}`.
 - Added `POST /api/v1/tenants`.
 - Added `GET /api/v1/tenants/{tenantId}`.
 - Added `POST /api/v1/tenants/{tenantId}/branches`.
@@ -232,8 +262,10 @@ Base project structure has been created. The first backend foundation slice now 
   - `409 Conflict` for duplicate tenant/branch/settings records.
   - `409 Conflict` for duplicate user email records.
   - `409 Conflict` for duplicate menu category/item records.
+  - `409 Conflict` for duplicate table name or QR token records.
   - `404 Not Found` for missing tenant/branch/settings records.
   - `404 Not Found` for missing branch/category/item records in menu workflows.
+  - `404 Not Found` for missing branch/table records in table workflows.
   - `400 Bad Request` for relationship constraint violations.
   - `503 Service Unavailable` for database timeout/unavailable/configuration failures.
 
@@ -242,6 +274,8 @@ Base project structure has been created. The first backend foundation slice now 
 - `dotnet build src/backend/QRApp.Api/QRApp.Api.csproj --no-restore` passed with 0 warnings and 0 errors using a temporary output path while the debug API process was running.
 - Runtime check for `GET /health` returned `Healthy`.
 - `dotnet test QRApp.sln --no-restore` passed: 11 tests.
+- `dotnet test QRApp.sln --no-restore` passed: 14 tests after table/QR token foundation.
+- `dotnet build QRApp.sln --no-restore` passed with 0 warnings and 0 errors after table/QR token foundation.
 - Runtime check for `GET /health` passed after LocalDB/error handling changes.
 - Backend source scan found no inline SQL patterns.
 - Frontend build was skipped because `node_modules` is not installed yet.
@@ -254,11 +288,11 @@ Base project structure has been created. The first backend foundation slice now 
 - Apply the new auth SQL scripts to LocalDB before runtime auth testing.
 - Existing tenant/branch endpoints still accept `tenantId` in route for foundation testing only.
 - Apply the new menu SQL scripts to LocalDB before runtime menu testing.
-- Public QR menu lookup currently uses `branchId`; future QR table tokens should resolve branch/table context.
-- Create next module SQL scripts for tables and QR tokens, or start frontend admin screens against the stable admin APIs.
+- Apply the new table/QR SQL scripts to LocalDB before runtime table and QR token testing.
+- Public QR menu lookup by `branchId` still exists for foundation testing, but `/api/v1/public/qr/{qrToken}` is now the production-oriented lookup path.
 - Add frontend admin and QR menu flows after backend contracts are defined.
 - Add frontend package lock and run frontend build after `npm install`.
 
 ## Next Recommended Task
 
-Add table/QR token foundation so public menu URLs can resolve branch and table context from a QR token instead of raw `branchId`. Then start frontend admin menu screens against the authenticated admin APIs.
+Apply the foundation SQL scripts to LocalDB, smoke-test owner login plus admin branch/menu/table APIs, then start frontend admin screens against the authenticated admin APIs.

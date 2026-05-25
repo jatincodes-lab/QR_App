@@ -871,3 +871,248 @@ BEGIN
     ORDER BY mc.DisplayOrder ASC, mc.Name ASC, mi.DisplayOrder ASC, mi.Name ASC;
 END;
 GO
+
+CREATE OR ALTER PROCEDURE dbo.BranchTable_Create
+    @TenantId UNIQUEIDENTIFIER,
+    @BranchId UNIQUEIDENTIFIER,
+    @TableId UNIQUEIDENTIFIER,
+    @Name NVARCHAR(80),
+    @DisplayOrder INT,
+    @QrToken NVARCHAR(80)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF NOT EXISTS (SELECT 1 FROM dbo.Branches WHERE TenantId = @TenantId AND BranchId = @BranchId AND IsActive = 1)
+    BEGIN
+        THROW 51601, 'Active branch was not found for this tenant.', 1;
+    END;
+
+    IF EXISTS (SELECT 1 FROM dbo.BranchTables WHERE TenantId = @TenantId AND BranchId = @BranchId AND Name = @Name)
+    BEGIN
+        THROW 51602, 'Table name already exists for this branch.', 1;
+    END;
+
+    IF EXISTS (SELECT 1 FROM dbo.BranchTables WHERE QrToken = @QrToken)
+    BEGIN
+        THROW 51604, 'QR token already exists.', 1;
+    END;
+
+    INSERT INTO dbo.BranchTables (TableId, TenantId, BranchId, Name, DisplayOrder, QrToken)
+    VALUES (@TableId, @TenantId, @BranchId, @Name, @DisplayOrder, @QrToken);
+
+    SELECT
+        TableId,
+        TenantId,
+        BranchId,
+        Name,
+        DisplayOrder,
+        QrToken,
+        IsActive,
+        CreatedAtUtc,
+        UpdatedAtUtc
+    FROM dbo.BranchTables
+    WHERE TenantId = @TenantId
+      AND BranchId = @BranchId
+      AND TableId = @TableId;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.BranchTable_Update
+    @TenantId UNIQUEIDENTIFIER,
+    @BranchId UNIQUEIDENTIFIER,
+    @TableId UNIQUEIDENTIFIER,
+    @Name NVARCHAR(80),
+    @DisplayOrder INT,
+    @IsActive BIT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF NOT EXISTS
+    (
+        SELECT 1
+        FROM dbo.BranchTables
+        WHERE TenantId = @TenantId
+          AND BranchId = @BranchId
+          AND TableId = @TableId
+    )
+    BEGIN
+        THROW 51603, 'Table was not found for this tenant and branch.', 1;
+    END;
+
+    IF EXISTS
+    (
+        SELECT 1
+        FROM dbo.BranchTables
+        WHERE TenantId = @TenantId
+          AND BranchId = @BranchId
+          AND Name = @Name
+          AND TableId <> @TableId
+    )
+    BEGIN
+        THROW 51602, 'Table name already exists for this branch.', 1;
+    END;
+
+    UPDATE dbo.BranchTables
+    SET
+        Name = @Name,
+        DisplayOrder = @DisplayOrder,
+        IsActive = @IsActive,
+        UpdatedAtUtc = SYSUTCDATETIME()
+    WHERE TenantId = @TenantId
+      AND BranchId = @BranchId
+      AND TableId = @TableId;
+
+    SELECT
+        TableId,
+        TenantId,
+        BranchId,
+        Name,
+        DisplayOrder,
+        QrToken,
+        IsActive,
+        CreatedAtUtc,
+        UpdatedAtUtc
+    FROM dbo.BranchTables
+    WHERE TenantId = @TenantId
+      AND BranchId = @BranchId
+      AND TableId = @TableId;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.BranchTable_GetListByBranch
+    @TenantId UNIQUEIDENTIFIER,
+    @BranchId UNIQUEIDENTIFIER,
+    @IncludeInactive BIT = 0
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT
+        TableId,
+        TenantId,
+        BranchId,
+        Name,
+        DisplayOrder,
+        QrToken,
+        IsActive,
+        CreatedAtUtc,
+        UpdatedAtUtc
+    FROM dbo.BranchTables
+    WHERE TenantId = @TenantId
+      AND BranchId = @BranchId
+      AND (@IncludeInactive = 1 OR IsActive = 1)
+    ORDER BY DisplayOrder ASC, Name ASC;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.BranchTable_Deactivate
+    @TenantId UNIQUEIDENTIFIER,
+    @BranchId UNIQUEIDENTIFIER,
+    @TableId UNIQUEIDENTIFIER
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    UPDATE dbo.BranchTables
+    SET
+        IsActive = 0,
+        UpdatedAtUtc = SYSUTCDATETIME()
+    WHERE TenantId = @TenantId
+      AND BranchId = @BranchId
+      AND TableId = @TableId;
+
+    IF @@ROWCOUNT = 0
+    BEGIN
+        THROW 51603, 'Table was not found for this tenant and branch.', 1;
+    END;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.BranchTable_RegenerateQrToken
+    @TenantId UNIQUEIDENTIFIER,
+    @BranchId UNIQUEIDENTIFIER,
+    @TableId UNIQUEIDENTIFIER,
+    @QrToken NVARCHAR(80)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF NOT EXISTS
+    (
+        SELECT 1
+        FROM dbo.BranchTables
+        WHERE TenantId = @TenantId
+          AND BranchId = @BranchId
+          AND TableId = @TableId
+    )
+    BEGIN
+        THROW 51603, 'Table was not found for this tenant and branch.', 1;
+    END;
+
+    IF EXISTS (SELECT 1 FROM dbo.BranchTables WHERE QrToken = @QrToken AND TableId <> @TableId)
+    BEGIN
+        THROW 51604, 'QR token already exists.', 1;
+    END;
+
+    UPDATE dbo.BranchTables
+    SET
+        QrToken = @QrToken,
+        UpdatedAtUtc = SYSUTCDATETIME()
+    WHERE TenantId = @TenantId
+      AND BranchId = @BranchId
+      AND TableId = @TableId;
+
+    SELECT
+        TableId,
+        TenantId,
+        BranchId,
+        Name,
+        DisplayOrder,
+        QrToken,
+        IsActive,
+        CreatedAtUtc,
+        UpdatedAtUtc
+    FROM dbo.BranchTables
+    WHERE TenantId = @TenantId
+      AND BranchId = @BranchId
+      AND TableId = @TableId;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.PublicMenu_GetByQrToken
+    @QrToken NVARCHAR(80)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT
+        b.BranchId,
+        b.Name AS BranchName,
+        bt.TableId,
+        bt.Name AS TableName,
+        bt.QrToken,
+        COALESCE(bos.EnableDirectQrOrdering, 0) AS EnableDirectQrOrdering,
+        COALESCE(bos.RequireCustomerName, 0) AS RequireCustomerName,
+        COALESCE(bos.RequireCustomerWhatsApp, 0) AS RequireCustomerWhatsApp,
+        COALESCE(bos.WaiterCallEnabled, 1) AS WaiterCallEnabled,
+        mc.MenuCategoryId,
+        mc.Name AS CategoryName,
+        mc.DisplayOrder AS CategoryDisplayOrder,
+        mi.MenuItemId,
+        mi.Name AS ItemName,
+        mi.Description,
+        mi.Price,
+        mi.DisplayOrder AS ItemDisplayOrder
+    FROM dbo.BranchTables bt
+    INNER JOIN dbo.Branches b ON b.BranchId = bt.BranchId
+    LEFT JOIN dbo.BranchOrderSettings bos ON bos.TenantId = bt.TenantId AND bos.BranchId = bt.BranchId
+    LEFT JOIN dbo.MenuCategories mc ON mc.TenantId = bt.TenantId AND mc.BranchId = bt.BranchId AND mc.IsActive = 1
+    LEFT JOIN dbo.MenuItems mi ON mi.TenantId = bt.TenantId AND mi.BranchId = bt.BranchId AND mi.MenuCategoryId = mc.MenuCategoryId AND mi.IsActive = 1 AND mi.IsAvailable = 1
+    WHERE bt.QrToken = @QrToken
+      AND bt.IsActive = 1
+      AND b.IsActive = 1
+    ORDER BY mc.DisplayOrder ASC, mc.Name ASC, mi.DisplayOrder ASC, mi.Name ASC;
+END;
+GO

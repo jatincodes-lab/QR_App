@@ -28,4 +28,11 @@ internal static class StoredProcedures
     public const string MenuItemGetListByBranch = "dbo.MenuItem_GetListByBranch";
     public const string MenuItemDeactivate = "dbo.MenuItem_Deactivate";
     public const string PublicMenuGetByBranch = "dbo.PublicMenu_GetByBranch";
+
+    public const string BranchTableCreate = "dbo.BranchTable_Create";
+    public const string BranchTableUpdate = "dbo.BranchTable_Update";
+    public const string BranchTableGetListByBranch = "dbo.BranchTable_GetListByBranch";
+    public const string BranchTableDeactivate = "dbo.BranchTable_Deactivate";
+    public const string BranchTableRegenerateQrToken = "dbo.BranchTable_RegenerateQrToken";
+    public const string PublicMenuGetByQrToken = "dbo.PublicMenu_GetByQrToken";
 }

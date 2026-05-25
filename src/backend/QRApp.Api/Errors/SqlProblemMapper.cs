@@ -15,6 +15,8 @@ internal static class SqlProblemMapper
             51202 => Conflict("Branch order settings already exist."),
             51402 => Conflict("Menu category name already exists for this branch."),
             51502 => Conflict("Menu item name already exists for this category."),
+            51602 => Conflict("Table name already exists for this branch."),
+            51604 => Conflict("QR token already exists."),
             2601 or 2627 => Conflict("A record with the same unique value already exists."),
 
             51101 => Results.NotFound(new { message = "Active tenant was not found." }),
@@ -25,6 +27,8 @@ internal static class SqlProblemMapper
             51403 => Results.NotFound(new { message = "Menu category was not found for this tenant and branch." }),
             51501 => Results.NotFound(new { message = "Active menu category was not found for this tenant and branch." }),
             51503 => Results.NotFound(new { message = "Menu item was not found for this tenant and branch." }),
+            51601 => Results.NotFound(new { message = "Active branch was not found for this tenant." }),
+            51603 => Results.NotFound(new { message = "Table was not found for this tenant and branch." }),
 
             547 => Results.BadRequest(new { message = "The request violates a database relationship constraint." }),
 

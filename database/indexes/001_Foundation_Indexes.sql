@@ -135,3 +135,31 @@ BEGIN
     ON dbo.BranchOrderSettings (TenantId, BranchId);
 END;
 GO
+
+IF NOT EXISTS
+(
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = N'IX_BranchTables_TenantId_BranchId_IsActive_DisplayOrder'
+      AND object_id = OBJECT_ID(N'dbo.BranchTables')
+)
+BEGIN
+    CREATE INDEX IX_BranchTables_TenantId_BranchId_IsActive_DisplayOrder
+    ON dbo.BranchTables (TenantId, BranchId, IsActive, DisplayOrder)
+    INCLUDE (TableId, Name, QrToken);
+END;
+GO
+
+IF NOT EXISTS
+(
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = N'IX_BranchTables_QrToken_IsActive'
+      AND object_id = OBJECT_ID(N'dbo.BranchTables')
+)
+BEGIN
+    CREATE INDEX IX_BranchTables_QrToken_IsActive
+    ON dbo.BranchTables (QrToken, IsActive)
+    INCLUDE (TableId, TenantId, BranchId, Name);
+END;
+GO
