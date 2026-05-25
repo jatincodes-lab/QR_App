@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.11" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="5.2.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\QRApp.Application\QRApp.Application.csproj" />
+    <ProjectReference Include="..\QRApp.Infrastructure\QRApp.Infrastructure.csproj" />
+    <ProjectReference Include="..\QRApp.Shared\QRApp.Shared.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,147 @@
+IF OBJECT_ID(N'dbo.Tenants', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.Tenants
+    (
+        TenantId UNIQUEIDENTIFIER NOT NULL CONSTRAINT PK_Tenants PRIMARY KEY,
+        Name NVARCHAR(160) NOT NULL,
+        Slug NVARCHAR(120) NOT NULL,
+        OwnerEmail NVARCHAR(256) NOT NULL,
+        IsActive BIT NOT NULL CONSTRAINT DF_Tenants_IsActive DEFAULT (1),
+        CreatedAtUtc DATETIME2(3) NOT NULL CONSTRAINT DF_Tenants_CreatedAtUtc DEFAULT (SYSUTCDATETIME()),
+        UpdatedAtUtc DATETIME2(3) NULL,
+        RowVersion ROWVERSION NOT NULL,
+        CONSTRAINT UQ_Tenants_Slug UNIQUE (Slug),
+        CONSTRAINT UQ_Tenants_OwnerEmail UNIQUE (OwnerEmail)
+    );
+END;
+GO
+
+IF OBJECT_ID(N'dbo.Users', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.Users
+    (
+        UserId UNIQUEIDENTIFIER NOT NULL CONSTRAINT PK_Users PRIMARY KEY,
+        Email NVARCHAR(256) NOT NULL,
+        DisplayName NVARCHAR(160) NOT NULL,
+        PasswordHash NVARCHAR(512) NOT NULL,
+        IsActive BIT NOT NULL CONSTRAINT DF_Users_IsActive DEFAULT (1),
+        CreatedAtUtc DATETIME2(3) NOT NULL CONSTRAINT DF_Users_CreatedAtUtc DEFAULT (SYSUTCDATETIME()),
+        UpdatedAtUtc DATETIME2(3) NULL,
+        RowVersion ROWVERSION NOT NULL,
+        CONSTRAINT UQ_Users_Email UNIQUE (Email)
+    );
+END;
+GO
+
+IF OBJECT_ID(N'dbo.TenantUsers', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.TenantUsers
+    (
+        TenantUserId UNIQUEIDENTIFIER NOT NULL CONSTRAINT PK_TenantUsers PRIMARY KEY,
+        TenantId UNIQUEIDENTIFIER NOT NULL,
+        UserId UNIQUEIDENTIFIER NOT NULL,
+        RoleCode NVARCHAR(40) NOT NULL,
+        IsActive BIT NOT NULL CONSTRAINT DF_TenantUsers_IsActive DEFAULT (1),
+        CreatedAtUtc DATETIME2(3) NOT NULL CONSTRAINT DF_TenantUsers_CreatedAtUtc DEFAULT (SYSUTCDATETIME()),
+        UpdatedAtUtc DATETIME2(3) NULL,
+        RowVersion ROWVERSION NOT NULL,
+        CONSTRAINT FK_TenantUsers_Tenants FOREIGN KEY (TenantId) REFERENCES dbo.Tenants (TenantId),
+        CONSTRAINT FK_TenantUsers_Users FOREIGN KEY (UserId) REFERENCES dbo.Users (UserId),
+        CONSTRAINT CK_TenantUsers_RoleCode CHECK (RoleCode IN (N'owner', N'admin', N'staff')),
+        CONSTRAINT UQ_TenantUsers_TenantId_UserId UNIQUE (TenantId, UserId)
+    );
+END;
+GO
+
+IF OBJECT_ID(N'dbo.Branches', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.Branches
+    (
+        BranchId UNIQUEIDENTIFIER NOT NULL CONSTRAINT PK_Branches PRIMARY KEY,
+        TenantId UNIQUEIDENTIFIER NOT NULL,
+        Name NVARCHAR(160) NOT NULL,
+        PhoneNumber NVARCHAR(32) NULL,
+        AddressLine1 NVARCHAR(220) NULL,
+        AddressLine2 NVARCHAR(220) NULL,
+        City NVARCHAR(120) NULL,
+        State NVARCHAR(120) NULL,
+        PostalCode NVARCHAR(32) NULL,
+        CountryCode CHAR(2) NOT NULL CONSTRAINT DF_Branches_CountryCode DEFAULT ('IN'),
+        IsActive BIT NOT NULL CONSTRAINT DF_Branches_IsActive DEFAULT (1),
+        CreatedAtUtc DATETIME2(3) NOT NULL CONSTRAINT DF_Branches_CreatedAtUtc DEFAULT (SYSUTCDATETIME()),
+        UpdatedAtUtc DATETIME2(3) NULL,
+        RowVersion ROWVERSION NOT NULL,
+        CONSTRAINT FK_Branches_Tenants FOREIGN KEY (TenantId) REFERENCES dbo.Tenants (TenantId),
+        CONSTRAINT UQ_Branches_TenantId_Name UNIQUE (TenantId, Name)
+    );
+END;
+GO
+
+IF OBJECT_ID(N'dbo.BranchOrderSettings', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.BranchOrderSettings
+    (
+        BranchOrderSettingsId UNIQUEIDENTIFIER NOT NULL CONSTRAINT PK_BranchOrderSettings PRIMARY KEY,
+        TenantId UNIQUEIDENTIFIER NOT NULL,
+        BranchId UNIQUEIDENTIFIER NOT NULL,
+        EnableDirectQrOrdering BIT NOT NULL CONSTRAINT DF_BranchOrderSettings_EnableDirectQrOrdering DEFAULT (0),
+        RequireCustomerName BIT NOT NULL CONSTRAINT DF_BranchOrderSettings_RequireCustomerName DEFAULT (0),
+        RequireCustomerWhatsApp BIT NOT NULL CONSTRAINT DF_BranchOrderSettings_RequireCustomerWhatsApp DEFAULT (0),
+        WaiterCallEnabled BIT NOT NULL CONSTRAINT DF_BranchOrderSettings_WaiterCallEnabled DEFAULT (1),
+        CreatedAtUtc DATETIME2(3) NOT NULL CONSTRAINT DF_BranchOrderSettings_CreatedAtUtc DEFAULT (SYSUTCDATETIME()),
+        UpdatedAtUtc DATETIME2(3) NULL,
+        RowVersion ROWVERSION NOT NULL,
+        CONSTRAINT FK_BranchOrderSettings_Tenants FOREIGN KEY (TenantId) REFERENCES dbo.Tenants (TenantId),
+        CONSTRAINT FK_BranchOrderSettings_Branches FOREIGN KEY (BranchId) REFERENCES dbo.Branches (BranchId),
+        CONSTRAINT UQ_BranchOrderSettings_TenantId_BranchId UNIQUE (TenantId, BranchId)
+    );
+END;
+GO
+
+IF OBJECT_ID(N'dbo.MenuCategories', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.MenuCategories
+    (
+        MenuCategoryId UNIQUEIDENTIFIER NOT NULL CONSTRAINT PK_MenuCategories PRIMARY KEY,
+        TenantId UNIQUEIDENTIFIER NOT NULL,
+        BranchId UNIQUEIDENTIFIER NOT NULL,
+        Name NVARCHAR(120) NOT NULL,
+        DisplayOrder INT NOT NULL CONSTRAINT DF_MenuCategories_DisplayOrder DEFAULT (0),
+        IsActive BIT NOT NULL CONSTRAINT DF_MenuCategories_IsActive DEFAULT (1),
+        CreatedAtUtc DATETIME2(3) NOT NULL CONSTRAINT DF_MenuCategories_CreatedAtUtc DEFAULT (SYSUTCDATETIME()),
+        UpdatedAtUtc DATETIME2(3) NULL,
+        RowVersion ROWVERSION NOT NULL,
+        CONSTRAINT FK_MenuCategories_Tenants FOREIGN KEY (TenantId) REFERENCES dbo.Tenants (TenantId),
+        CONSTRAINT FK_MenuCategories_Branches FOREIGN KEY (BranchId) REFERENCES dbo.Branches (BranchId),
+        CONSTRAINT CK_MenuCategories_DisplayOrder CHECK (DisplayOrder >= 0),
+        CONSTRAINT UQ_MenuCategories_TenantId_BranchId_Name UNIQUE (TenantId, BranchId, Name)
+    );
+END;
+GO
+
+IF OBJECT_ID(N'dbo.MenuItems', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.MenuItems
+    (
+        MenuItemId UNIQUEIDENTIFIER NOT NULL CONSTRAINT PK_MenuItems PRIMARY KEY,
+        TenantId UNIQUEIDENTIFIER NOT NULL,
+        BranchId UNIQUEIDENTIFIER NOT NULL,
+        MenuCategoryId UNIQUEIDENTIFIER NOT NULL,
+        Name NVARCHAR(160) NOT NULL,
+        Description NVARCHAR(1000) NULL,
+        Price DECIMAL(10, 2) NOT NULL,
+        IsAvailable BIT NOT NULL CONSTRAINT DF_MenuItems_IsAvailable DEFAULT (1),
+        IsActive BIT NOT NULL CONSTRAINT DF_MenuItems_IsActive DEFAULT (1),
+        DisplayOrder INT NOT NULL CONSTRAINT DF_MenuItems_DisplayOrder DEFAULT (0),
+        CreatedAtUtc DATETIME2(3) NOT NULL CONSTRAINT DF_MenuItems_CreatedAtUtc DEFAULT (SYSUTCDATETIME()),
+        UpdatedAtUtc DATETIME2(3) NULL,
+        RowVersion ROWVERSION NOT NULL,
+        CONSTRAINT FK_MenuItems_Tenants FOREIGN KEY (TenantId) REFERENCES dbo.Tenants (TenantId),
+        CONSTRAINT FK_MenuItems_Branches FOREIGN KEY (BranchId) REFERENCES dbo.Branches (BranchId),
+        CONSTRAINT FK_MenuItems_MenuCategories FOREIGN KEY (MenuCategoryId) REFERENCES dbo.MenuCategories (MenuCategoryId),
+        CONSTRAINT CK_MenuItems_Price CHECK (Price >= 0),
+        CONSTRAINT CK_MenuItems_DisplayOrder CHECK (DisplayOrder >= 0),
+        CONSTRAINT UQ_MenuItems_TenantId_BranchId_MenuCategoryId_Name UNIQUE (TenantId, BranchId, MenuCategoryId, Name)
+    );
+END;
+GO

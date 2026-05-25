@@ -1,0 +1,13 @@
+**/bin
+**/obj
+**/node_modules
+**/.next
+**/dist
+.git
+.vs
+.vscode
+*.user
+*.suo
+.env
+.env.*
+
