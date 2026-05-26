@@ -4,7 +4,6 @@ using QRApp.Api.Errors;
 using QRApp.Application.Auth;
 using QRApp.Application.Branches;
 using QRApp.Application.BranchOrderSettings;
-using QRApp.Shared.Results;
 
 namespace QRApp.Api.Endpoints;
 
@@ -39,7 +38,7 @@ public static class AdminBranchEndpoints
             var result = await branchService.CreateAsync(tenantContext.TenantId, request, cancellationToken);
             return result.IsSuccess
                 ? Results.Created($"/api/v1/admin/branches/{result.Value!.BranchId}", result.Value)
-                : ValidationProblem(result.Errors);
+                : ApiProblemResponses.Validation(result.Errors);
         }
         catch (Exception ex)
         when (ex is SqlException)
@@ -51,7 +50,7 @@ public static class AdminBranchEndpoints
         catch (Exception ex)
         {
             loggerFactory.CreateLogger(nameof(AdminBranchEndpoints)).LogError(ex, "Failed to create admin branch.");
-            return Results.Problem("Branch could not be created.");
+            return ApiProblemResponses.ServerError("Branch could not be created.");
         }
     }
 
@@ -90,7 +89,7 @@ public static class AdminBranchEndpoints
         try
         {
             var branch = await branchService.GetByIdAsync(tenantContext.TenantId, branchId, cancellationToken);
-            return branch is null ? Results.NotFound() : Results.Ok(branch);
+            return branch is null ? ApiProblemResponses.NotFound("Branch was not found.") : Results.Ok(branch);
         }
         catch (Exception ex)
         when (ex is SqlException)
@@ -112,7 +111,7 @@ public static class AdminBranchEndpoints
         try
         {
             var result = await branchService.UpdateAsync(tenantContext.TenantId, branchId, request, cancellationToken);
-            return result.IsSuccess ? Results.Ok(result.Value) : ValidationProblem(result.Errors);
+            return result.IsSuccess ? Results.Ok(result.Value) : ApiProblemResponses.Validation(result.Errors);
         }
         catch (Exception ex)
         when (ex is SqlException)
@@ -124,7 +123,7 @@ public static class AdminBranchEndpoints
         catch (Exception ex)
         {
             loggerFactory.CreateLogger(nameof(AdminBranchEndpoints)).LogError(ex, "Failed to update admin branch {BranchId}.", branchId);
-            return Results.Problem("Branch could not be updated.");
+            return ApiProblemResponses.ServerError("Branch could not be updated.");
         }
     }
 
@@ -150,7 +149,7 @@ public static class AdminBranchEndpoints
         catch (Exception ex)
         {
             loggerFactory.CreateLogger(nameof(AdminBranchEndpoints)).LogError(ex, "Failed to deactivate admin branch {BranchId}.", branchId);
-            return Results.Problem("Branch could not be deactivated.");
+            return ApiProblemResponses.ServerError("Branch could not be deactivated.");
         }
     }
 
@@ -177,7 +176,7 @@ public static class AdminBranchEndpoints
         catch (Exception ex)
         {
             loggerFactory.CreateLogger(nameof(AdminBranchEndpoints)).LogError(ex, "Failed to create admin order settings for branch {BranchId}.", branchId);
-            return Results.Problem("Branch order settings could not be created.");
+            return ApiProblemResponses.ServerError("Branch order settings could not be created.");
         }
     }
 
@@ -191,7 +190,7 @@ public static class AdminBranchEndpoints
         try
         {
             var settings = await service.GetByBranchAsync(tenantContext.TenantId, branchId, cancellationToken);
-            return settings is null ? Results.NotFound() : Results.Ok(settings);
+            return settings is null ? ApiProblemResponses.NotFound("Branch order settings were not found.") : Results.Ok(settings);
         }
         catch (Exception ex)
         when (ex is SqlException)
@@ -225,15 +224,7 @@ public static class AdminBranchEndpoints
         catch (Exception ex)
         {
             loggerFactory.CreateLogger(nameof(AdminBranchEndpoints)).LogError(ex, "Failed to update admin order settings for branch {BranchId}.", branchId);
-            return Results.Problem("Branch order settings could not be updated.");
+            return ApiProblemResponses.ServerError("Branch order settings could not be updated.");
         }
     }
-
-    private static IResult ValidationProblem(IReadOnlyCollection<ValidationFailure> errors)
-    {
-        return Results.ValidationProblem(errors
-            .GroupBy(error => error.Field)
-            .ToDictionary(group => group.Key, group => group.Select(error => error.Message).ToArray()));
-    }
 }
-

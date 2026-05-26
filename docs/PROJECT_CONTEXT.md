@@ -60,6 +60,12 @@ Base project structure has been created. The first backend foundation slice now 
 - Added authenticated admin table APIs for create/list/update/deactivate and QR token regeneration.
 - Added public QR token menu API that resolves branch/table/order settings context before returning menu categories and items.
 - Added application unit tests for table validation, name normalization, QR token generation, and public QR menu shaping.
+- Added a local Postman smoke-test collection for owner auth, admin branch/menu/table APIs, and public QR menu lookup.
+- Added a Postman-importable API cURL catalog and made it a required maintenance artifact for future API changes.
+- Added JSON problem responses for missing, invalid, expired, and forbidden admin API tokens.
+- Standardized validation, not-found, conflict, malformed-request, service-unavailable, and unexpected-error API responses as `application/problem+json`.
+- Added the first frontend admin slice with login, JWT storage, authenticated API client, admin shell, branch listing, branch creation, and branch turn-off flow.
+- Upgraded the first frontend admin slice from functional scaffold to polished UI with lucide icons, improved login composition, branch workspace metrics, search, table layout, modal add branch flow, and clearer confirmation/notice states.
 
 ## Files Changed
 
@@ -80,6 +86,8 @@ Base project structure has been created. The first backend foundation slice now 
 - `src/backend/QRApp.Api/Auth/IJwtTokenService.cs`
 - `src/backend/QRApp.Api/Auth/JwtTokenService.cs`
 - `src/backend/QRApp.Api/Auth/HttpTenantContext.cs`
+- `src/backend/QRApp.Api/Auth/AuthProblemResponses.cs`
+- `src/backend/QRApp.Api/Errors/ApiProblemResponses.cs`
 - `src/backend/QRApp.Api/Errors/SqlProblemMapper.cs`
 - `src/backend/QRApp.Api/Endpoints/AuthEndpoints.cs`
 - `src/backend/QRApp.Api/Endpoints/AdminBranchEndpoints.cs`
@@ -154,6 +162,7 @@ Base project structure has been created. The first backend foundation slice now 
 - `tests/QRApp.Application.Tests/Tenants/TenantServiceTests.cs`
 - `tests/QRApp.Application.Tests/Branches/BranchServiceTests.cs`
 - `src/frontend/package.json`
+- `src/frontend/package-lock.json`
 - `src/frontend/next.config.mjs`
 - `src/frontend/tsconfig.json`
 - `src/frontend/tailwind.config.ts`
@@ -163,11 +172,17 @@ Base project structure has been created. The first backend foundation slice now 
 - `src/frontend/app/layout.tsx`
 - `src/frontend/app/page.tsx`
 - `src/frontend/app/admin/page.tsx`
+- `src/frontend/app/admin/login/page.tsx`
+- `src/frontend/app/admin/branches/page.tsx`
+- `src/frontend/lib/api.ts`
+- `src/frontend/lib/auth.ts`
 - `database/tables/.gitkeep`
 - `database/procedures/.gitkeep`
 - `database/indexes/.gitkeep`
 - `database/seeds/.gitkeep`
 - `database/migrations/.gitkeep`
+- `docs/postman/QR-App.postman_collection.json`
+- `docs/postman/API_CURLS.md`
 
 ## Database Changes
 
@@ -258,6 +273,8 @@ Base project structure has been created. The first backend foundation slice now 
 - Added `POST /api/v1/tenants/{tenantId}/branches/{branchId}/order-settings`.
 - Added `GET /api/v1/tenants/{tenantId}/branches/{branchId}/order-settings`.
 - Added `PUT /api/v1/tenants/{tenantId}/branches/{branchId}/order-settings`.
+- Protected admin APIs now return JSON `application/problem+json` responses for missing tokens, invalid tokens, expired tokens, and forbidden access.
+- API validation, not-found, SQL conflict, malformed request body, unknown route, and server error responses now use a consistent `application/problem+json` shape with clear `title` and `detail` fields.
 - API now maps known SQL Server errors to stable responses:
   - `409 Conflict` for duplicate tenant/branch/settings records.
   - `409 Conflict` for duplicate user email records.
@@ -278,7 +295,18 @@ Base project structure has been created. The first backend foundation slice now 
 - `dotnet build QRApp.sln --no-restore` passed with 0 warnings and 0 errors after table/QR token foundation.
 - Runtime check for `GET /health` passed after LocalDB/error handling changes.
 - Backend source scan found no inline SQL patterns.
-- Frontend build was skipped because `node_modules` is not installed yet.
+- Frontend build now runs after installing `node_modules`.
+- Postman collection was added but not executed yet; LocalDB scripts must be applied before running the full workflow.
+- API cURL catalog was added for Postman import/reference and was not runtime executed.
+- API build to temporary output passed with 0 warnings and 0 errors after auth problem response changes.
+- Temporary runtime checks confirmed missing-token and invalid-token admin requests return clear JSON `401` problem responses.
+- Temporary runtime checks confirmed malformed JSON returns JSON `400`, missing token returns JSON `401`, unknown route returns JSON `404`, and validation failures return JSON `400` with an `errors` object.
+- `npm install` completed for the frontend and generated `package-lock.json`.
+- `npm run build` passed for the frontend admin login and branches slice.
+- Frontend dev server was started at `http://localhost:3000`; `/admin/login` returned HTTP 200.
+- `lucide-react` was added for professional icons in admin navigation, buttons, status cards, and dialogs.
+- `npm run build` passed again after the frontend UI polish pass.
+- `npm install` reported vulnerabilities in the current frontend dependency set because Next.js `14.2.16` is deprecated with a security warning; dependency upgrades are pending.
 
 ## Pending Work
 
@@ -290,9 +318,10 @@ Base project structure has been created. The first backend foundation slice now 
 - Apply the new menu SQL scripts to LocalDB before runtime menu testing.
 - Apply the new table/QR SQL scripts to LocalDB before runtime table and QR token testing.
 - Public QR menu lookup by `branchId` still exists for foundation testing, but `/api/v1/public/qr/{qrToken}` is now the production-oriented lookup path.
-- Add frontend admin and QR menu flows after backend contracts are defined.
-- Add frontend package lock and run frontend build after `npm install`.
+- Add frontend branch detail flows for menu categories/items, tables/QR codes, and order settings.
+- Add public QR menu UI at `/qr/{qrToken}`.
+- Upgrade frontend dependencies to a patched Next.js version.
 
 ## Next Recommended Task
 
-Apply the foundation SQL scripts to LocalDB, smoke-test owner login plus admin branch/menu/table APIs, then start frontend admin screens against the authenticated admin APIs.
+Build the branch detail screen with menu categories/items, tables/QR codes, and order settings against the authenticated admin APIs.

@@ -3,7 +3,6 @@ using QRApp.Api.Errors;
 using QRApp.Application.Branches;
 using QRApp.Application.BranchOrderSettings;
 using QRApp.Application.Tenants;
-using QRApp.Shared.Results;
 
 namespace QRApp.Api.Endpoints;
 
@@ -40,7 +39,7 @@ public static class TenantBranchEndpoints
             var result = await tenantService.CreateAsync(request, cancellationToken);
             return result.IsSuccess
                 ? Results.Created($"/api/v1/tenants/{result.Value!.TenantId}", result.Value)
-                : ValidationProblem(result.Errors);
+                : ApiProblemResponses.Validation(result.Errors);
         }
         catch (Exception ex)
         when (ex is SqlException)
@@ -52,7 +51,7 @@ public static class TenantBranchEndpoints
         catch (Exception ex)
         {
             loggerFactory.CreateLogger(nameof(TenantBranchEndpoints)).LogError(ex, "Failed to create tenant.");
-            return Results.Problem("Tenant could not be created.");
+            return ApiProblemResponses.ServerError("Tenant could not be created.");
         }
     }
 
@@ -65,7 +64,7 @@ public static class TenantBranchEndpoints
         try
         {
             var tenant = await tenantService.GetByIdAsync(tenantId, cancellationToken);
-            return tenant is null ? Results.NotFound() : Results.Ok(tenant);
+            return tenant is null ? ApiProblemResponses.NotFound("Tenant was not found.") : Results.Ok(tenant);
         }
         catch (Exception ex)
         when (ex is SqlException)
@@ -88,7 +87,7 @@ public static class TenantBranchEndpoints
             var result = await branchService.CreateAsync(tenantId, request, cancellationToken);
             return result.IsSuccess
                 ? Results.Created($"/api/v1/tenants/{tenantId}/branches/{result.Value!.BranchId}", result.Value)
-                : ValidationProblem(result.Errors);
+                : ApiProblemResponses.Validation(result.Errors);
         }
         catch (Exception ex)
         when (ex is SqlException)
@@ -100,7 +99,7 @@ public static class TenantBranchEndpoints
         catch (Exception ex)
         {
             loggerFactory.CreateLogger(nameof(TenantBranchEndpoints)).LogError(ex, "Failed to create branch for tenant {TenantId}.", tenantId);
-            return Results.Problem("Branch could not be created.");
+            return ApiProblemResponses.ServerError("Branch could not be created.");
         }
     }
 
@@ -135,7 +134,7 @@ public static class TenantBranchEndpoints
         try
         {
             var branch = await branchService.GetByIdAsync(tenantId, branchId, cancellationToken);
-            return branch is null ? Results.NotFound() : Results.Ok(branch);
+            return branch is null ? ApiProblemResponses.NotFound("Branch was not found for this tenant.") : Results.Ok(branch);
         }
         catch (Exception ex)
         when (ex is SqlException)
@@ -157,7 +156,7 @@ public static class TenantBranchEndpoints
         try
         {
             var result = await branchService.UpdateAsync(tenantId, branchId, request, cancellationToken);
-            return result.IsSuccess ? Results.Ok(result.Value) : ValidationProblem(result.Errors);
+            return result.IsSuccess ? Results.Ok(result.Value) : ApiProblemResponses.Validation(result.Errors);
         }
         catch (Exception ex)
         when (ex is SqlException)
@@ -169,7 +168,7 @@ public static class TenantBranchEndpoints
         catch (Exception ex)
         {
             loggerFactory.CreateLogger(nameof(TenantBranchEndpoints)).LogError(ex, "Failed to update branch {BranchId} for tenant {TenantId}.", branchId, tenantId);
-            return Results.Problem("Branch could not be updated.");
+            return ApiProblemResponses.ServerError("Branch could not be updated.");
         }
     }
 
@@ -195,7 +194,7 @@ public static class TenantBranchEndpoints
         catch (Exception ex)
         {
             loggerFactory.CreateLogger(nameof(TenantBranchEndpoints)).LogError(ex, "Failed to deactivate branch {BranchId} for tenant {TenantId}.", branchId, tenantId);
-            return Results.Problem("Branch could not be deactivated.");
+            return ApiProblemResponses.ServerError("Branch could not be deactivated.");
         }
     }
 
@@ -222,7 +221,7 @@ public static class TenantBranchEndpoints
         catch (Exception ex)
         {
             loggerFactory.CreateLogger(nameof(TenantBranchEndpoints)).LogError(ex, "Failed to create order settings for branch {BranchId} and tenant {TenantId}.", branchId, tenantId);
-            return Results.Problem("Branch order settings could not be created.");
+            return ApiProblemResponses.ServerError("Branch order settings could not be created.");
         }
     }
 
@@ -236,7 +235,7 @@ public static class TenantBranchEndpoints
         try
         {
             var settings = await service.GetByBranchAsync(tenantId, branchId, cancellationToken);
-            return settings is null ? Results.NotFound() : Results.Ok(settings);
+            return settings is null ? ApiProblemResponses.NotFound("Branch order settings were not found for this tenant and branch.") : Results.Ok(settings);
         }
         catch (Exception ex)
         when (ex is SqlException)
@@ -270,14 +269,7 @@ public static class TenantBranchEndpoints
         catch (Exception ex)
         {
             loggerFactory.CreateLogger(nameof(TenantBranchEndpoints)).LogError(ex, "Failed to update order settings for branch {BranchId} and tenant {TenantId}.", branchId, tenantId);
-            return Results.Problem("Branch order settings could not be updated.");
+            return ApiProblemResponses.ServerError("Branch order settings could not be updated.");
         }
-    }
-
-    private static IResult ValidationProblem(IReadOnlyCollection<ValidationFailure> errors)
-    {
-        return Results.ValidationProblem(errors
-            .GroupBy(error => error.Field)
-            .ToDictionary(group => group.Key, group => group.Select(error => error.Message).ToArray()));
     }
 }

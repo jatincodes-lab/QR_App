@@ -1,0 +1,566 @@
+{
+  "info": {
+    "_postman_id": "0c165677-332c-4a64-bde3-205aa4c7b55f",
+    "name": "QR-App Local Smoke Test",
+    "description": "Local Postman smoke-test flow for owner auth, admin branch/menu/table APIs, and public QR menu lookup.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:58927"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "tenantSlug",
+      "value": "demo-cafe"
+    },
+    {
+      "key": "ownerEmail",
+      "value": "owner.demo@example.com"
+    },
+    {
+      "key": "ownerPassword",
+      "value": "TestPass123!"
+    },
+    {
+      "key": "branchId",
+      "value": ""
+    },
+    {
+      "key": "menuCategoryId",
+      "value": ""
+    },
+    {
+      "key": "menuItemId",
+      "value": ""
+    },
+    {
+      "key": "tableId",
+      "value": ""
+    },
+    {
+      "key": "qrToken",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "00 Health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "health"
+          ]
+        }
+      }
+    },
+    {
+      "name": "01 Auth - Register Owner",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 201) {",
+              "  const body = pm.response.json();",
+              "  pm.collectionVariables.set('accessToken', body.accessToken);",
+              "}",
+              "pm.test('registered or duplicate handled', function () {",
+              "  pm.expect([201, 409]).to.include(pm.response.code);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"tenantName\": \"Demo Cafe\",\n  \"tenantSlug\": \"{{tenantSlug}}\",\n  \"ownerEmail\": \"{{ownerEmail}}\",\n  \"ownerDisplayName\": \"Demo Owner\",\n  \"password\": \"{{ownerPassword}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/register-owner",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "register-owner"
+          ]
+        }
+      }
+    },
+    {
+      "name": "02 Auth - Login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('login succeeded', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "if (pm.response.code === 200) {",
+              "  const body = pm.response.json();",
+              "  pm.collectionVariables.set('accessToken', body.accessToken);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{ownerEmail}}\",\n  \"password\": \"{{ownerPassword}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "login"
+          ]
+        }
+      }
+    },
+    {
+      "name": "03 Auth - Me",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/me",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "me"
+          ]
+        }
+      }
+    },
+    {
+      "name": "04 Admin - Create Branch",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('branch created', function () {",
+              "  pm.response.to.have.status(201);",
+              "});",
+              "if (pm.response.code === 201) {",
+              "  const body = pm.response.json();",
+              "  pm.collectionVariables.set('branchId', body.branchId);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Main Branch\",\n  \"phoneNumber\": \"+91 9876543210\",\n  \"addressLine1\": \"MG Road\",\n  \"addressLine2\": null,\n  \"city\": \"Ahmedabad\",\n  \"state\": \"Gujarat\",\n  \"postalCode\": \"380001\",\n  \"countryCode\": \"IN\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admin/branches",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "branches"
+          ]
+        }
+      }
+    },
+    {
+      "name": "05 Admin - List Branches",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admin/branches",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "branches"
+          ]
+        }
+      }
+    },
+    {
+      "name": "06 Admin - Create Order Settings",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"enableDirectQrOrdering\": true,\n  \"requireCustomerName\": true,\n  \"requireCustomerWhatsApp\": false,\n  \"waiterCallEnabled\": true\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admin/branches/{{branchId}}/order-settings",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "branches",
+            "{{branchId}}",
+            "order-settings"
+          ]
+        }
+      }
+    },
+    {
+      "name": "07 Admin - Create Menu Category",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('category created', function () {",
+              "  pm.response.to.have.status(201);",
+              "});",
+              "if (pm.response.code === 201) {",
+              "  const body = pm.response.json();",
+              "  pm.collectionVariables.set('menuCategoryId', body.menuCategoryId);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Beverages\",\n  \"displayOrder\": 1\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admin/branches/{{branchId}}/menu-categories",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "branches",
+            "{{branchId}}",
+            "menu-categories"
+          ]
+        }
+      }
+    },
+    {
+      "name": "08 Admin - Create Menu Item",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('item created', function () {",
+              "  pm.response.to.have.status(201);",
+              "});",
+              "if (pm.response.code === 201) {",
+              "  const body = pm.response.json();",
+              "  pm.collectionVariables.set('menuItemId', body.menuItemId);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"menuCategoryId\": \"{{menuCategoryId}}\",\n  \"name\": \"Masala Tea\",\n  \"description\": \"Fresh milk tea with spices\",\n  \"price\": 25.00,\n  \"isAvailable\": true,\n  \"displayOrder\": 1\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admin/branches/{{branchId}}/menu-items",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "branches",
+            "{{branchId}}",
+            "menu-items"
+          ]
+        }
+      }
+    },
+    {
+      "name": "09 Admin - Create Table",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('table created', function () {",
+              "  pm.response.to.have.status(201);",
+              "});",
+              "if (pm.response.code === 201) {",
+              "  const body = pm.response.json();",
+              "  pm.collectionVariables.set('tableId', body.tableId);",
+              "  pm.collectionVariables.set('qrToken', body.qrToken);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Table 1\",\n  \"displayOrder\": 1\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admin/branches/{{branchId}}/tables",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "branches",
+            "{{branchId}}",
+            "tables"
+          ]
+        }
+      }
+    },
+    {
+      "name": "10 Admin - List Tables",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admin/branches/{{branchId}}/tables",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "branches",
+            "{{branchId}}",
+            "tables"
+          ]
+        }
+      }
+    },
+    {
+      "name": "11 Public - Get Branch Menu",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/public/branches/{{branchId}}/menu",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "public",
+            "branches",
+            "{{branchId}}",
+            "menu"
+          ]
+        }
+      }
+    },
+    {
+      "name": "12 Public - Get QR Menu",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/public/qr/{{qrToken}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "public",
+            "qr",
+            "{{qrToken}}"
+          ]
+        }
+      }
+    }
+  ]
+}

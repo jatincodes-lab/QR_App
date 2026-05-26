@@ -2,7 +2,6 @@ using Microsoft.Data.SqlClient;
 using QRApp.Api.Errors;
 using QRApp.Application.Auth;
 using QRApp.Application.Tables;
-using QRApp.Shared.Results;
 
 namespace QRApp.Api.Endpoints;
 
@@ -34,7 +33,7 @@ public static class AdminTableEndpoints
             var result = await service.CreateAsync(tenantContext.TenantId, branchId, request, cancellationToken);
             return result.IsSuccess
                 ? Results.Created($"/api/v1/admin/branches/{branchId}/tables/{result.Value!.TableId}", result.Value)
-                : ValidationProblem(result.Errors);
+                : ApiProblemResponses.Validation(result.Errors);
         }
         catch (Exception ex)
         when (ex is SqlException)
@@ -46,7 +45,7 @@ public static class AdminTableEndpoints
         catch (Exception ex)
         {
             loggerFactory.CreateLogger(nameof(AdminTableEndpoints)).LogError(ex, "Failed to create table for branch {BranchId}.", branchId);
-            return Results.Problem("Table could not be created.");
+            return ApiProblemResponses.ServerError("Table could not be created.");
         }
     }
 
@@ -89,7 +88,7 @@ public static class AdminTableEndpoints
         try
         {
             var result = await service.UpdateAsync(tenantContext.TenantId, branchId, tableId, request, cancellationToken);
-            return result.IsSuccess ? Results.Ok(result.Value) : ValidationProblem(result.Errors);
+            return result.IsSuccess ? Results.Ok(result.Value) : ApiProblemResponses.Validation(result.Errors);
         }
         catch (Exception ex)
         when (ex is SqlException)
@@ -101,7 +100,7 @@ public static class AdminTableEndpoints
         catch (Exception ex)
         {
             loggerFactory.CreateLogger(nameof(AdminTableEndpoints)).LogError(ex, "Failed to update table {TableId}.", tableId);
-            return Results.Problem("Table could not be updated.");
+            return ApiProblemResponses.ServerError("Table could not be updated.");
         }
     }
 
@@ -128,7 +127,7 @@ public static class AdminTableEndpoints
         catch (Exception ex)
         {
             loggerFactory.CreateLogger(nameof(AdminTableEndpoints)).LogError(ex, "Failed to deactivate table {TableId}.", tableId);
-            return Results.Problem("Table could not be deactivated.");
+            return ApiProblemResponses.ServerError("Table could not be deactivated.");
         }
     }
 
@@ -155,14 +154,7 @@ public static class AdminTableEndpoints
         catch (Exception ex)
         {
             loggerFactory.CreateLogger(nameof(AdminTableEndpoints)).LogError(ex, "Failed to regenerate QR token for table {TableId}.", tableId);
-            return Results.Problem("QR token could not be regenerated.");
+            return ApiProblemResponses.ServerError("QR token could not be regenerated.");
         }
-    }
-
-    private static IResult ValidationProblem(IReadOnlyCollection<ValidationFailure> errors)
-    {
-        return Results.ValidationProblem(errors
-            .GroupBy(error => error.Field)
-            .ToDictionary(group => group.Key, group => group.Select(error => error.Message).ToArray()));
     }
 }

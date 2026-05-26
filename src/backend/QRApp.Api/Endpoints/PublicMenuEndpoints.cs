@@ -24,7 +24,7 @@ public static class PublicMenuEndpoints
         try
         {
             var menu = await menuItemService.GetPublicMenuByBranchAsync(branchId, cancellationToken);
-            return menu is null ? Results.NotFound() : Results.Ok(menu);
+            return menu is null ? ApiProblemResponses.NotFound("Public menu was not found for this branch.") : Results.Ok(menu);
         }
         catch (Exception ex)
         when (ex is SqlException)
@@ -35,4 +35,3 @@ public static class PublicMenuEndpoints
         }
     }
 }
-

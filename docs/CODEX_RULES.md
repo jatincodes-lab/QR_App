@@ -15,9 +15,10 @@ These rules must be followed for every task in this repository.
 2. Explain what will change.
 3. Modify only the required files.
 4. Create or update SQL files first when database changes are needed.
-5. Run build/test checks when possible.
-6. Update `docs/PROJECT_CONTEXT.md` after every change.
-7. Report changed files and the next recommended task.
+5. Update `docs/postman/API_CURLS.md` whenever an API route, request body, auth requirement, or response-driving path variable is added or changed.
+6. Run build/test checks when possible.
+7. Update `docs/PROJECT_CONTEXT.md` after every change.
+8. Report changed files and the next recommended task.
 
 ## Architecture
 

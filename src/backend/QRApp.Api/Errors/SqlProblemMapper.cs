@@ -19,33 +19,33 @@ internal static class SqlProblemMapper
             51604 => Conflict("QR token already exists."),
             2601 or 2627 => Conflict("A record with the same unique value already exists."),
 
-            51101 => Results.NotFound(new { message = "Active tenant was not found." }),
-            51103 => Results.NotFound(new { message = "Branch was not found for this tenant." }),
-            51201 => Results.NotFound(new { message = "Active branch was not found for this tenant." }),
-            51203 => Results.NotFound(new { message = "Branch order settings were not found for this tenant and branch." }),
-            51401 => Results.NotFound(new { message = "Active branch was not found for this tenant." }),
-            51403 => Results.NotFound(new { message = "Menu category was not found for this tenant and branch." }),
-            51501 => Results.NotFound(new { message = "Active menu category was not found for this tenant and branch." }),
-            51503 => Results.NotFound(new { message = "Menu item was not found for this tenant and branch." }),
-            51601 => Results.NotFound(new { message = "Active branch was not found for this tenant." }),
-            51603 => Results.NotFound(new { message = "Table was not found for this tenant and branch." }),
+            51101 => ApiProblemResponses.NotFound("Active tenant was not found."),
+            51103 => ApiProblemResponses.NotFound("Branch was not found for this tenant."),
+            51201 => ApiProblemResponses.NotFound("Active branch was not found for this tenant."),
+            51203 => ApiProblemResponses.NotFound("Branch order settings were not found for this tenant and branch."),
+            51401 => ApiProblemResponses.NotFound("Active branch was not found for this tenant."),
+            51403 => ApiProblemResponses.NotFound("Menu category was not found for this tenant and branch."),
+            51501 => ApiProblemResponses.NotFound("Active menu category was not found for this tenant and branch."),
+            51503 => ApiProblemResponses.NotFound("Menu item was not found for this tenant and branch."),
+            51601 => ApiProblemResponses.NotFound("Active branch was not found for this tenant."),
+            51603 => ApiProblemResponses.NotFound("Table was not found for this tenant and branch."),
 
-            547 => Results.BadRequest(new { message = "The request violates a database relationship constraint." }),
+            547 => ApiProblemResponses.BadRequest("The request violates a database relationship constraint."),
 
             -2 => ServiceUnavailable("Database operation timed out."),
             53 or 4060 or 18456 => ServiceUnavailable("Database is not available or not configured correctly."),
 
-            _ => Results.Problem("A database error occurred.")
+            _ => ApiProblemResponses.ServerError("A database error occurred.")
         };
     }
 
     private static IResult Conflict(string message)
     {
-        return Results.Conflict(new { message });
+        return ApiProblemResponses.Conflict(message);
     }
 
     private static IResult ServiceUnavailable(string message)
     {
-        return Results.Problem(message, statusCode: StatusCodes.Status503ServiceUnavailable);
+        return ApiProblemResponses.ServiceUnavailable(message);
     }
 }

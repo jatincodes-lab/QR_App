@@ -3,7 +3,6 @@ using Microsoft.Data.SqlClient;
 using QRApp.Api.Auth;
 using QRApp.Api.Errors;
 using QRApp.Application.Auth;
-using QRApp.Shared.Results;
 
 namespace QRApp.Api.Endpoints;
 
@@ -39,7 +38,7 @@ public static class AuthEndpoints
             var result = await authService.RegisterTenantOwnerAsync(request, cancellationToken);
             return result.IsSuccess
                 ? Results.Created("/api/v1/me", ToTokenResponse(result.Value!, jwtTokenService))
-                : ValidationProblem(result.Errors);
+                : ApiProblemResponses.Validation(result.Errors);
         }
         catch (Exception ex)
         when (ex is SqlException)
@@ -51,7 +50,7 @@ public static class AuthEndpoints
         catch (Exception ex)
         {
             loggerFactory.CreateLogger(nameof(AuthEndpoints)).LogError(ex, "Failed to register tenant owner.");
-            return Results.Problem("Tenant owner could not be registered.");
+            return ApiProblemResponses.ServerError("Tenant owner could not be registered.");
         }
     }
 
@@ -65,7 +64,9 @@ public static class AuthEndpoints
         try
         {
             var result = await authService.LoginAsync(request, cancellationToken);
-            return result.IsSuccess ? Results.Ok(ToTokenResponse(result.Value!, jwtTokenService)) : ValidationProblem(result.Errors);
+            return result.IsSuccess
+                ? Results.Ok(ToTokenResponse(result.Value!, jwtTokenService))
+                : ApiProblemResponses.Validation(result.Errors);
         }
         catch (Exception ex)
         when (ex is SqlException)
@@ -77,7 +78,7 @@ public static class AuthEndpoints
         catch (Exception ex)
         {
             loggerFactory.CreateLogger(nameof(AuthEndpoints)).LogError(ex, "Failed to login.");
-            return Results.Problem("Login could not be completed.");
+            return ApiProblemResponses.ServerError("Login could not be completed.");
         }
     }
 
@@ -86,14 +87,6 @@ public static class AuthEndpoints
         var token = jwtTokenService.CreateToken(session);
         return new AuthTokenResponse(token.AccessToken, token.ExpiresAtUtc, session.User, session.Tenant);
     }
-
-    private static IResult ValidationProblem(IReadOnlyCollection<ValidationFailure> errors)
-    {
-        return Results.ValidationProblem(errors
-            .GroupBy(error => error.Field)
-            .ToDictionary(group => group.Key, group => group.Select(error => error.Message).ToArray()));
-    }
-
     private sealed record AuthTokenResponse(
         string AccessToken,
         DateTime ExpiresAtUtc,
@@ -102,4 +95,3 @@ public static class AuthEndpoints
 
     private sealed record CurrentUserContextResponse(Guid UserId, Guid TenantId, string RoleCode);
 }
-

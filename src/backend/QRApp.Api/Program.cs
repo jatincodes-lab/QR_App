@@ -1,14 +1,20 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using QRApp.Api.Auth;
 using QRApp.Api.Endpoints;
+using QRApp.Api.Errors;
 using QRApp.Application;
 using QRApp.Application.Auth;
 using QRApp.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.Configure<RouteHandlerOptions>(options =>
+{
+    options.ThrowOnBadRequest = true;
+});
 builder.Services.AddHealthChecks();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddApplication();
@@ -39,10 +45,61 @@ builder.Services
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SigningKey)),
             ClockSkew = TimeSpan.FromMinutes(1)
         };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnChallenge = AuthProblemResponses.WriteUnauthorizedAsync,
+            OnForbidden = AuthProblemResponses.WriteForbiddenAsync
+        };
     });
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.DefaultPolicy = new AuthorizationPolicyBuilder(JwtBearerDefaults.AuthenticationScheme)
+        .RequireAuthenticatedUser()
+        .RequireClaim(TokenClaims.UserId)
+        .RequireClaim(TokenClaims.TenantId)
+        .RequireClaim(TokenClaims.RoleCode)
+        .Build();
+});
 
 var app = builder.Build();
+
+app.Use(async (context, next) =>
+{
+    try
+    {
+        await next();
+    }
+    catch (BadHttpRequestException)
+    {
+        await ApiProblemResponses.BadRequest("The request body, route value, or query value is invalid.").ExecuteAsync(context);
+    }
+    catch (Exception)
+    {
+        await ApiProblemResponses.ServerError("An unexpected server error occurred.").ExecuteAsync(context);
+    }
+});
+
+app.UseStatusCodePages(async statusCodeContext =>
+{
+    var response = statusCodeContext.HttpContext.Response;
+    if (response.HasStarted)
+    {
+        return;
+    }
+
+    var result = response.StatusCode switch
+    {
+        StatusCodes.Status404NotFound => ApiProblemResponses.NotFound("The requested API endpoint was not found."),
+        StatusCodes.Status405MethodNotAllowed => ApiProblemResponses.MethodNotAllowed("The HTTP method is not allowed for this API endpoint."),
+        _ => null
+    };
+
+    if (result is not null)
+    {
+        await result.ExecuteAsync(statusCodeContext.HttpContext);
+    }
+});
 
 app.UseAuthentication();
 app.UseAuthorization();

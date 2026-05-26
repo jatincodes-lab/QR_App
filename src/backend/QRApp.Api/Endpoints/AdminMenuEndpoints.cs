@@ -2,7 +2,6 @@ using Microsoft.Data.SqlClient;
 using QRApp.Api.Errors;
 using QRApp.Application.Auth;
 using QRApp.Application.Menus;
-using QRApp.Shared.Results;
 
 namespace QRApp.Api.Endpoints;
 
@@ -38,7 +37,7 @@ public static class AdminMenuEndpoints
             var result = await service.CreateAsync(tenantContext.TenantId, branchId, request, cancellationToken);
             return result.IsSuccess
                 ? Results.Created($"/api/v1/admin/branches/{branchId}/menu-categories/{result.Value!.MenuCategoryId}", result.Value)
-                : ValidationProblem(result.Errors);
+                : ApiProblemResponses.Validation(result.Errors);
         }
         catch (Exception ex)
         when (ex is SqlException)
@@ -50,7 +49,7 @@ public static class AdminMenuEndpoints
         catch (Exception ex)
         {
             loggerFactory.CreateLogger(nameof(AdminMenuEndpoints)).LogError(ex, "Failed to create menu category for branch {BranchId}.", branchId);
-            return Results.Problem("Menu category could not be created.");
+            return ApiProblemResponses.ServerError("Menu category could not be created.");
         }
     }
 
@@ -93,7 +92,7 @@ public static class AdminMenuEndpoints
         try
         {
             var result = await service.UpdateAsync(tenantContext.TenantId, branchId, menuCategoryId, request, cancellationToken);
-            return result.IsSuccess ? Results.Ok(result.Value) : ValidationProblem(result.Errors);
+            return result.IsSuccess ? Results.Ok(result.Value) : ApiProblemResponses.Validation(result.Errors);
         }
         catch (Exception ex)
         when (ex is SqlException)
@@ -105,7 +104,7 @@ public static class AdminMenuEndpoints
         catch (Exception ex)
         {
             loggerFactory.CreateLogger(nameof(AdminMenuEndpoints)).LogError(ex, "Failed to update menu category {MenuCategoryId}.", menuCategoryId);
-            return Results.Problem("Menu category could not be updated.");
+            return ApiProblemResponses.ServerError("Menu category could not be updated.");
         }
     }
 
@@ -132,7 +131,7 @@ public static class AdminMenuEndpoints
         catch (Exception ex)
         {
             loggerFactory.CreateLogger(nameof(AdminMenuEndpoints)).LogError(ex, "Failed to deactivate menu category {MenuCategoryId}.", menuCategoryId);
-            return Results.Problem("Menu category could not be deactivated.");
+            return ApiProblemResponses.ServerError("Menu category could not be deactivated.");
         }
     }
 
@@ -149,7 +148,7 @@ public static class AdminMenuEndpoints
             var result = await service.CreateAsync(tenantContext.TenantId, branchId, request, cancellationToken);
             return result.IsSuccess
                 ? Results.Created($"/api/v1/admin/branches/{branchId}/menu-items/{result.Value!.MenuItemId}", result.Value)
-                : ValidationProblem(result.Errors);
+                : ApiProblemResponses.Validation(result.Errors);
         }
         catch (Exception ex)
         when (ex is SqlException)
@@ -161,7 +160,7 @@ public static class AdminMenuEndpoints
         catch (Exception ex)
         {
             loggerFactory.CreateLogger(nameof(AdminMenuEndpoints)).LogError(ex, "Failed to create menu item for branch {BranchId}.", branchId);
-            return Results.Problem("Menu item could not be created.");
+            return ApiProblemResponses.ServerError("Menu item could not be created.");
         }
     }
 
@@ -204,7 +203,7 @@ public static class AdminMenuEndpoints
         try
         {
             var result = await service.UpdateAsync(tenantContext.TenantId, branchId, menuItemId, request, cancellationToken);
-            return result.IsSuccess ? Results.Ok(result.Value) : ValidationProblem(result.Errors);
+            return result.IsSuccess ? Results.Ok(result.Value) : ApiProblemResponses.Validation(result.Errors);
         }
         catch (Exception ex)
         when (ex is SqlException)
@@ -216,7 +215,7 @@ public static class AdminMenuEndpoints
         catch (Exception ex)
         {
             loggerFactory.CreateLogger(nameof(AdminMenuEndpoints)).LogError(ex, "Failed to update menu item {MenuItemId}.", menuItemId);
-            return Results.Problem("Menu item could not be updated.");
+            return ApiProblemResponses.ServerError("Menu item could not be updated.");
         }
     }
 
@@ -243,15 +242,7 @@ public static class AdminMenuEndpoints
         catch (Exception ex)
         {
             loggerFactory.CreateLogger(nameof(AdminMenuEndpoints)).LogError(ex, "Failed to deactivate menu item {MenuItemId}.", menuItemId);
-            return Results.Problem("Menu item could not be deactivated.");
+            return ApiProblemResponses.ServerError("Menu item could not be deactivated.");
         }
     }
-
-    private static IResult ValidationProblem(IReadOnlyCollection<ValidationFailure> errors)
-    {
-        return Results.ValidationProblem(errors
-            .GroupBy(error => error.Field)
-            .ToDictionary(group => group.Key, group => group.Select(error => error.Message).ToArray()));
-    }
 }
-

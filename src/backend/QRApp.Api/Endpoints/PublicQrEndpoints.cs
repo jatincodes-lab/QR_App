@@ -24,7 +24,7 @@ public static class PublicQrEndpoints
         try
         {
             var menu = await branchTableService.GetPublicMenuByQrTokenAsync(qrToken, cancellationToken);
-            return menu is null ? Results.NotFound() : Results.Ok(menu);
+            return menu is null ? ApiProblemResponses.NotFound("QR menu was not found. Check that the QR code is active and belongs to an active table.") : Results.Ok(menu);
         }
         catch (Exception ex)
         when (ex is SqlException)
