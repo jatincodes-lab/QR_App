@@ -43,27 +43,27 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <section className="mx-auto grid min-h-screen w-full max-w-7xl gap-4 px-4 py-4 lg:grid-cols-[1.08fr_0.92fr]">
-        <Card className="hidden overflow-hidden border-slate-800 bg-slate-950 text-white shadow-md lg:flex lg:flex-col lg:justify-between">
-          <CardContent className="p-8">
+    <main className="min-h-screen bg-background text-on-background">
+      <section className="mx-auto grid min-h-screen w-full max-w-7xl gap-6 px-4 py-4 lg:grid-cols-[1.08fr_0.92fr] lg:px-8 lg:py-8">
+        <Card className="hidden overflow-hidden border-primary/10 bg-primary text-white shadow-modal lg:flex lg:flex-col lg:justify-between">
+          <CardContent className="p-8 lg:p-10">
             <div className="flex items-center gap-3">
-              <div className="grid h-11 w-11 place-items-center rounded-md bg-white text-slate-950 shadow-sm">
+              <div className="grid h-11 w-11 place-items-center rounded-xl bg-white text-primary shadow-soft-saas">
                 <QrCode size={22} strokeWidth={2.4} />
               </div>
               <div>
-                <p className="text-sm font-semibold">QR Menu Admin</p>
-                <p className="text-xs text-slate-300">Restaurant control panel</p>
+                <p className="text-sm font-bold">Qrave</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-white/60">Restaurant OS</p>
               </div>
             </div>
 
-            <div className="mt-16 max-w-2xl">
-              <Badge className="border-teal-400/30 bg-teal-400/10 text-teal-200">Built for daily operations</Badge>
-              <h1 className="mt-4 text-5xl font-semibold leading-tight tracking-normal">
-                Keep menus, branches, and QR tables easy to manage.
+            <div className="mt-20 max-w-2xl">
+              <Badge className="border-soft-gold/30 bg-soft-gold/15 text-soft-gold">Built for daily operations</Badge>
+              <h1 className="mt-5 text-display-lg leading-tight tracking-normal text-white">
+                Crave-worthy QR ordering for modern restaurants.
               </h1>
-              <p className="mt-5 max-w-xl text-base leading-7 text-slate-300">
-                A simple workspace for restaurant owners and staff who need clear actions, readable information, and fewer mistakes during service hours.
+              <p className="mt-5 max-w-xl text-body-md leading-7 text-white/70">
+                A reliable workspace for restaurant operators who need clear actions, readable information, and fewer mistakes during service hours.
               </p>
             </div>
           </CardContent>
@@ -75,34 +75,34 @@ export default function AdminLoginPage() {
               ["QR Tables", "Serve guests faster"]
             ].map(([title, text]) => (
               <div key={title} className="border-r border-white/10 p-5 last:border-r-0">
-                <p className="text-sm font-semibold">{title}</p>
-                <p className="mt-1 text-xs leading-5 text-slate-300">{text}</p>
+                <p className="text-sm font-bold">{title}</p>
+                <p className="mt-1 text-xs leading-5 text-white/60">{text}</p>
               </div>
             ))}
           </div>
         </Card>
 
-        <Card className="flex min-h-[calc(100vh-32px)] items-center justify-center px-5 py-8">
+        <Card className="flex min-h-[calc(100vh-32px)] items-center justify-center border-outline-variant/40 bg-surface-container-lowest px-5 py-8 shadow-soft-saas lg:min-h-[calc(100vh-64px)]">
           <div className="w-full max-w-md">
             <div className="lg:hidden">
               <div className="flex items-center gap-3">
-                <div className="grid h-10 w-10 place-items-center rounded-md bg-primary text-primary-foreground">
+                <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary text-soft-gold">
                   <QrCode size={20} />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold">QR Menu Admin</p>
-                  <p className="text-xs text-muted-foreground">Restaurant control panel</p>
+                  <p className="text-sm font-bold text-primary">Qrave</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-on-surface-variant">Restaurant OS</p>
                 </div>
               </div>
             </div>
 
             <CardHeader className="mt-8 px-0 pb-2 pt-0 lg:mt-0">
-              <Badge variant="secondary" className="w-fit gap-2">
+              <Badge variant="secondary" className="w-fit gap-2 bg-primary/5 text-primary">
                 <Building2 size={14} />
                 Admin access
               </Badge>
-              <CardTitle className="mt-3 text-3xl">Login to your workspace</CardTitle>
-              <CardDescription className="leading-6">
+              <CardTitle className="mt-4 text-headline-lg text-primary">Login to your workspace</CardTitle>
+              <CardDescription className="leading-6 text-on-surface-variant">
                 Use your owner account to manage branches, menus, and QR code setup.
               </CardDescription>
             </CardHeader>
@@ -115,32 +115,32 @@ export default function AdminLoginPage() {
 
             <form onSubmit={handleSubmit} className="mt-6 space-y-4">
               <label className="block">
-                <Label>Email address</Label>
+                <Label className="text-on-surface">Email address</Label>
                 <div className="relative mt-2">
-                  <Mail size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Mail size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" />
                   <Input
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
                     type="email"
                     autoComplete="email"
                     placeholder="owner@example.com"
-                    className="pl-10"
+                    className="h-11 rounded-lg border-outline-variant/60 bg-surface-container-low pl-10 focus-visible:ring-primary"
                     required
                   />
                 </div>
               </label>
 
               <label className="block">
-                <Label>Password</Label>
+                <Label className="text-on-surface">Password</Label>
                 <div className="relative mt-2">
-                  <LockKeyhole size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <LockKeyhole size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" />
                   <Input
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
                     type={showPassword ? "text" : "password"}
                     autoComplete="current-password"
                     placeholder="Enter password"
-                    className="pl-10 pr-11"
+                    className="h-11 rounded-lg border-outline-variant/60 bg-surface-container-low pl-10 pr-11 focus-visible:ring-primary"
                     required
                   />
                   <Button
@@ -148,7 +148,7 @@ export default function AdminLoginPage() {
                     variant="ghost"
                     size="icon"
                     onClick={() => setShowPassword((current) => !current)}
-                    className="absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2 text-muted-foreground"
+                    className="absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2 text-on-surface-variant"
                     aria-label={showPassword ? "Hide password" : "Show password"}
                   >
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -159,17 +159,17 @@ export default function AdminLoginPage() {
               <Button
                 type="submit"
                 disabled={isSubmitting}
-                className="h-11 w-full"
+                className="h-12 w-full rounded-lg bg-primary text-on-primary shadow-soft-saas hover:bg-primary-container"
               >
                 {isSubmitting ? "Logging in..." : "Login"}
                 {!isSubmitting ? <ArrowRight size={18} /> : null}
               </Button>
             </form>
 
-            <div className="mt-6 space-y-2 border-t pt-5">
+            <div className="mt-6 space-y-2 border-t border-outline-variant/30 pt-5">
               {["Clear branch setup", "Simple menu controls", "QR table management"].map((text) => (
-                <div key={text} className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <CheckCircle2 size={16} className="text-emerald-600" />
+                <div key={text} className="flex items-center gap-2 text-sm text-on-surface-variant">
+                  <CheckCircle2 size={16} className="text-soft-gold" />
                   {text}
                 </div>
               ))}

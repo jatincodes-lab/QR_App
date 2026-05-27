@@ -1,30 +1,33 @@
+@import url("https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
   color-scheme: light;
-  --background: 210 25% 97%;
-  --foreground: 222 47% 11%;
+  --background: 210 17% 98%;
+  --foreground: 200 7% 11%;
   --card: 0 0% 100%;
-  --card-foreground: 222 47% 11%;
-  --primary: 173 80% 28%;
+  --card-foreground: 200 7% 11%;
+  --primary: 219 76% 8%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 210 40% 96%;
-  --secondary-foreground: 222 47% 11%;
-  --muted: 210 40% 94%;
-  --muted-foreground: 215 16% 47%;
-  --accent: 210 40% 96%;
-  --accent-foreground: 222 47% 11%;
+  --secondary: 42 65% 28%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 210 4% 93%;
+  --muted-foreground: 225 5% 29%;
+  --accent: 39 98% 76%;
+  --accent-foreground: 219 76% 8%;
   --destructive: 0 72% 51%;
   --destructive-foreground: 0 0% 100%;
-  --border: 214 32% 91%;
-  --input: 214 32% 91%;
-  --ring: 173 80% 28%;
+  --border: 214 24% 90%;
+  --input: 214 24% 90%;
+  --ring: 219 76% 8%;
 }
 
 body {
   margin: 0;
+  font-family: "Public Sans", ui-sans-serif, system-ui, sans-serif;
   background: hsl(var(--background));
   color: hsl(var(--foreground));
   -webkit-font-smoothing: antialiased;
@@ -39,4 +42,26 @@ a {
 button,
 input {
   font: inherit;
+}
+
+@layer components {
+  .glass-panel,
+  .glass-card {
+    background: rgba(255, 255, 255, 0.88);
+    border: 1px solid rgba(197, 198, 205, 0.45);
+    box-shadow: 0 4px 12px rgba(27, 38, 59, 0.08);
+    backdrop-filter: blur(16px);
+  }
+
+  .soft-saas-shadow {
+    box-shadow: 0 4px 12px rgba(27, 38, 59, 0.08);
+  }
+
+  .table-cell-hover {
+    transition: background-color 160ms ease, color 160ms ease;
+  }
+
+  .table-cell-hover:hover {
+    background: rgba(243, 244, 245, 0.72);
+  }
 }

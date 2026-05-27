@@ -6,19 +6,16 @@ import {
   Building2,
   ChefHat,
   CircleAlert,
-  LayoutDashboard,
-  LogOut,
   MapPin,
   Plus,
   Power,
-  QrCode,
   RefreshCw,
   Search,
-  Settings,
   Store,
   X
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { AdminShell } from "../../../components/admin-shell";
 import { Alert, AlertDescription } from "../../../components/ui/alert";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
@@ -167,62 +164,33 @@ export default function AdminBranchesPage() {
   }
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <div className="min-h-screen lg:grid lg:grid-cols-[272px_1fr]">
-        <aside className="border-b bg-card lg:border-b-0 lg:border-r">
-          <div className="flex h-16 items-center justify-between px-4 lg:h-full lg:min-h-screen lg:flex-col lg:items-stretch lg:px-4 lg:py-5">
-            <div>
-              <div className="flex items-center gap-3">
-                <div className="grid h-10 w-10 place-items-center rounded-md bg-primary text-primary-foreground">
-                  <QrCode size={20} />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold">QR Menu Admin</p>
-                  <p className="text-xs text-muted-foreground">Restaurant workspace</p>
-                </div>
-              </div>
-
-              <nav className="mt-8 hidden space-y-1 lg:block">
-                <NavItem active icon={<LayoutDashboard size={18} />} label="Branches" />
-                <NavItem icon={<ChefHat size={18} />} label="Menu" disabled />
-                <NavItem icon={<QrCode size={18} />} label="Tables & QR" disabled />
-                <NavItem icon={<Settings size={18} />} label="Settings" disabled />
-              </nav>
-            </div>
-
-            <Button type="button" variant="outline" onClick={handleLogout} className="gap-2">
-              <LogOut size={17} />
-              <span className="hidden sm:inline">Logout</span>
-            </Button>
-          </div>
-        </aside>
-
-        <section className="px-4 py-5 lg:px-8 lg:py-7">
+    <AdminShell active="branches" onLogout={handleLogout} branchName={activeBranches[0]?.name ?? "Downtown Flagship"}>
+      <div className="mx-auto max-w-7xl space-y-gutter">
           <header className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
             <div>
-              <Badge variant="secondary" className="gap-2">
+              <Badge variant="secondary" className="gap-2 bg-primary/5 text-primary">
                 <Store size={14} />
                 Branch management
               </Badge>
-              <h1 className="mt-4 text-3xl font-semibold tracking-normal">Restaurant branches</h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+              <h1 className="mt-4 text-headline-lg text-primary">Restaurant branches</h1>
+              <p className="mt-2 max-w-2xl text-body-md text-on-surface-variant">
                 Add each restaurant location, then manage menu, tables, and QR codes branch by branch.
               </p>
             </div>
 
             <div className="flex flex-col gap-2 sm:flex-row">
-              <Button type="button" variant="outline" onClick={() => void loadBranches()}>
+              <Button type="button" variant="outline" onClick={() => void loadBranches()} className="border-outline-variant/60 bg-white">
                 <RefreshCw size={17} />
                 Refresh
               </Button>
-              <Button type="button" onClick={() => setShowAddBranch(true)}>
+              <Button type="button" onClick={() => setShowAddBranch(true)} className="bg-primary text-on-primary shadow-soft-saas hover:bg-primary-container">
                 <Plus size={18} />
                 Add Branch
               </Button>
             </div>
           </header>
 
-          <section className="mt-6 grid gap-3 md:grid-cols-3">
+          <section className="grid gap-4 md:grid-cols-3">
             <Metric icon={<Building2 size={20} />} label="Active branches" value={activeBranches.length.toString()} />
             <Metric icon={<Store size={20} />} label="Setup status" value={activeBranches.length > 0 ? "Ready" : "Pending"} />
             <Metric icon={<ChefHat size={20} />} label="Next step" value="Menu setup" />
@@ -240,19 +208,19 @@ export default function AdminBranchesPage() {
             </DismissibleAlert>
           ) : null}
 
-          <Card className="mt-6">
+          <Card className="overflow-hidden border-outline-variant/30 bg-surface-container-lowest shadow-soft-saas">
             <CardHeader className="gap-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
               <div>
-                <CardTitle className="text-lg">Branch list</CardTitle>
-                <CardDescription className="mt-1">Choose a branch to continue setup.</CardDescription>
+                <CardTitle className="text-headline-md text-primary">Branch list</CardTitle>
+                <CardDescription className="mt-1 text-on-surface-variant">Choose a branch to continue setup.</CardDescription>
               </div>
               <div className="relative w-full sm:max-w-sm">
-                <Search size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Search size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" />
                 <Input
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                   placeholder="Search branch, city, phone"
-                  className="pl-10"
+                  className="h-11 rounded-lg border-outline-variant/50 bg-surface-container-low pl-10"
                 />
               </div>
             </CardHeader>
@@ -283,28 +251,28 @@ export default function AdminBranchesPage() {
                       <TableRow key={branch.branchId}>
                         <TableCell>
                           <div className="flex items-center gap-3">
-                            <div className="grid h-10 w-10 place-items-center rounded-md bg-muted text-muted-foreground">
+                            <div className="grid h-10 w-10 place-items-center rounded-lg bg-primary-fixed-dim text-primary">
                               <Store size={18} />
                             </div>
                             <div>
-                              <p className="font-medium">{branch.name}</p>
-                              <p className="mt-1 text-xs text-muted-foreground">Created {formatDate(branch.createdAtUtc)}</p>
+                              <p className="font-semibold text-on-surface">{branch.name}</p>
+                              <p className="mt-1 text-xs text-on-surface-variant">Created {formatDate(branch.createdAtUtc)}</p>
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell className="text-muted-foreground">
+                        <TableCell className="text-on-surface-variant">
                           <span className="inline-flex items-center gap-2">
                             <MapPin size={16} />
                             {[branch.city, branch.countryCode].filter(Boolean).join(", ") || "Not added"}
                           </span>
                         </TableCell>
-                        <TableCell className="text-muted-foreground">{branch.phoneNumber || "Not added"}</TableCell>
+                        <TableCell className="text-on-surface-variant">{branch.phoneNumber || "Not added"}</TableCell>
                         <TableCell>
-                          <Badge variant="success">Active</Badge>
+                          <Badge variant="success" className="bg-secondary-container/40 text-on-secondary-container">Active</Badge>
                         </TableCell>
                         <TableCell>
                           <div className="flex justify-end gap-2">
-                            <Button type="button" variant="outline" size="sm" onClick={() => setNotice("Branch detail, menu, and QR setup are next.")}>
+                            <Button type="button" variant="outline" size="sm" onClick={() => setNotice("Branch detail, menu, and QR setup are next.")} className="border-outline-variant/60">
                               Manage
                               <ArrowRight size={16} />
                             </Button>
@@ -327,7 +295,6 @@ export default function AdminBranchesPage() {
               )}
             </CardContent>
           </Card>
-        </section>
       </div>
 
       {showAddBranch ? (
@@ -347,34 +314,21 @@ export default function AdminBranchesPage() {
           onConfirm={handleTurnOffBranch}
         />
       ) : null}
-    </main>
-  );
-}
-
-function NavItem({ icon, label, active = false, disabled = false }: { icon: ReactNode; label: string; active?: boolean; disabled?: boolean }) {
-  return (
-    <div
-      className={[
-        "flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium",
-        active ? "bg-primary/10 text-primary" : "text-muted-foreground",
-        disabled ? "opacity-60" : ""
-      ].join(" ")}
-    >
-      {icon}
-      {label}
-    </div>
+    </AdminShell>
   );
 }
 
 function Metric({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
   return (
-    <Card>
-      <CardContent className="p-4">
-        <div className="flex items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-md border bg-muted text-muted-foreground">{icon}</div>
-          <div>
-            <p className="text-xs font-medium uppercase text-muted-foreground">{label}</p>
-            <p className="mt-1 text-lg font-semibold">{value}</p>
+    <Card className="border-outline-variant/30 bg-surface-container-lowest shadow-soft-saas">
+      <CardContent className="p-5">
+        <div className="flex min-h-[106px] flex-col items-center justify-center text-center">
+          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-primary/10 bg-primary/5 text-primary">
+            {icon}
+          </div>
+          <div className="mt-4 min-w-0">
+            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-on-surface-variant/70">{label}</p>
+            <p className="mt-2 text-2xl font-bold leading-none text-primary">{value}</p>
           </div>
         </div>
       </CardContent>

@@ -17,6 +17,20 @@ builder.Services.Configure<RouteHandlerOptions>(options =>
 });
 builder.Services.AddHealthChecks();
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("Frontend", policy =>
+    {
+        policy
+            .WithOrigins(
+                "http://localhost:3000",
+                "http://127.0.0.1:3000",
+                "http://localhost:3010",
+                "http://127.0.0.1:3010")
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure();
 builder.Services.AddScoped<ITenantContext, HttpTenantContext>();
@@ -101,6 +115,7 @@ app.UseStatusCodePages(async statusCodeContext =>
     }
 });
 
+app.UseCors("Frontend");
 app.UseAuthentication();
 app.UseAuthorization();
 

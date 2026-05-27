@@ -1,6 +1,6 @@
-# QR-App
+# Qrave
 
-Industry-focused multi-tenant QR menu and table-ordering SaaS for cafes and restaurants.
+Qrave is an industry-focused multi-tenant QR menu and table-ordering SaaS for cafes and restaurants.
 
 ## Scope
 

@@ -2,7 +2,7 @@
 
 ## Product
 
-Multi-tenant QR menu and table-ordering SaaS for cafes and restaurants.
+Qrave is a multi-tenant QR menu and table-ordering SaaS for cafes and restaurants.
 
 Core flow:
 
@@ -332,3 +332,5 @@ Build the branch detail screen with menu categories/items, tables/QR codes, and 
 - Tailwind is configured for Tailwind CSS 3.x using `@tailwind base`, `@tailwind components`, and `@tailwind utilities` in `src/frontend/app/globals.css`.
 - PostCSS uses `src/frontend/postcss.config.js` with `tailwindcss` and `autoprefixer`.
 - Tailwind scans `app`, `pages`, `components`, `lib`, local `src`, and nearby shared/package folders so admin page utility classes are generated.
+- The downloaded Stitch "Premium Hospitality Suite" design system is mapped into `src/frontend/tailwind.config.ts` and `src/frontend/app/globals.css`, including Public Sans, navy/gold brand colors, surface/on-surface token aliases, dashboard spacing/radius tokens, and shared prototype utilities such as `glass-panel` and `soft-saas-shadow`.
+- `src/frontend/components/admin-shell.tsx` provides the shared premium admin sidebar/header shell. `/admin/login` and `/admin/branches` have been visually adapted to the mapped design while preserving their existing auth, API, and branch-management logic.
