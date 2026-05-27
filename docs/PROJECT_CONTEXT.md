@@ -325,3 +325,10 @@ Base project structure has been created. The first backend foundation slice now 
 ## Next Recommended Task
 
 Build the branch detail screen with menu categories/items, tables/QR codes, and order settings against the authenticated admin APIs.
+
+## Frontend CSS/Tailwind Setup
+
+- The Next.js admin frontend imports `./globals.css` from `src/frontend/app/layout.tsx`.
+- Tailwind is configured for Tailwind CSS 3.x using `@tailwind base`, `@tailwind components`, and `@tailwind utilities` in `src/frontend/app/globals.css`.
+- PostCSS uses `src/frontend/postcss.config.js` with `tailwindcss` and `autoprefixer`.
+- Tailwind scans `app`, `pages`, `components`, `lib`, local `src`, and nearby shared/package folders so admin page utility classes are generated.
