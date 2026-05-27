@@ -48,6 +48,57 @@ export type BranchListItem = {
   updatedAtUtc: string | null;
 };
 
+export type MenuCategory = {
+  menuCategoryId: string;
+  tenantId: string;
+  branchId: string;
+  name: string;
+  displayOrder: number;
+  isActive: boolean;
+  createdAtUtc: string;
+  updatedAtUtc: string | null;
+};
+
+export type MenuItem = {
+  menuItemId: string;
+  tenantId: string;
+  branchId: string;
+  menuCategoryId: string;
+  categoryName: string;
+  name: string;
+  description: string | null;
+  price: number;
+  isAvailable: boolean;
+  isActive: boolean;
+  displayOrder: number;
+  createdAtUtc: string;
+  updatedAtUtc: string | null;
+};
+
+export type BranchTable = {
+  tableId: string;
+  tenantId: string;
+  branchId: string;
+  name: string;
+  displayOrder: number;
+  qrToken: string;
+  isActive: boolean;
+  createdAtUtc: string;
+  updatedAtUtc: string | null;
+};
+
+export type BranchOrderSettings = {
+  branchOrderSettingsId: string;
+  tenantId: string;
+  branchId: string;
+  enableDirectQrOrdering: boolean;
+  requireCustomerName: boolean;
+  requireCustomerWhatsApp: boolean;
+  waiterCallEnabled: boolean;
+  createdAtUtc: string;
+  updatedAtUtc: string | null;
+};
+
 export type CreateBranchInput = {
   name: string;
   phoneNumber: string | null;
@@ -57,6 +108,32 @@ export type CreateBranchInput = {
   state: string | null;
   postalCode: string | null;
   countryCode: string;
+};
+
+export type CreateMenuCategoryInput = {
+  name: string;
+  displayOrder: number;
+};
+
+export type CreateMenuItemInput = {
+  menuCategoryId: string;
+  name: string;
+  description: string | null;
+  price: number;
+  isAvailable: boolean;
+  displayOrder: number;
+};
+
+export type CreateBranchTableInput = {
+  name: string;
+  displayOrder: number;
+};
+
+export type SaveBranchOrderSettingsInput = {
+  enableDirectQrOrdering: boolean;
+  requireCustomerName: boolean;
+  requireCustomerWhatsApp: boolean;
+  waiterCallEnabled: boolean;
 };
 
 export async function login(email: string, password: string): Promise<LoginResponse> {
@@ -74,6 +151,13 @@ export async function getBranches(): Promise<BranchListItem[]> {
   });
 }
 
+export async function getBranch(branchId: string): Promise<BranchListItem> {
+  return request<BranchListItem>(`/api/v1/admin/branches/${branchId}`, {
+    method: "GET",
+    requireAuth: true
+  });
+}
+
 export async function createBranch(input: CreateBranchInput): Promise<BranchListItem> {
   return request<BranchListItem>("/api/v1/admin/branches", {
     method: "POST",
@@ -85,6 +169,116 @@ export async function createBranch(input: CreateBranchInput): Promise<BranchList
 export async function turnOffBranch(branchId: string): Promise<void> {
   await request<void>(`/api/v1/admin/branches/${branchId}`, {
     method: "DELETE",
+    requireAuth: true
+  });
+}
+
+export async function getMenuCategories(branchId: string): Promise<MenuCategory[]> {
+  return request<MenuCategory[]>(`/api/v1/admin/branches/${branchId}/menu-categories?includeInactive=false`, {
+    method: "GET",
+    requireAuth: true
+  });
+}
+
+export async function createMenuCategory(branchId: string, input: CreateMenuCategoryInput): Promise<MenuCategory> {
+  return request<MenuCategory>(`/api/v1/admin/branches/${branchId}/menu-categories`, {
+    method: "POST",
+    body: input,
+    requireAuth: true
+  });
+}
+
+export async function deactivateMenuCategory(branchId: string, menuCategoryId: string): Promise<void> {
+  await request<void>(`/api/v1/admin/branches/${branchId}/menu-categories/${menuCategoryId}`, {
+    method: "DELETE",
+    requireAuth: true
+  });
+}
+
+export async function getMenuItems(branchId: string): Promise<MenuItem[]> {
+  return request<MenuItem[]>(`/api/v1/admin/branches/${branchId}/menu-items?includeInactive=false`, {
+    method: "GET",
+    requireAuth: true
+  });
+}
+
+export async function createMenuItem(branchId: string, input: CreateMenuItemInput): Promise<MenuItem> {
+  return request<MenuItem>(`/api/v1/admin/branches/${branchId}/menu-items`, {
+    method: "POST",
+    body: input,
+    requireAuth: true
+  });
+}
+
+export async function deactivateMenuItem(branchId: string, menuItemId: string): Promise<void> {
+  await request<void>(`/api/v1/admin/branches/${branchId}/menu-items/${menuItemId}`, {
+    method: "DELETE",
+    requireAuth: true
+  });
+}
+
+export async function getBranchTables(branchId: string): Promise<BranchTable[]> {
+  return request<BranchTable[]>(`/api/v1/admin/branches/${branchId}/tables?includeInactive=false`, {
+    method: "GET",
+    requireAuth: true
+  });
+}
+
+export async function createBranchTable(branchId: string, input: CreateBranchTableInput): Promise<BranchTable> {
+  return request<BranchTable>(`/api/v1/admin/branches/${branchId}/tables`, {
+    method: "POST",
+    body: input,
+    requireAuth: true
+  });
+}
+
+export async function deactivateBranchTable(branchId: string, tableId: string): Promise<void> {
+  await request<void>(`/api/v1/admin/branches/${branchId}/tables/${tableId}`, {
+    method: "DELETE",
+    requireAuth: true
+  });
+}
+
+export async function regenerateBranchTableQrToken(branchId: string, tableId: string): Promise<BranchTable> {
+  return request<BranchTable>(`/api/v1/admin/branches/${branchId}/tables/${tableId}/qr-token/regenerate`, {
+    method: "POST",
+    requireAuth: true
+  });
+}
+
+export async function getBranchOrderSettings(branchId: string): Promise<BranchOrderSettings | null> {
+  try {
+    return await request<BranchOrderSettings>(`/api/v1/admin/branches/${branchId}/order-settings`, {
+      method: "GET",
+      requireAuth: true
+    });
+  } catch (caught) {
+    if (caught instanceof ApiError && caught.status === 404) {
+      return null;
+    }
+
+    throw caught;
+  }
+}
+
+export async function createBranchOrderSettings(
+  branchId: string,
+  input: SaveBranchOrderSettingsInput
+): Promise<BranchOrderSettings> {
+  return request<BranchOrderSettings>(`/api/v1/admin/branches/${branchId}/order-settings`, {
+    method: "POST",
+    body: input,
+    requireAuth: true
+  });
+}
+
+export async function updateBranchOrderSettings(
+  branchId: string,
+  input: SaveBranchOrderSettingsInput
+): Promise<BranchOrderSettings> {
+  return request<BranchOrderSettings>(`/api/v1/admin/branches/${branchId}/order-settings`, {
+    method: "PUT",
+    body: input,
     requireAuth: true
   });
 }

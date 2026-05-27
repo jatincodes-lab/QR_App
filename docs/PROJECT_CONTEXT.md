@@ -66,6 +66,8 @@ Base project structure has been created. The first backend foundation slice now 
 - Standardized validation, not-found, conflict, malformed-request, service-unavailable, and unexpected-error API responses as `application/problem+json`.
 - Added the first frontend admin slice with login, JWT storage, authenticated API client, admin shell, branch listing, branch creation, and branch turn-off flow.
 - Upgraded the first frontend admin slice from functional scaffold to polished UI with lucide icons, improved login composition, branch workspace metrics, search, table layout, modal add branch flow, and clearer confirmation/notice states.
+- Added the admin branch detail workspace with authenticated menu category/item management, table QR token management, QR link copy/regeneration actions, and branch order settings create/update flow.
+- Refined admin metric cards on branch list and branch detail pages to match the compact horizontal bordered card style used in the approved design reference.
 
 ## Files Changed
 
@@ -174,6 +176,7 @@ Base project structure has been created. The first backend foundation slice now 
 - `src/frontend/app/admin/page.tsx`
 - `src/frontend/app/admin/login/page.tsx`
 - `src/frontend/app/admin/branches/page.tsx`
+- `src/frontend/app/admin/branches/[branchId]/page.tsx`
 - `src/frontend/lib/api.ts`
 - `src/frontend/lib/auth.ts`
 - `database/tables/.gitkeep`
@@ -307,6 +310,8 @@ Base project structure has been created. The first backend foundation slice now 
 - `lucide-react` was added for professional icons in admin navigation, buttons, status cards, and dialogs.
 - `npm run build` passed again after the frontend UI polish pass.
 - `npm install` reported vulnerabilities in the current frontend dependency set because Next.js `14.2.16` is deprecated with a security warning; dependency upgrades are pending.
+- `cmd /c "set NODE_OPTIONS=--max-old-space-size=4096&& npm run build"` passed after adding the admin branch detail workspace. A normal PowerShell `npm run build` is blocked by local script execution policy, and the default Node heap ran out of memory during Next.js production build.
+- `cmd /c "set NODE_OPTIONS=--max-old-space-size=4096&& npm run build"` passed after the admin metric card UI refinement.
 
 ## Pending Work
 
@@ -318,13 +323,12 @@ Base project structure has been created. The first backend foundation slice now 
 - Apply the new menu SQL scripts to LocalDB before runtime menu testing.
 - Apply the new table/QR SQL scripts to LocalDB before runtime table and QR token testing.
 - Public QR menu lookup by `branchId` still exists for foundation testing, but `/api/v1/public/qr/{qrToken}` is now the production-oriented lookup path.
-- Add frontend branch detail flows for menu categories/items, tables/QR codes, and order settings.
 - Add public QR menu UI at `/qr/{qrToken}`.
 - Upgrade frontend dependencies to a patched Next.js version.
 
 ## Next Recommended Task
 
-Build the branch detail screen with menu categories/items, tables/QR codes, and order settings against the authenticated admin APIs.
+Build the public QR menu UI at `/qr/{qrToken}` against the production-oriented public QR lookup API.
 
 ## Frontend CSS/Tailwind Setup
 

@@ -272,7 +272,7 @@ export default function AdminBranchesPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex justify-end gap-2">
-                            <Button type="button" variant="outline" size="sm" onClick={() => setNotice("Branch detail, menu, and QR setup are next.")} className="border-outline-variant/60">
+                            <Button type="button" variant="outline" size="sm" onClick={() => router.push(`/admin/branches/${branch.branchId}`)} className="border-outline-variant/60">
                               Manage
                               <ArrowRight size={16} />
                             </Button>
@@ -320,15 +320,15 @@ export default function AdminBranchesPage() {
 
 function Metric({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
   return (
-    <Card className="border-outline-variant/30 bg-surface-container-lowest shadow-soft-saas">
-      <CardContent className="p-5">
-        <div className="flex min-h-[106px] flex-col items-center justify-center text-center">
-          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-primary/10 bg-primary/5 text-primary">
+    <Card className="rounded-xl border border-outline-variant/40 bg-white shadow-none">
+      <CardContent className="p-0">
+        <div className="flex min-h-[72px] items-center gap-4 px-5 py-4">
+          <div className="grid h-9 w-9 shrink-0 place-items-center text-primary">
             {icon}
           </div>
-          <div className="mt-4 min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-on-surface-variant/70">{label}</p>
-            <p className="mt-2 text-2xl font-bold leading-none text-primary">{value}</p>
+          <div className="min-w-0">
+            <p className="truncate text-[11px] font-bold uppercase tracking-[0.08em] text-on-surface-variant">{label}</p>
+            <p className="mt-0.5 truncate text-[22px] font-semibold leading-none text-on-surface">{value}</p>
           </div>
         </div>
       </CardContent>
