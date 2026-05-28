@@ -325,6 +325,10 @@ function CartPage({
   onNotesChange: (value: string) => void;
   onSubmit: () => void;
 }) {
+  if (submitState.kind === "success") {
+    return <OrderPlacedView order={submitState.order} onBackToMenu={onBackToMenu} />;
+  }
+
   return (
     <section className="flex-1 bg-surface-bright px-4 py-4 pb-8">
       <div className="mb-4 flex items-center justify-between gap-3">
@@ -342,16 +346,6 @@ function CartPage({
           Menu
         </button>
       </div>
-
-      {submitState.kind === "success" ? (
-        <div className="mb-4 flex items-start gap-3 rounded border border-emerald-200 bg-emerald-50 p-3 text-emerald-900">
-          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
-          <div>
-            <p className="text-sm font-bold">Order sent</p>
-            <p className="mt-1 text-sm">Order total: {formatPrice(submitState.order.totalAmount)}</p>
-          </div>
-        </div>
-      ) : null}
 
       {submitState.kind === "error" ? (
         <div className="mb-4 flex items-start gap-3 rounded border border-red-200 bg-red-50 p-3 text-red-900">
@@ -464,6 +458,65 @@ function CartPage({
   );
 }
 
+function OrderPlacedView({ order, onBackToMenu }: { order: PublicQrOrder; onBackToMenu: () => void }) {
+  return (
+    <section className="flex-1 bg-surface-bright px-4 py-5 pb-8">
+      <div className="rounded-lg border border-line bg-white p-5 text-center">
+        <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-emerald-50 text-emerald-700">
+          <CheckCircle2 className="h-8 w-8" aria-hidden="true" />
+        </div>
+        <h2 className="mt-4 text-2xl font-extrabold text-ink">Order placed</h2>
+        <p className="mt-2 text-sm leading-6 text-on-surface-variant">Staff received your order.</p>
+
+        <div className="mt-5 grid grid-cols-2 gap-3 text-left">
+          <div className="rounded border border-line bg-surface-bright p-3">
+            <p className="text-xs font-bold uppercase text-on-surface-variant">Order</p>
+            <p className="mt-1 text-lg font-extrabold text-ink">#{shortOrderCode(order.orderId)}</p>
+          </div>
+          <div className="rounded border border-line bg-surface-bright p-3">
+            <p className="text-xs font-bold uppercase text-on-surface-variant">Status</p>
+            <p className="mt-1 text-lg font-extrabold text-primary">{order.orderStatusCode}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-lg border border-line bg-white p-4">
+        <div className="flex items-center justify-between border-b border-line pb-3">
+          <h3 className="text-sm font-extrabold uppercase text-ink">Items</h3>
+          <p className="text-sm font-bold text-on-surface-variant">{order.items.length} item{order.items.length === 1 ? "" : "s"}</p>
+        </div>
+
+        <div className="divide-y divide-line">
+          {order.items.map((item) => (
+            <div key={item.orderItemId} className="grid grid-cols-[1fr_auto] gap-3 py-3">
+              <div className="min-w-0">
+                <p className="break-words text-sm font-bold text-ink">{item.menuItemName}</p>
+                <p className="mt-1 text-xs text-on-surface-variant">
+                  {item.quantity} x {formatPrice(item.unitPrice)}
+                </p>
+              </div>
+              <p className="text-sm font-extrabold text-ink">{formatPrice(item.lineTotal)}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-2 flex items-center justify-between border-t border-line pt-3">
+          <span className="text-base font-extrabold text-ink">Total amount</span>
+          <span className="text-xl font-extrabold text-primary">{formatPrice(order.totalAmount)}</span>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        className="mt-4 h-12 w-full rounded bg-primary px-4 text-sm font-extrabold text-on-primary"
+        onClick={onBackToMenu}
+      >
+        Back to menu
+      </button>
+    </section>
+  );
+}
+
 function HeaderCartButton({ cartCount, onOpen }: { cartCount: number; onOpen: () => void }) {
   return (
     <div className="fixed inset-x-0 top-0 z-30 pointer-events-none">
@@ -562,6 +615,10 @@ function ItemImage({ name }: { name: string }) {
 function valueOrNull(value: string): string | null {
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function shortOrderCode(orderId: string): string {
+  return orderId.replaceAll("-", "").slice(0, 8).toUpperCase();
 }
 
 function formatPrice(price: number): string {
