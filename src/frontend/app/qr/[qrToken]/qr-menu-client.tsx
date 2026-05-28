@@ -348,28 +348,30 @@ function OrderDock({
             <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary text-on-primary">
               <ShoppingBag className="h-5 w-5" aria-hidden="true" />
             </div>
-            <div className="min-w-0">
+          <div className="min-w-0">
               <p className="text-sm font-bold">{cartCount} item{cartCount === 1 ? "" : "s"}</p>
               <p className="text-sm text-on-surface-variant">{formatPrice(cartTotal)}</p>
             </div>
           </div>
-          <button
-            type="button"
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-line text-on-surface-variant"
-            onClick={onClose}
-            aria-label="Close cart"
-          >
-            <X className="h-4 w-4" aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            className="inline-flex h-11 items-center gap-2 rounded-full bg-primary px-4 text-sm font-extrabold text-on-primary disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={cartCount === 0 || submitState.kind === "submitting"}
-            onClick={onSubmit}
-          >
-            <Send className="h-4 w-4" aria-hidden="true" />
-            {submitState.kind === "submitting" ? "Sending" : "Place order"}
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              className="inline-flex h-11 items-center gap-2 rounded-full bg-primary px-4 text-sm font-extrabold text-on-primary disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={cartCount === 0 || submitState.kind === "submitting"}
+              onClick={onSubmit}
+            >
+              <Send className="h-4 w-4" aria-hidden="true" />
+              {submitState.kind === "submitting" ? "Sending" : "Place order"}
+            </button>
+            <button
+              type="button"
+              className="grid h-11 w-11 place-items-center rounded-full border border-line text-on-surface-variant"
+              onClick={onClose}
+              aria-label="Close cart"
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
         </div>
 
         {cartLines.length > 0 ? (
