@@ -18,7 +18,7 @@ Core flow:
 
 ## Current State
 
-Base project structure has been created. The first backend foundation slice now supports tenants, branches, branch order settings, owner registration, login, JWT authentication, tenant context resolution, authenticated admin branch/settings APIs, menu category/item foundations, branch table management, QR token public menu resolution, customer QR order creation through SQL Server stored procedures and minimal v1 APIs, and a mobile-first public QR menu frontend.
+Base project structure has been created. The first backend foundation slice now supports tenants, branches, branch order settings, owner registration, login, JWT authentication, tenant context resolution, authenticated admin branch/settings APIs, menu category/item foundations, branch table management, QR token public menu resolution, customer QR order creation through SQL Server stored procedures and minimal v1 APIs, and a mobile-first public QR menu frontend with customer cart/order submission.
 
 ## What Changed
 
@@ -72,6 +72,7 @@ Base project structure has been created. The first backend foundation slice now 
 - Added typed frontend public QR menu API contracts and made token clearing safe when API helpers are used during server rendering.
 - Upgraded the frontend to Next.js `16.2.6` and PostCSS `8.5.15`; Next.js updated TypeScript config defaults for the current App Router toolchain.
 - Added the first public customer order creation backend slice at `POST /api/v1/public/qr/{qrToken}/orders`, gated by `BranchOrderSettings.EnableDirectQrOrdering` and priced from stored active menu item prices only.
+- Added customer cart/order submission UI on `/qr/{qrToken}` for branches with direct QR ordering enabled, including add/remove quantity controls, required customer field handling, notes, total preview, success/error states, and typed frontend order API contracts.
 
 ## Files Changed
 
@@ -190,6 +191,7 @@ Base project structure has been created. The first backend foundation slice now 
 - `src/frontend/app/admin/branches/page.tsx`
 - `src/frontend/app/admin/branches/[branchId]/page.tsx`
 - `src/frontend/app/qr/[qrToken]/page.tsx`
+- `src/frontend/app/qr/[qrToken]/qr-menu-client.tsx`
 - `src/frontend/lib/api.ts`
 - `src/frontend/lib/auth.ts`
 - `database/tables/.gitkeep`
@@ -341,6 +343,8 @@ Base project structure has been created. The first backend foundation slice now 
 - `dotnet test "E:\ETPL-04\Jatin\Transferdata\QR-App\QRApp.sln" --no-restore` passed: 18 tests.
 - `dotnet build "E:\ETPL-04\Jatin\Transferdata\QR-App\QRApp.sln" --no-restore` passed with 0 warnings and 0 errors.
 - Frontend production server was started at `http://localhost:3000`; `/qr/test-token` returned HTTP 200 with the backend unavailable fallback state. Next.js 16 `dev` mode returned empty HTTP 500 responses on this Windows workspace, so the verified local server is running with `npm run start`.
+- `cmd /c "set NODE_OPTIONS=--max-old-space-size=4096&& npm run build"` passed after adding the public customer cart/order submission UI.
+- `npm run lint` is currently blocked by the local Next.js 16 CLI behavior resolving `lint` as an invalid project directory (`Q:\lint`); production build and TypeScript checks pass through `npm run build`.
 
 ## Pending Work
 
@@ -353,13 +357,13 @@ Base project structure has been created. The first backend foundation slice now 
 - Apply the new table/QR/order SQL scripts to LocalDB before runtime table, QR token, and customer order testing.
 - Public QR menu lookup by `branchId` still exists for foundation testing, but `/api/v1/public/qr/{qrToken}` is now the production-oriented lookup path.
 - Add waiter-call workflow when `BranchOrderSettings.WaiterCallEnabled` is enabled.
-- Add customer cart/order submission UI on `/qr/{qrToken}` for branches with direct QR ordering enabled.
 - Add staff/kitchen dashboard order listing and status updates.
 - Investigate the Next.js 16 local `dev` server empty HTTP 500 behavior on this Windows workspace; production build/start works.
+- Investigate the Next.js 16 `next lint`/lint script behavior on this Windows workspace; `npm run lint` currently resolves `lint` as an invalid project directory.
 
 ## Next Recommended Task
 
-Add customer cart/order submission UI on `/qr/{qrToken}` for branches with direct QR ordering enabled.
+Add staff/kitchen dashboard order listing and status updates.
 
 ## Frontend CSS/Tailwind Setup
 

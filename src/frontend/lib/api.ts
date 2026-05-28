@@ -131,6 +131,44 @@ export type PublicQrMenu = {
   categories: PublicQrMenuCategory[];
 };
 
+export type CreatePublicQrOrderItemInput = {
+  menuItemId: string;
+  quantity: number;
+};
+
+export type CreatePublicQrOrderInput = {
+  customerName: string | null;
+  customerWhatsApp: string | null;
+  notes: string | null;
+  items: CreatePublicQrOrderItemInput[];
+};
+
+export type PublicQrOrderItem = {
+  orderItemId: string;
+  orderId: string;
+  menuItemId: string;
+  menuItemName: string;
+  unitPrice: number;
+  quantity: number;
+  lineTotal: number;
+};
+
+export type PublicQrOrder = {
+  orderId: string;
+  tenantId: string;
+  branchId: string;
+  tableId: string;
+  orderStatusCode: string;
+  customerName: string | null;
+  customerWhatsApp: string | null;
+  notes: string | null;
+  subtotalAmount: number;
+  totalAmount: number;
+  createdAtUtc: string;
+  updatedAtUtc: string | null;
+  items: PublicQrOrderItem[];
+};
+
 export type CreateBranchInput = {
   name: string;
   phoneNumber: string | null;
@@ -179,6 +217,14 @@ export async function login(email: string, password: string): Promise<LoginRespo
 export async function getPublicQrMenu(qrToken: string): Promise<PublicQrMenu> {
   return request<PublicQrMenu>(`/api/v1/public/qr/${encodeURIComponent(qrToken)}`, {
     method: "GET",
+    requireAuth: false
+  });
+}
+
+export async function createPublicQrOrder(qrToken: string, input: CreatePublicQrOrderInput): Promise<PublicQrOrder> {
+  return request<PublicQrOrder>(`/api/v1/public/qr/${encodeURIComponent(qrToken)}/orders`, {
+    method: "POST",
+    body: input,
     requireAuth: false
   });
 }

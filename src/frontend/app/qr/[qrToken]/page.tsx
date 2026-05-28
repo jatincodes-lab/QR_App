@@ -1,5 +1,6 @@
 import { AlertCircle, Bell, CheckCircle2, ChefHat, Clock3, MapPin, ReceiptText, ShoppingBag } from "lucide-react";
-import { ApiError, getPublicQrMenu, type PublicQrMenu, type PublicQrMenuCategory } from "../../../lib/api";
+import { ApiError, getPublicQrMenu, type PublicQrMenu } from "../../../lib/api";
+import { QrMenuClient } from "./qr-menu-client";
 
 export const dynamic = "force-dynamic";
 
@@ -77,29 +78,7 @@ export default async function QrMenuPage({ params }: QrMenuPageProps) {
         </header>
 
         {hasItems ? (
-          <>
-            <nav className="sticky top-0 z-10 border-b border-line bg-surface/95 px-4 py-3 backdrop-blur sm:px-6">
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                {categories.map((category) => (
-                  <a
-                    key={category.menuCategoryId}
-                    href={`#category-${category.menuCategoryId}`}
-                    className="shrink-0 rounded border border-line bg-white px-3 py-2 text-sm font-semibold text-on-surface-variant shadow-soft-saas"
-                  >
-                    {category.name}
-                  </a>
-                ))}
-              </div>
-            </nav>
-
-            <div className="flex-1 px-4 py-4 sm:px-6">
-              <div className="space-y-5">
-                {categories.map((category) => (
-                  <MenuCategorySection key={category.menuCategoryId} category={category} />
-                ))}
-              </div>
-            </div>
-          </>
+          <QrMenuClient menu={menu} />
         ) : (
           <EmptyMenu branchName={menu.branchName} />
         )}
@@ -130,32 +109,6 @@ async function loadMenu(qrToken: string): Promise<MenuLoadResult> {
 
     throw caught;
   }
-}
-
-function MenuCategorySection({ category }: { category: PublicQrMenuCategory }) {
-  const items = [...category.items].sort((left, right) => left.displayOrder - right.displayOrder);
-
-  return (
-    <section id={`category-${category.menuCategoryId}`} className="scroll-mt-20 border border-line bg-white">
-      <div className="border-b border-line px-4 py-3">
-        <h2 className="text-lg font-bold leading-7">{category.name}</h2>
-      </div>
-
-      <div className="divide-y divide-line">
-        {items.map((item) => (
-          <article key={item.menuItemId} className="grid grid-cols-[1fr_auto] gap-4 px-4 py-4">
-            <div className="min-w-0">
-              <h3 className="break-words text-base font-semibold leading-6">{item.name}</h3>
-              {item.description ? (
-                <p className="mt-1 break-words text-sm leading-6 text-on-surface-variant">{item.description}</p>
-              ) : null}
-            </div>
-            <p className="whitespace-nowrap text-sm font-bold text-primary">{formatPrice(item.price)}</p>
-          </article>
-        ))}
-      </div>
-    </section>
-  );
 }
 
 function StatusPill({
@@ -216,12 +169,4 @@ function QrMenuTemporarilyUnavailable({ message }: { message: string }) {
       </section>
     </main>
   );
-}
-
-function formatPrice(price: number): string {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 2
-  }).format(price);
 }
