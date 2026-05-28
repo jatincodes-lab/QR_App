@@ -4,9 +4,9 @@ import { ApiError, getPublicQrMenu, type PublicQrMenu, type PublicQrMenuCategory
 export const dynamic = "force-dynamic";
 
 type QrMenuPageProps = {
-  params: {
+  params: Promise<{
     qrToken: string;
-  };
+  }>;
 };
 
 type MenuLoadResult =
@@ -23,7 +23,8 @@ type MenuLoadResult =
     };
 
 export default async function QrMenuPage({ params }: QrMenuPageProps) {
-  const result = await loadMenu(params.qrToken);
+  const { qrToken } = await params;
+  const result = await loadMenu(qrToken);
 
   if (result.kind === "not-found") {
     return <QrMenuUnavailable />;
