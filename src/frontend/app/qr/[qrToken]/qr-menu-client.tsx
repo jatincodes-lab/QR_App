@@ -8,7 +8,6 @@ import {
   Plus,
   ReceiptText,
   Send,
-  ShoppingBag,
   ShoppingCart,
   Trash2,
   Utensils,
@@ -30,6 +29,8 @@ type CartLine = {
   categoryName: string;
   quantity: number;
 };
+
+type ActiveView = "menu" | "cart";
 
 type SubmitState =
   | {
@@ -56,7 +57,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
   const [customerName, setCustomerName] = useState("");
   const [customerWhatsApp, setCustomerWhatsApp] = useState("");
   const [notes, setNotes] = useState("");
-  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [activeView, setActiveView] = useState<ActiveView>("menu");
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [submitState, setSubmitState] = useState<SubmitState>({ kind: "idle" });
 
@@ -139,7 +140,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
       const order = await createPublicQrOrder(menu.qrToken, input);
       setCart({});
       setNotes("");
-      setIsCartOpen(true);
+      setActiveView("cart");
       setSubmitState({ kind: "success", order });
     } catch (caught) {
       setSubmitState({
@@ -151,39 +152,10 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
 
   return (
     <>
-      <HeaderCartButton cartCount={cartCount} onOpen={() => setIsCartOpen(true)} />
+      <HeaderCartButton cartCount={cartCount} onOpen={() => setActiveView("cart")} />
 
-      <nav className="sticky top-[65px] z-10 border-b border-line bg-white/95 px-4 py-2 backdrop-blur">
-        <div className="flex gap-2 overflow-x-auto">
-          {categories.map((category) => (
-            <a
-              key={category.menuCategoryId}
-              href={`#category-${category.menuCategoryId}`}
-              className="shrink-0 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-extrabold uppercase text-on-surface-variant"
-            >
-              {category.name}
-            </a>
-          ))}
-        </div>
-      </nav>
-
-      <div className="flex-1 pb-28">
-        <div>
-          {categories.map((category) => (
-            <MenuCategorySection
-              key={category.menuCategoryId}
-              canOrder={canOrder}
-              cart={cart}
-              category={category}
-              onAdd={addItem}
-              onDecrement={decrementItem}
-            />
-          ))}
-        </div>
-      </div>
-
-      {canOrder && isCartOpen ? (
-        <OrderDock
+      {activeView === "cart" ? (
+        <CartPage
           cartCount={cartCount}
           cartLines={cartLines}
           cartTotal={cartTotal}
@@ -194,13 +166,44 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
           submitState={submitState}
           onCustomerNameChange={setCustomerName}
           onCustomerWhatsAppChange={setCustomerWhatsApp}
-          onClose={() => setIsCartOpen(false)}
           onDecrement={decrementItem}
+          onBackToMenu={() => setActiveView("menu")}
           onNotesChange={setNotes}
           onSubmit={submitOrder}
         />
       ) : (
-        <FloatingMenuButton onOpen={() => setIsCategoryOpen(true)} />
+        <>
+          <nav className="sticky top-[65px] z-10 border-b border-line bg-white/95 px-4 py-2 backdrop-blur">
+            <div className="flex gap-2 overflow-x-auto">
+              {categories.map((category) => (
+                <a
+                  key={category.menuCategoryId}
+                  href={`#category-${category.menuCategoryId}`}
+                  className="shrink-0 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-extrabold uppercase text-on-surface-variant"
+                >
+                  {category.name}
+                </a>
+              ))}
+            </div>
+          </nav>
+
+          <div className="flex-1 pb-28">
+            <div>
+              {categories.map((category) => (
+                <MenuCategorySection
+                  key={category.menuCategoryId}
+                  canOrder={canOrder}
+                  cart={cart}
+                  category={category}
+                  onAdd={addItem}
+                  onDecrement={decrementItem}
+                />
+              ))}
+            </div>
+          </div>
+
+          <FloatingMenuButton onOpen={() => setIsCategoryOpen(true)} />
+        </>
       )}
 
       {isCategoryOpen ? <CategorySheet categories={categories} onClose={() => setIsCategoryOpen(false)} /> : null}
@@ -291,7 +294,7 @@ function MenuCategorySection({
   );
 }
 
-function OrderDock({
+function CartPage({
   cartCount,
   cartLines,
   cartTotal,
@@ -302,8 +305,8 @@ function OrderDock({
   submitState,
   onCustomerNameChange,
   onCustomerWhatsAppChange,
-  onClose,
   onDecrement,
+  onBackToMenu,
   onNotesChange,
   onSubmit
 }: {
@@ -317,138 +320,147 @@ function OrderDock({
   submitState: SubmitState;
   onCustomerNameChange: (value: string) => void;
   onCustomerWhatsAppChange: (value: string) => void;
-  onClose: () => void;
   onDecrement: (menuItemId: string) => void;
+  onBackToMenu: () => void;
   onNotesChange: (value: string) => void;
   onSubmit: () => void;
 }) {
   return (
-    <aside className="fixed inset-x-0 bottom-0 z-20">
-      <div className="mx-auto w-full max-w-md px-4 pb-4">
-        {submitState.kind === "success" ? (
-          <div className="mb-3 flex items-start gap-3 rounded border border-emerald-200 bg-emerald-50 p-3 text-emerald-900 shadow-[0_10px_30px_rgba(31,37,45,0.12)]">
-            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
-            <div>
-              <p className="text-sm font-bold">Order sent</p>
-              <p className="mt-1 text-sm">Order total: {formatPrice(submitState.order.totalAmount)}</p>
-            </div>
-          </div>
-        ) : null}
+    <section className="flex-1 bg-surface-bright px-4 py-4 pb-8">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-extrabold text-ink">Cart</h2>
+          <p className="mt-1 text-sm text-on-surface-variant">
+            {cartCount} selected item{cartCount === 1 ? "" : "s"}
+          </p>
+        </div>
+        <button
+          type="button"
+          className="rounded-full border border-line bg-white px-4 py-2 text-sm font-bold text-ink"
+          onClick={onBackToMenu}
+        >
+          Menu
+        </button>
+      </div>
 
-        {submitState.kind === "error" ? (
-          <div className="mb-3 flex items-start gap-3 rounded border border-red-200 bg-red-50 p-3 text-red-900 shadow-[0_10px_30px_rgba(31,37,45,0.12)]">
-            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
-            <p className="text-sm font-semibold">{submitState.message}</p>
-          </div>
-        ) : null}
-
-        <div className="rounded-xl border border-line bg-white p-3 shadow-modal">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary text-on-primary">
-              <ShoppingBag className="h-5 w-5" aria-hidden="true" />
-            </div>
-          <div className="min-w-0">
-              <p className="text-sm font-bold">{cartCount} item{cartCount === 1 ? "" : "s"}</p>
-              <p className="text-sm text-on-surface-variant">{formatPrice(cartTotal)}</p>
-            </div>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <button
-              type="button"
-              className="inline-flex h-11 items-center gap-2 rounded-full bg-primary px-4 text-sm font-extrabold text-on-primary disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={cartCount === 0 || submitState.kind === "submitting"}
-              onClick={onSubmit}
-            >
-              <Send className="h-4 w-4" aria-hidden="true" />
-              {submitState.kind === "submitting" ? "Sending" : "Place order"}
-            </button>
-            <button
-              type="button"
-              className="grid h-11 w-11 place-items-center rounded-full border border-line text-on-surface-variant"
-              onClick={onClose}
-              aria-label="Close cart"
-            >
-              <X className="h-4 w-4" aria-hidden="true" />
-            </button>
+      {submitState.kind === "success" ? (
+        <div className="mb-4 flex items-start gap-3 rounded border border-emerald-200 bg-emerald-50 p-3 text-emerald-900">
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+          <div>
+            <p className="text-sm font-bold">Order sent</p>
+            <p className="mt-1 text-sm">Order total: {formatPrice(submitState.order.totalAmount)}</p>
           </div>
         </div>
+      ) : null}
 
-        {cartLines.length > 0 ? (
-          <div className="mt-4 max-h-[48vh] space-y-3 overflow-y-auto pr-1">
-            <div className="space-y-2">
-              {cartLines.map((line) => (
-                <div key={line.item.menuItemId} className="grid grid-cols-[1fr_auto] gap-3 rounded-lg border border-line p-3">
-                  <div className="min-w-0">
-                    <p className="break-words text-sm font-bold">{line.item.name}</p>
-                    <p className="mt-1 text-xs text-on-surface-variant">{line.categoryName}</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-bold">
-                      {line.quantity} x {formatPrice(line.item.price)}
-                    </span>
-                    <button
-                      type="button"
-                      className="grid h-9 w-9 place-items-center rounded-full border border-line text-on-surface-variant"
-                      onClick={() => onDecrement(line.item.menuItemId)}
-                      aria-label={`Remove one ${line.item.name}`}
-                    >
-                      {line.quantity === 1 ? (
-                        <Trash2 className="h-4 w-4" aria-hidden="true" />
-                      ) : (
-                        <Minus className="h-4 w-4" aria-hidden="true" />
-                      )}
-                    </button>
-                  </div>
+      {submitState.kind === "error" ? (
+        <div className="mb-4 flex items-start gap-3 rounded border border-red-200 bg-red-50 p-3 text-red-900">
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+          <p className="text-sm font-semibold">{submitState.message}</p>
+        </div>
+      ) : null}
+
+      {cartLines.length > 0 ? (
+        <div className="space-y-4">
+          <div className="space-y-2">
+            {cartLines.map((line) => (
+              <div key={line.item.menuItemId} className="grid grid-cols-[1fr_auto] gap-3 rounded-lg border border-line bg-white p-3">
+                <div className="min-w-0">
+                  <p className="break-words text-sm font-bold text-ink">{line.item.name}</p>
+                  <p className="mt-1 text-xs text-on-surface-variant">{line.categoryName}</p>
+                  <p className="mt-2 text-sm font-extrabold text-gold">{formatPrice(line.item.price)}</p>
                 </div>
-              ))}
-            </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-bold text-ink">x{line.quantity}</span>
+                  <button
+                    type="button"
+                    className="grid h-9 w-9 place-items-center rounded-full border border-line text-on-surface-variant"
+                    onClick={() => onDecrement(line.item.menuItemId)}
+                    aria-label={`Remove one ${line.item.name}`}
+                  >
+                    {line.quantity === 1 ? (
+                      <Trash2 className="h-4 w-4" aria-hidden="true" />
+                    ) : (
+                      <Minus className="h-4 w-4" aria-hidden="true" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="block">
-                <span className="text-xs font-bold uppercase tracking-[0.12em] text-on-surface-variant">
-                  Name{orderSettings.requireCustomerName ? " *" : ""}
-                </span>
-                <input
-                  className="mt-1 h-11 w-full rounded border border-line px-3 text-sm outline-none focus:border-primary"
-                  value={customerName}
-                  onChange={(event) => onCustomerNameChange(event.target.value)}
-                  maxLength={120}
-                />
-              </label>
-              <label className="block">
-                <span className="text-xs font-bold uppercase tracking-[0.12em] text-on-surface-variant">
-                  WhatsApp{orderSettings.requireCustomerWhatsApp ? " *" : ""}
-                </span>
-                <input
-                  className="mt-1 h-11 w-full rounded border border-line px-3 text-sm outline-none focus:border-primary"
-                  value={customerWhatsApp}
-                  onChange={(event) => onCustomerWhatsAppChange(event.target.value)}
-                  inputMode="tel"
-                  maxLength={32}
-                />
-              </label>
+          <div className="rounded-lg border border-line bg-white p-4">
+            <div className="flex items-center justify-between text-sm text-on-surface-variant">
+              <span>Subtotal</span>
+              <span className="font-bold text-ink">{formatPrice(cartTotal)}</span>
             </div>
+            <div className="mt-3 flex items-center justify-between border-t border-line pt-3">
+              <span className="text-base font-extrabold text-ink">Total amount</span>
+              <span className="text-xl font-extrabold text-primary">{formatPrice(cartTotal)}</span>
+            </div>
+          </div>
 
+          <div className="grid gap-3 sm:grid-cols-2">
             <label className="block">
-              <span className="text-xs font-bold uppercase tracking-[0.12em] text-on-surface-variant">Notes</span>
-              <textarea
-                className="mt-1 min-h-20 w-full resize-none rounded border border-line px-3 py-2 text-sm outline-none focus:border-primary"
-                value={notes}
-                onChange={(event) => onNotesChange(event.target.value)}
-                maxLength={500}
+              <span className="text-xs font-bold uppercase tracking-[0.12em] text-on-surface-variant">
+                Name{orderSettings.requireCustomerName ? " *" : ""}
+              </span>
+              <input
+                className="mt-1 h-11 w-full rounded border border-line bg-white px-3 text-sm outline-none focus:border-primary"
+                value={customerName}
+                onChange={(event) => onCustomerNameChange(event.target.value)}
+                maxLength={120}
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-bold uppercase tracking-[0.12em] text-on-surface-variant">
+                WhatsApp{orderSettings.requireCustomerWhatsApp ? " *" : ""}
+              </span>
+              <input
+                className="mt-1 h-11 w-full rounded border border-line bg-white px-3 text-sm outline-none focus:border-primary"
+                value={customerWhatsApp}
+                onChange={(event) => onCustomerWhatsAppChange(event.target.value)}
+                inputMode="tel"
+                maxLength={32}
               />
             </label>
           </div>
+
+          <label className="block">
+            <span className="text-xs font-bold uppercase tracking-[0.12em] text-on-surface-variant">Notes</span>
+            <textarea
+              className="mt-1 min-h-20 w-full resize-none rounded border border-line bg-white px-3 py-2 text-sm outline-none focus:border-primary"
+              value={notes}
+              onChange={(event) => onNotesChange(event.target.value)}
+              maxLength={500}
+            />
+          </label>
+
+          <button
+            type="button"
+            className="inline-flex h-12 w-full items-center justify-center gap-2 rounded bg-primary px-4 text-sm font-extrabold text-on-primary disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={cartCount === 0 || submitState.kind === "submitting"}
+            onClick={onSubmit}
+          >
+            <Send className="h-4 w-4" aria-hidden="true" />
+            {submitState.kind === "submitting" ? "Sending order" : "Place order"}
+          </button>
+          </div>
         ) : (
-          <div className="mt-4 flex items-center gap-3 rounded-lg border border-line bg-surface-bright p-3 text-sm text-on-surface-variant">
+          <div className="flex min-h-[280px] flex-col items-center justify-center rounded-lg border border-line bg-white p-5 text-center">
             <ReceiptText className="h-4 w-4 shrink-0" aria-hidden="true" />
-            Add menu items to send an order to the restaurant.
+            <p className="mt-3 text-sm font-bold text-ink">Your cart is empty</p>
+            <p className="mt-1 text-sm text-on-surface-variant">Add menu items to see total amount and place an order.</p>
+            <button
+              type="button"
+              className="mt-4 rounded bg-primary px-4 py-2 text-sm font-bold text-on-primary"
+              onClick={onBackToMenu}
+            >
+              Back to menu
+            </button>
           </div>
         )}
-        </div>
-      </div>
-    </aside>
+    </section>
   );
 }
 
