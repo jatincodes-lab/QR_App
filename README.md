@@ -46,11 +46,6 @@ dotnet build QRApp.sln
 dotnet run --project src/backend/QRApp.Api
 ```
 
-Development SQL Server connection uses LocalDB with Windows Integrated Security:
-
-```text
-Server=(localdb)\MSSQLLocalDB;Database=master;Integrated Security=True;
-```
 
 Health endpoint:
 
