@@ -41,6 +41,7 @@ internal static class SqlProblemMapper
 
             -2 => ServiceUnavailable("Database operation timed out."),
             53 or 4060 or 18456 => ServiceUnavailable("Database is not available or not configured correctly."),
+            208 or 2812 => ServiceUnavailable("Database schema is not up to date. Apply the latest database scripts and try again."),
 
             _ => ApiProblemResponses.ServerError("A database error occurred.")
         };

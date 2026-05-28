@@ -73,6 +73,8 @@ Base project structure has been created. The first backend foundation slice now 
 - Upgraded the frontend to Next.js `16.2.6` and PostCSS `8.5.15`; Next.js updated TypeScript config defaults for the current App Router toolchain.
 - Added the first public customer order creation backend slice at `POST /api/v1/public/qr/{qrToken}/orders`, gated by `BranchOrderSettings.EnableDirectQrOrdering` and priced from stored active menu item prices only.
 - Added customer cart/order submission UI on `/qr/{qrToken}` for branches with direct QR ordering enabled, including add/remove quantity controls, required customer field handling, notes, total preview, success/error states, and typed frontend order API contracts.
+- Added `database/migrations/002_Public_Order_Runtime_Fix.sql` as an idempotent runtime migration for the public order tables, indexes, and `PublicOrder_CreateFromQrToken` procedure when deployed databases have not yet been brought up to the order slice.
+- Mapped missing SQL object/procedure errors to a clear `503` database schema response instead of a generic server error.
 
 ## Files Changed
 
@@ -199,6 +201,7 @@ Base project structure has been created. The first backend foundation slice now 
 - `database/indexes/.gitkeep`
 - `database/seeds/.gitkeep`
 - `database/migrations/.gitkeep`
+- `database/migrations/002_Public_Order_Runtime_Fix.sql`
 - `docs/postman/QR-App.postman_collection.json`
 - `docs/postman/API_CURLS.md`
 
@@ -313,6 +316,7 @@ Base project structure has been created. The first backend foundation slice now 
   - `400 Bad Request` for required customer fields or unavailable order items during order creation.
   - `400 Bad Request` for relationship constraint violations.
   - `503 Service Unavailable` for database timeout/unavailable/configuration failures.
+  - `503 Service Unavailable` for missing database objects/procedures when the deployed schema is behind the API.
 
 ## Verification
 
@@ -345,6 +349,7 @@ Base project structure has been created. The first backend foundation slice now 
 - Frontend production server was started at `http://localhost:3000`; `/qr/test-token` returned HTTP 200 with the backend unavailable fallback state. Next.js 16 `dev` mode returned empty HTTP 500 responses on this Windows workspace, so the verified local server is running with `npm run start`.
 - `cmd /c "set NODE_OPTIONS=--max-old-space-size=4096&& npm run build"` passed after adding the public customer cart/order submission UI.
 - `npm run lint` is currently blocked by the local Next.js 16 CLI behavior resolving `lint` as an invalid project directory (`Q:\lint`); production build and TypeScript checks pass through `npm run build`.
+- Added a targeted public order runtime migration after a production-style order submission returned a generic database 500, consistent with the deployed database missing the latest order tables/procedure.
 
 ## Pending Work
 
@@ -355,6 +360,7 @@ Base project structure has been created. The first backend foundation slice now 
 - Existing tenant/branch endpoints still accept `tenantId` in route for foundation testing only.
 - Apply the new menu SQL scripts to LocalDB before runtime menu testing.
 - Apply the new table/QR/order SQL scripts to LocalDB before runtime table, QR token, and customer order testing.
+- Apply `database/migrations/002_Public_Order_Runtime_Fix.sql` to any deployed database that returns a schema-related error from `POST /api/v1/public/qr/{qrToken}/orders`.
 - Public QR menu lookup by `branchId` still exists for foundation testing, but `/api/v1/public/qr/{qrToken}` is now the production-oriented lookup path.
 - Add waiter-call workflow when `BranchOrderSettings.WaiterCallEnabled` is enabled.
 - Add staff/kitchen dashboard order listing and status updates.
