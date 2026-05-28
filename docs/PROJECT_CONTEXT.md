@@ -75,6 +75,7 @@ Base project structure has been created. The first backend foundation slice now 
 - Added customer cart/order submission UI on `/qr/{qrToken}` for branches with direct QR ordering enabled, including add/remove quantity controls, required customer field handling, notes, total preview, success/error states, and typed frontend order API contracts.
 - Refined the public QR menu into a cleaner mobile-first restaurant list layout with a compact sticky header, horizontal category chips, image-style item rows, yellow price emphasis, red add/cart controls, and a floating menu/cart action inspired by premium cafe menu apps.
 - Updated the public QR cart behavior so item add/remove controls update the cart count inline without opening the order panel; customers open the cart explicitly from the floating action button, and the menu now uses the agreed navy/gold theme tokens instead of temporary red/yellow accents.
+- Updated the public QR interaction split so the floating three-bars button opens a category sheet, while the top-right cart icon opens the selected-items cart/order panel and displays the selected item count.
 - Added `database/migrations/002_Public_Order_Runtime_Fix.sql` as an idempotent runtime migration for the public order tables, indexes, and `PublicOrder_CreateFromQrToken` procedure when deployed databases have not yet been brought up to the order slice.
 - Mapped missing SQL object/procedure errors to a clear `503` database schema response instead of a generic server error.
 
@@ -352,6 +353,7 @@ Base project structure has been created. The first backend foundation slice now 
 - `cmd /c "set NODE_OPTIONS=--max-old-space-size=4096&& npm run build"` passed after adding the public customer cart/order submission UI.
 - `cmd /c "set NODE_OPTIONS=--max-old-space-size=4096&& npm run build"` passed after the public QR menu visual refresh.
 - `cmd /c "set NODE_OPTIONS=--max-old-space-size=4096&& npm run build"` passed after the public QR cart behavior/theme refinement.
+- `cmd /c "set NODE_OPTIONS=--max-old-space-size=4096&& npm run build"` passed after splitting category navigation and selected-item cart actions.
 - `npm run lint` is currently blocked by the local Next.js 16 CLI behavior resolving `lint` as an invalid project directory (`Q:\lint`); production build and TypeScript checks pass through `npm run build`.
 - Added a targeted public order runtime migration after a production-style order submission returned a generic database 500, consistent with the deployed database missing the latest order tables/procedure.
 

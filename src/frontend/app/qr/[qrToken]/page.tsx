@@ -1,4 +1,4 @@
-import { AlertCircle, ArrowLeft, Clock3, ReceiptText, ShoppingCart } from "lucide-react";
+import { AlertCircle, ArrowLeft, Clock3, ReceiptText } from "lucide-react";
 import { ApiError, getPublicQrMenu, type PublicQrMenu } from "../../../lib/api";
 import { QrMenuClient } from "./qr-menu-client";
 
@@ -56,12 +56,7 @@ export default async function QrMenuPage({ params }: QrMenuPageProps) {
               <h1 className="truncate text-[15px] font-extrabold uppercase tracking-normal">{menu.branchName}</h1>
               <p className="mt-0.5 truncate text-[11px] font-semibold text-on-surface-variant">{menu.tableName}</p>
             </div>
-            <div className="relative grid h-10 w-10 place-items-center text-ink" aria-label={`${itemCount} items`}>
-              <ShoppingCart className="h-5 w-5" aria-hidden="true" />
-              <span className="absolute right-1 top-0 grid h-4 min-w-4 place-items-center rounded-full bg-secondary-container px-1 text-[10px] font-extrabold leading-none text-on-secondary-container">
-                {itemCount}
-              </span>
-            </div>
+            <div aria-hidden="true" />
           </div>
         </header>
 

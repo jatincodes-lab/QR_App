@@ -1,6 +1,19 @@
 "use client";
 
-import { AlertCircle, CheckCircle2, Menu, Minus, Plus, ReceiptText, Send, ShoppingBag, Trash2, Utensils, X } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  Menu,
+  Minus,
+  Plus,
+  ReceiptText,
+  Send,
+  ShoppingBag,
+  ShoppingCart,
+  Trash2,
+  Utensils,
+  X
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import {
   ApiError,
@@ -44,6 +57,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
   const [customerWhatsApp, setCustomerWhatsApp] = useState("");
   const [notes, setNotes] = useState("");
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [submitState, setSubmitState] = useState<SubmitState>({ kind: "idle" });
 
   const cartLines = Object.values(cart);
@@ -137,6 +151,8 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
 
   return (
     <>
+      <HeaderCartButton cartCount={cartCount} onOpen={() => setIsCartOpen(true)} />
+
       <nav className="sticky top-[65px] z-10 border-b border-line bg-white/95 px-4 py-2 backdrop-blur">
         <div className="flex gap-2 overflow-x-auto">
           {categories.map((category) => (
@@ -184,8 +200,10 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
           onSubmit={submitOrder}
         />
       ) : (
-        <FloatingMenuButton cartCount={cartCount} onOpen={() => setIsCartOpen(true)} />
+        <FloatingMenuButton onOpen={() => setIsCategoryOpen(true)} />
       )}
+
+      {isCategoryOpen ? <CategorySheet categories={categories} onClose={() => setIsCategoryOpen(false)} /> : null}
     </>
   );
 }
@@ -432,7 +450,29 @@ function OrderDock({
   );
 }
 
-function FloatingMenuButton({ cartCount, onOpen }: { cartCount: number; onOpen: () => void }) {
+function HeaderCartButton({ cartCount, onOpen }: { cartCount: number; onOpen: () => void }) {
+  return (
+    <div className="fixed inset-x-0 top-0 z-30 pointer-events-none">
+      <div className="mx-auto flex h-[65px] w-full max-w-md items-center justify-end px-4">
+        <button
+          type="button"
+          className="pointer-events-auto relative grid h-10 w-10 place-items-center text-ink"
+          onClick={onOpen}
+          aria-label="Open cart"
+        >
+          <ShoppingCart className="h-5 w-5" aria-hidden="true" />
+          {cartCount > 0 ? (
+            <span className="absolute right-0 top-1 grid h-4 min-w-4 place-items-center rounded-full bg-secondary-container px-1 text-[10px] font-extrabold leading-none text-on-secondary-container">
+              {cartCount}
+            </span>
+          ) : null}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function FloatingMenuButton({ onOpen }: { onOpen: () => void }) {
   return (
     <div className="fixed inset-x-0 bottom-0 z-20 pointer-events-none">
       <div className="mx-auto flex w-full max-w-md justify-end px-4 pb-5">
@@ -440,17 +480,54 @@ function FloatingMenuButton({ cartCount, onOpen }: { cartCount: number; onOpen: 
           type="button"
           className="pointer-events-auto relative grid h-14 w-14 place-items-center rounded-full bg-primary text-on-primary shadow-modal"
           onClick={onOpen}
-          aria-label={cartCount > 0 ? "Open cart" : "Open menu"}
+          aria-label="Open categories"
         >
           <Menu className="h-7 w-7" aria-hidden="true" />
-          {cartCount > 0 ? (
-            <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-secondary-container px-1 text-[11px] font-extrabold text-on-secondary-container">
-              {cartCount}
-            </span>
-          ) : null}
         </button>
       </div>
     </div>
+  );
+}
+
+function CategorySheet({
+  categories,
+  onClose
+}: {
+  categories: PublicQrMenuCategory[];
+  onClose: () => void;
+}) {
+  return (
+    <aside className="fixed inset-x-0 bottom-0 z-30">
+      <div className="mx-auto w-full max-w-md px-4 pb-5">
+        <div className="rounded-xl border border-line bg-white p-3 shadow-modal">
+          <div className="flex items-center justify-between gap-3 border-b border-line pb-3">
+            <p className="text-sm font-extrabold uppercase text-ink">Categories</p>
+            <button
+              type="button"
+              className="grid h-9 w-9 place-items-center rounded-full border border-line text-on-surface-variant"
+              onClick={onClose}
+              aria-label="Close categories"
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
+
+          <div className="max-h-[45vh] overflow-y-auto py-2">
+            {categories.map((category) => (
+              <a
+                key={category.menuCategoryId}
+                href={`#category-${category.menuCategoryId}`}
+                className="flex min-h-12 items-center justify-between border-b border-line px-1 text-sm font-bold text-ink last:border-b-0"
+                onClick={onClose}
+              >
+                <span>{category.name}</span>
+                <span className="text-xs font-semibold text-on-surface-variant">{category.items.length}</span>
+              </a>
+            ))}
+          </div>
+        </div>
+      </div>
+    </aside>
   );
 }
 
