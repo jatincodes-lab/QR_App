@@ -168,3 +168,55 @@ BEGIN
     );
 END;
 GO
+
+IF OBJECT_ID(N'dbo.Orders', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.Orders
+    (
+        OrderId UNIQUEIDENTIFIER NOT NULL CONSTRAINT PK_Orders PRIMARY KEY,
+        TenantId UNIQUEIDENTIFIER NOT NULL,
+        BranchId UNIQUEIDENTIFIER NOT NULL,
+        TableId UNIQUEIDENTIFIER NOT NULL,
+        OrderStatusCode NVARCHAR(32) NOT NULL CONSTRAINT DF_Orders_OrderStatusCode DEFAULT (N'Placed'),
+        CustomerName NVARCHAR(120) NULL,
+        CustomerWhatsApp NVARCHAR(32) NULL,
+        Notes NVARCHAR(500) NULL,
+        SubtotalAmount DECIMAL(10, 2) NOT NULL,
+        TotalAmount DECIMAL(10, 2) NOT NULL,
+        CreatedAtUtc DATETIME2(3) NOT NULL CONSTRAINT DF_Orders_CreatedAtUtc DEFAULT (SYSUTCDATETIME()),
+        UpdatedAtUtc DATETIME2(3) NULL,
+        RowVersion ROWVERSION NOT NULL,
+        CONSTRAINT FK_Orders_Tenants FOREIGN KEY (TenantId) REFERENCES dbo.Tenants (TenantId),
+        CONSTRAINT FK_Orders_Branches FOREIGN KEY (BranchId) REFERENCES dbo.Branches (BranchId),
+        CONSTRAINT FK_Orders_BranchTables FOREIGN KEY (TableId) REFERENCES dbo.BranchTables (TableId),
+        CONSTRAINT CK_Orders_SubtotalAmount CHECK (SubtotalAmount >= 0),
+        CONSTRAINT CK_Orders_TotalAmount CHECK (TotalAmount >= 0)
+    );
+END;
+GO
+
+IF OBJECT_ID(N'dbo.OrderItems', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.OrderItems
+    (
+        OrderItemId UNIQUEIDENTIFIER NOT NULL CONSTRAINT PK_OrderItems PRIMARY KEY,
+        TenantId UNIQUEIDENTIFIER NOT NULL,
+        BranchId UNIQUEIDENTIFIER NOT NULL,
+        OrderId UNIQUEIDENTIFIER NOT NULL,
+        MenuItemId UNIQUEIDENTIFIER NOT NULL,
+        MenuItemName NVARCHAR(160) NOT NULL,
+        UnitPrice DECIMAL(10, 2) NOT NULL,
+        Quantity INT NOT NULL,
+        LineTotal DECIMAL(10, 2) NOT NULL,
+        CreatedAtUtc DATETIME2(3) NOT NULL CONSTRAINT DF_OrderItems_CreatedAtUtc DEFAULT (SYSUTCDATETIME()),
+        RowVersion ROWVERSION NOT NULL,
+        CONSTRAINT FK_OrderItems_Tenants FOREIGN KEY (TenantId) REFERENCES dbo.Tenants (TenantId),
+        CONSTRAINT FK_OrderItems_Branches FOREIGN KEY (BranchId) REFERENCES dbo.Branches (BranchId),
+        CONSTRAINT FK_OrderItems_Orders FOREIGN KEY (OrderId) REFERENCES dbo.Orders (OrderId),
+        CONSTRAINT FK_OrderItems_MenuItems FOREIGN KEY (MenuItemId) REFERENCES dbo.MenuItems (MenuItemId),
+        CONSTRAINT CK_OrderItems_UnitPrice CHECK (UnitPrice >= 0),
+        CONSTRAINT CK_OrderItems_Quantity CHECK (Quantity > 0),
+        CONSTRAINT CK_OrderItems_LineTotal CHECK (LineTotal >= 0)
+    );
+END;
+GO

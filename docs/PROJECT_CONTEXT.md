@@ -18,7 +18,7 @@ Core flow:
 
 ## Current State
 
-Base project structure has been created. The first backend foundation slice now supports tenants, branches, branch order settings, owner registration, login, JWT authentication, tenant context resolution, authenticated admin branch/settings APIs, menu category/item foundations, branch table management, and QR token public menu resolution through SQL Server stored procedures and minimal v1 APIs.
+Base project structure has been created. The first backend foundation slice now supports tenants, branches, branch order settings, owner registration, login, JWT authentication, tenant context resolution, authenticated admin branch/settings APIs, menu category/item foundations, branch table management, QR token public menu resolution, customer QR order creation through SQL Server stored procedures and minimal v1 APIs, and a mobile-first public QR menu frontend.
 
 ## What Changed
 
@@ -68,6 +68,10 @@ Base project structure has been created. The first backend foundation slice now 
 - Upgraded the first frontend admin slice from functional scaffold to polished UI with lucide icons, improved login composition, branch workspace metrics, search, table layout, modal add branch flow, and clearer confirmation/notice states.
 - Added the admin branch detail workspace with authenticated menu category/item management, table QR token management, QR link copy/regeneration actions, and branch order settings create/update flow.
 - Refined admin metric cards on branch list and branch detail pages to match the compact horizontal bordered card style used in the approved design reference.
+- Added the public QR menu UI at `/qr/{qrToken}` with server-rendered public QR lookup, branch/table context, order-setting status, category navigation, menu item pricing, empty-menu handling, inactive QR handling, and temporary API-unavailable handling.
+- Added typed frontend public QR menu API contracts and made token clearing safe when API helpers are used during server rendering.
+- Upgraded the frontend to Next.js `16.2.6` and PostCSS `8.5.15`; Next.js updated TypeScript config defaults for the current App Router toolchain.
+- Added the first public customer order creation backend slice at `POST /api/v1/public/qr/{qrToken}/orders`, gated by `BranchOrderSettings.EnableDirectQrOrdering` and priced from stored active menu item prices only.
 
 ## Files Changed
 
@@ -97,6 +101,7 @@ Base project structure has been created. The first backend foundation slice now 
 - `src/backend/QRApp.Api/Endpoints/AdminTableEndpoints.cs`
 - `src/backend/QRApp.Api/Endpoints/PublicMenuEndpoints.cs`
 - `src/backend/QRApp.Api/Endpoints/PublicQrEndpoints.cs`
+- `src/backend/QRApp.Api/Endpoints/PublicOrderEndpoints.cs`
 - `src/backend/QRApp.Application/QRApp.Application.csproj`
 - `src/backend/QRApp.Application/AssemblyReference.cs`
 - `src/backend/QRApp.Domain/QRApp.Domain.csproj`
@@ -111,6 +116,7 @@ Base project structure has been created. The first backend foundation slice now 
 - `src/backend/QRApp.Infrastructure/Menus/SqlMenuCategoryRepository.cs`
 - `src/backend/QRApp.Infrastructure/Menus/SqlMenuItemRepository.cs`
 - `src/backend/QRApp.Infrastructure/Tables/SqlBranchTableRepository.cs`
+- `src/backend/QRApp.Infrastructure/Orders/SqlOrderRepository.cs`
 - `src/backend/QRApp.Infrastructure/Tenants/SqlTenantRepository.cs`
 - `src/backend/QRApp.Infrastructure/Branches/SqlBranchRepository.cs`
 - `src/backend/QRApp.Infrastructure/BranchOrderSettings/SqlBranchOrderSettingsRepository.cs`
@@ -140,6 +146,10 @@ Base project structure has been created. The first backend foundation slice now 
 - `src/backend/QRApp.Application/Tables/IBranchTableRepository.cs`
 - `src/backend/QRApp.Application/Tables/IBranchTableService.cs`
 - `src/backend/QRApp.Application/Tables/BranchTableService.cs`
+- `src/backend/QRApp.Application/Orders/OrderContracts.cs`
+- `src/backend/QRApp.Application/Orders/IOrderRepository.cs`
+- `src/backend/QRApp.Application/Orders/IOrderService.cs`
+- `src/backend/QRApp.Application/Orders/OrderService.cs`
 - `src/backend/QRApp.Application/Tenants/TenantContracts.cs`
 - `src/backend/QRApp.Application/Tenants/ITenantRepository.cs`
 - `src/backend/QRApp.Application/Tenants/ITenantService.cs`
@@ -161,11 +171,13 @@ Base project structure has been created. The first backend foundation slice now 
 - `tests/QRApp.Application.Tests/Menus/MenuCategoryServiceTests.cs`
 - `tests/QRApp.Application.Tests/Menus/MenuItemServiceTests.cs`
 - `tests/QRApp.Application.Tests/Tables/BranchTableServiceTests.cs`
+- `tests/QRApp.Application.Tests/Orders/OrderServiceTests.cs`
 - `tests/QRApp.Application.Tests/Tenants/TenantServiceTests.cs`
 - `tests/QRApp.Application.Tests/Branches/BranchServiceTests.cs`
 - `src/frontend/package.json`
 - `src/frontend/package-lock.json`
 - `src/frontend/next.config.mjs`
+- `src/frontend/next-env.d.ts`
 - `src/frontend/tsconfig.json`
 - `src/frontend/tailwind.config.ts`
 - `src/frontend/postcss.config.mjs`
@@ -177,6 +189,7 @@ Base project structure has been created. The first backend foundation slice now 
 - `src/frontend/app/admin/login/page.tsx`
 - `src/frontend/app/admin/branches/page.tsx`
 - `src/frontend/app/admin/branches/[branchId]/page.tsx`
+- `src/frontend/app/qr/[qrToken]/page.tsx`
 - `src/frontend/lib/api.ts`
 - `src/frontend/lib/auth.ts`
 - `database/tables/.gitkeep`
@@ -198,15 +211,19 @@ Base project structure has been created. The first backend foundation slice now 
   - `MenuCategories`
   - `MenuItems`
   - `BranchTables`
+  - `Orders`
+  - `OrderItems`
 - `Branches` and `BranchOrderSettings` include `TenantId`.
 - `TenantUsers` links authenticated users to tenants and stores role codes.
 - `MenuCategories` and `MenuItems` are branch-scoped and include `TenantId`.
 - `BranchTables` is branch-scoped, includes `TenantId`, and stores the unique QR token for each table.
+- `Orders` and `OrderItems` are tenant-owned, branch-scoped, and table-linked. Order item names and unit prices are snapshotted at order creation.
 - Tenant-owned stored procedures filter by `TenantId`.
 - Added tenant/branch/settings indexes.
 - Added user email and tenant-user lookup indexes.
 - Added menu category and item indexes for admin branch listing and public QR menu reads.
 - Added branch table indexes for admin branch listing and QR token lookup.
+- Added order indexes for branch dashboard/status reads and order item lookup by order.
 - Foundation SQL is consolidated into one file per folder:
   - `database/tables/001_Foundation_Tables.sql`
   - `database/procedures/001_Foundation_Procedures.sql`
@@ -235,6 +252,8 @@ Base project structure has been created. The first backend foundation slice now 
   - `BranchTable_Deactivate`
   - `BranchTable_RegenerateQrToken`
   - `PublicMenu_GetByQrToken`
+- Order stored procedures:
+  - `PublicOrder_CreateFromQrToken`
 
 ## API Changes
 
@@ -266,6 +285,7 @@ Base project structure has been created. The first backend foundation slice now 
 - Added `POST /api/v1/admin/branches/{branchId}/tables/{tableId}/qr-token/regenerate`.
 - Added `GET /api/v1/public/branches/{branchId}/menu`.
 - Added `GET /api/v1/public/qr/{qrToken}`.
+- Added `POST /api/v1/public/qr/{qrToken}/orders`.
 - Added `POST /api/v1/tenants`.
 - Added `GET /api/v1/tenants/{tenantId}`.
 - Added `POST /api/v1/tenants/{tenantId}/branches`.
@@ -283,9 +303,12 @@ Base project structure has been created. The first backend foundation slice now 
   - `409 Conflict` for duplicate user email records.
   - `409 Conflict` for duplicate menu category/item records.
   - `409 Conflict` for duplicate table name or QR token records.
+  - `409 Conflict` when direct QR ordering is disabled for the branch.
   - `404 Not Found` for missing tenant/branch/settings records.
   - `404 Not Found` for missing branch/category/item records in menu workflows.
   - `404 Not Found` for missing branch/table records in table workflows.
+  - `404 Not Found` for inactive or missing QR table during order creation.
+  - `400 Bad Request` for required customer fields or unavailable order items during order creation.
   - `400 Bad Request` for relationship constraint violations.
   - `503 Service Unavailable` for database timeout/unavailable/configuration failures.
 
@@ -309,9 +332,15 @@ Base project structure has been created. The first backend foundation slice now 
 - Frontend dev server was started at `http://localhost:3000`; `/admin/login` returned HTTP 200.
 - `lucide-react` was added for professional icons in admin navigation, buttons, status cards, and dialogs.
 - `npm run build` passed again after the frontend UI polish pass.
-- `npm install` reported vulnerabilities in the current frontend dependency set because Next.js `14.2.16` is deprecated with a security warning; dependency upgrades are pending.
 - `cmd /c "set NODE_OPTIONS=--max-old-space-size=4096&& npm run build"` passed after adding the admin branch detail workspace. A normal PowerShell `npm run build` is blocked by local script execution policy, and the default Node heap ran out of memory during Next.js production build.
 - `cmd /c "set NODE_OPTIONS=--max-old-space-size=4096&& npm run build"` passed after the admin metric card UI refinement.
+- `cmd /c "set NODE_OPTIONS=--max-old-space-size=4096&& npm run build"` passed after adding the public QR menu UI and temporary API-unavailable state. Next.js reports `/qr/[qrToken]` as a dynamic server-rendered route.
+- Local frontend dev server was started at `http://localhost:3000`; `/qr/test-token` returned HTTP 200 with the backend unavailable fallback state.
+- `npm install next@16.2.6` and `npm install --save-dev postcss@8.5.15` completed. `npm audit` still reports two moderate findings through Next's bundled `postcss`; npm's suggested fix is an invalid downgrade to Next `9.3.3`, so it was not applied.
+- `cmd /c "set NODE_OPTIONS=--max-old-space-size=4096&& npm run build"` passed after the Next.js and PostCSS upgrades.
+- `dotnet test "E:\ETPL-04\Jatin\Transferdata\QR-App\QRApp.sln" --no-restore` passed: 18 tests.
+- `dotnet build "E:\ETPL-04\Jatin\Transferdata\QR-App\QRApp.sln" --no-restore` passed with 0 warnings and 0 errors.
+- Frontend production server was started at `http://localhost:3000`; `/qr/test-token` returned HTTP 200 with the backend unavailable fallback state. Next.js 16 `dev` mode returned empty HTTP 500 responses on this Windows workspace, so the verified local server is running with `npm run start`.
 
 ## Pending Work
 
@@ -321,14 +350,16 @@ Base project structure has been created. The first backend foundation slice now 
 - Apply the new auth SQL scripts to LocalDB before runtime auth testing.
 - Existing tenant/branch endpoints still accept `tenantId` in route for foundation testing only.
 - Apply the new menu SQL scripts to LocalDB before runtime menu testing.
-- Apply the new table/QR SQL scripts to LocalDB before runtime table and QR token testing.
+- Apply the new table/QR/order SQL scripts to LocalDB before runtime table, QR token, and customer order testing.
 - Public QR menu lookup by `branchId` still exists for foundation testing, but `/api/v1/public/qr/{qrToken}` is now the production-oriented lookup path.
-- Add public QR menu UI at `/qr/{qrToken}`.
-- Upgrade frontend dependencies to a patched Next.js version.
+- Add waiter-call workflow when `BranchOrderSettings.WaiterCallEnabled` is enabled.
+- Add customer cart/order submission UI on `/qr/{qrToken}` for branches with direct QR ordering enabled.
+- Add staff/kitchen dashboard order listing and status updates.
+- Investigate the Next.js 16 local `dev` server empty HTTP 500 behavior on this Windows workspace; production build/start works.
 
 ## Next Recommended Task
 
-Build the public QR menu UI at `/qr/{qrToken}` against the production-oriented public QR lookup API.
+Add customer cart/order submission UI on `/qr/{qrToken}` for branches with direct QR ordering enabled.
 
 ## Frontend CSS/Tailwind Setup
 

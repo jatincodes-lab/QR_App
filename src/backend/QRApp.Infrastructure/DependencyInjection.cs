@@ -3,6 +3,7 @@ using QRApp.Application.Auth;
 using QRApp.Application.Branches;
 using QRApp.Application.BranchOrderSettings;
 using QRApp.Application.Menus;
+using QRApp.Application.Orders;
 using QRApp.Application.Tables;
 using QRApp.Application.Tenants;
 using QRApp.Infrastructure.Auth;
@@ -10,6 +11,7 @@ using QRApp.Infrastructure.Branches;
 using QRApp.Infrastructure.BranchOrderSettings;
 using QRApp.Infrastructure.Data;
 using QRApp.Infrastructure.Menus;
+using QRApp.Infrastructure.Orders;
 using QRApp.Infrastructure.Tables;
 using QRApp.Infrastructure.Tenants;
 
@@ -27,6 +29,7 @@ public static class DependencyInjection
         services.AddScoped<IMenuCategoryRepository, SqlMenuCategoryRepository>();
         services.AddScoped<IMenuItemRepository, SqlMenuItemRepository>();
         services.AddScoped<IBranchTableRepository, SqlBranchTableRepository>();
+        services.AddScoped<IOrderRepository, SqlOrderRepository>();
 
         return services;
     }

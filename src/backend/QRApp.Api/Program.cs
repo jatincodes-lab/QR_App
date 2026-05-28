@@ -136,6 +136,7 @@ app.MapAdminMenuEndpoints();
 app.MapAdminTableEndpoints();
 app.MapPublicMenuEndpoints();
 app.MapPublicQrEndpoints();
+app.MapPublicOrderEndpoints();
 app.MapTenantBranchEndpoints();
 
 app.Run();

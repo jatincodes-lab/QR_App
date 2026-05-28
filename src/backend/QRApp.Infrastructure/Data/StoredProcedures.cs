@@ -35,4 +35,6 @@ internal static class StoredProcedures
     public const string BranchTableDeactivate = "dbo.BranchTable_Deactivate";
     public const string BranchTableRegenerateQrToken = "dbo.BranchTable_RegenerateQrToken";
     public const string PublicMenuGetByQrToken = "dbo.PublicMenu_GetByQrToken";
+
+    public const string PublicOrderCreateFromQrToken = "dbo.PublicOrder_CreateFromQrToken";
 }

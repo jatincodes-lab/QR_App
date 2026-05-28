@@ -163,3 +163,45 @@ BEGIN
     INCLUDE (TableId, TenantId, BranchId, Name);
 END;
 GO
+
+IF NOT EXISTS
+(
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = N'IX_Orders_TenantId_BranchId_CreatedAtUtc'
+      AND object_id = OBJECT_ID(N'dbo.Orders')
+)
+BEGIN
+    CREATE INDEX IX_Orders_TenantId_BranchId_CreatedAtUtc
+    ON dbo.Orders (TenantId, BranchId, CreatedAtUtc DESC)
+    INCLUDE (TableId, OrderStatusCode, TotalAmount);
+END;
+GO
+
+IF NOT EXISTS
+(
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = N'IX_Orders_BranchId_OrderStatusCode_CreatedAtUtc'
+      AND object_id = OBJECT_ID(N'dbo.Orders')
+)
+BEGIN
+    CREATE INDEX IX_Orders_BranchId_OrderStatusCode_CreatedAtUtc
+    ON dbo.Orders (BranchId, OrderStatusCode, CreatedAtUtc DESC)
+    INCLUDE (TableId, TotalAmount);
+END;
+GO
+
+IF NOT EXISTS
+(
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = N'IX_OrderItems_OrderId'
+      AND object_id = OBJECT_ID(N'dbo.OrderItems')
+)
+BEGIN
+    CREATE INDEX IX_OrderItems_OrderId
+    ON dbo.OrderItems (OrderId)
+    INCLUDE (MenuItemId, Quantity, LineTotal);
+END;
+GO

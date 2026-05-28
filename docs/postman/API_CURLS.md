@@ -16,6 +16,7 @@ These examples use Postman collection variables:
 - `menuItemId`: menu item ID
 - `tableId`: branch table ID
 - `qrToken`: table QR token
+- `orderId`: customer order ID
 
 ## Health
 
@@ -396,6 +397,26 @@ curl --request GET "{{baseUrl}}/api/v1/public/branches/{{branchId}}/menu"
 
 ```bash
 curl --request GET "{{baseUrl}}/api/v1/public/qr/{{qrToken}}"
+```
+
+### POST /api/v1/public/qr/{qrToken}/orders
+
+Creates a customer order from a table QR token. The backend calculates prices from active menu items and blocks creation when direct QR ordering is disabled for the branch.
+
+```bash
+curl --request POST "{{baseUrl}}/api/v1/public/qr/{{qrToken}}/orders" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "customerName": "Priya Shah",
+    "customerWhatsApp": "+91 9876543210",
+    "notes": "Less spicy",
+    "items": [
+      {
+        "menuItemId": "{{menuItemId}}",
+        "quantity": 2
+      }
+    ]
+  }'
 ```
 
 ## Foundation Tenant Routes

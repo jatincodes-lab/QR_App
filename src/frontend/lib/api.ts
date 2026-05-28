@@ -99,6 +99,38 @@ export type BranchOrderSettings = {
   updatedAtUtc: string | null;
 };
 
+export type PublicQrOrderSettings = {
+  enableDirectQrOrdering: boolean;
+  requireCustomerName: boolean;
+  requireCustomerWhatsApp: boolean;
+  waiterCallEnabled: boolean;
+};
+
+export type PublicQrMenuItem = {
+  menuItemId: string;
+  name: string;
+  description: string | null;
+  price: number;
+  displayOrder: number;
+};
+
+export type PublicQrMenuCategory = {
+  menuCategoryId: string;
+  name: string;
+  displayOrder: number;
+  items: PublicQrMenuItem[];
+};
+
+export type PublicQrMenu = {
+  branchId: string;
+  branchName: string;
+  tableId: string;
+  tableName: string;
+  qrToken: string;
+  orderSettings: PublicQrOrderSettings;
+  categories: PublicQrMenuCategory[];
+};
+
 export type CreateBranchInput = {
   name: string;
   phoneNumber: string | null;
@@ -140,6 +172,13 @@ export async function login(email: string, password: string): Promise<LoginRespo
   return request<LoginResponse>("/api/v1/auth/login", {
     method: "POST",
     body: { email, password },
+    requireAuth: false
+  });
+}
+
+export async function getPublicQrMenu(qrToken: string): Promise<PublicQrMenu> {
+  return request<PublicQrMenu>(`/api/v1/public/qr/${encodeURIComponent(qrToken)}`, {
+    method: "GET",
     requireAuth: false
   });
 }

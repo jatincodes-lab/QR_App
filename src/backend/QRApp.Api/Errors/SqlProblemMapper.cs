@@ -17,6 +17,7 @@ internal static class SqlProblemMapper
             51502 => Conflict("Menu item name already exists for this category."),
             51602 => Conflict("Table name already exists for this branch."),
             51604 => Conflict("QR token already exists."),
+            51702 => Conflict("Direct QR ordering is disabled for this branch."),
             2601 or 2627 => Conflict("A record with the same unique value already exists."),
 
             51101 => ApiProblemResponses.NotFound("Active tenant was not found."),
@@ -29,6 +30,12 @@ internal static class SqlProblemMapper
             51503 => ApiProblemResponses.NotFound("Menu item was not found for this tenant and branch."),
             51601 => ApiProblemResponses.NotFound("Active branch was not found for this tenant."),
             51603 => ApiProblemResponses.NotFound("Table was not found for this tenant and branch."),
+            51701 => ApiProblemResponses.NotFound("Active QR table was not found."),
+
+            51703 => ApiProblemResponses.BadRequest("Customer name is required for this branch."),
+            51704 => ApiProblemResponses.BadRequest("Customer WhatsApp is required for this branch."),
+            51705 => ApiProblemResponses.BadRequest("At least one valid order item is required."),
+            51706 => ApiProblemResponses.BadRequest("One or more menu items are unavailable for ordering."),
 
             547 => ApiProblemResponses.BadRequest("The request violates a database relationship constraint."),
 

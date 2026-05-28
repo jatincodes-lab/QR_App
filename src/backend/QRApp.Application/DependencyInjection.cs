@@ -3,6 +3,7 @@ using QRApp.Application.Auth;
 using QRApp.Application.Branches;
 using QRApp.Application.BranchOrderSettings;
 using QRApp.Application.Menus;
+using QRApp.Application.Orders;
 using QRApp.Application.Tables;
 using QRApp.Application.Tenants;
 
@@ -20,6 +21,7 @@ public static class DependencyInjection
         services.AddScoped<IMenuCategoryService, MenuCategoryService>();
         services.AddScoped<IMenuItemService, MenuItemService>();
         services.AddScoped<IBranchTableService, BranchTableService>();
+        services.AddScoped<IOrderService, OrderService>();
 
         return services;
     }
