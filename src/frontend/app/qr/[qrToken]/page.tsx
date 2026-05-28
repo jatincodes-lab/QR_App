@@ -1,4 +1,4 @@
-import { AlertCircle, Bell, CheckCircle2, ChefHat, Clock3, MapPin, ReceiptText, ShoppingBag } from "lucide-react";
+import { AlertCircle, ArrowLeft, Clock3, ReceiptText, ShoppingCart } from "lucide-react";
 import { ApiError, getPublicQrMenu, type PublicQrMenu } from "../../../lib/api";
 import { QrMenuClient } from "./qr-menu-client";
 
@@ -41,39 +41,27 @@ export default async function QrMenuPage({ params }: QrMenuPageProps) {
   const hasItems = itemCount > 0;
 
   return (
-    <main className="min-h-screen bg-surface text-ink">
-      <section className="mx-auto flex min-h-screen w-full max-w-3xl flex-col">
-        <header className="bg-primary px-4 pb-5 pt-4 text-on-primary sm:px-6">
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0">
-              <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-secondary-fixed">
-                <ChefHat className="h-4 w-4" aria-hidden="true" />
-                Qrave Menu
-              </p>
-              <h1 className="mt-3 break-words text-3xl font-bold leading-9">{menu.branchName}</h1>
-              <p className="mt-2 flex items-center gap-2 text-sm text-primary-fixed-dim">
-                <MapPin className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span className="min-w-0 truncate">{menu.tableName}</span>
-              </p>
+    <main className="min-h-screen bg-[#eef3f5] text-[#1f252d]">
+      <section className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-white shadow-[0_0_40px_rgba(31,37,45,0.08)]">
+        <header className="sticky top-0 z-20 border-b border-[#edf0f2] bg-white px-4 py-3">
+          <div className="grid h-10 grid-cols-[40px_1fr_40px] items-center">
+            <button
+              type="button"
+              className="grid h-10 w-10 place-items-center text-[#1f252d]"
+              aria-label="Back"
+            >
+              <ArrowLeft className="h-5 w-5" aria-hidden="true" />
+            </button>
+            <div className="min-w-0 text-center">
+              <h1 className="truncate text-[15px] font-extrabold uppercase tracking-normal">{menu.branchName}</h1>
+              <p className="mt-0.5 truncate text-[11px] font-semibold text-[#8b929a]">{menu.tableName}</p>
             </div>
-
-            <div className="shrink-0 rounded border border-white/15 bg-white/10 px-3 py-2 text-right">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary-fixed-dim">Items</p>
-              <p className="mt-1 text-2xl font-bold">{itemCount}</p>
+            <div className="relative grid h-10 w-10 place-items-center text-[#1f252d]" aria-label={`${itemCount} items`}>
+              <ShoppingCart className="h-5 w-5" aria-hidden="true" />
+              <span className="absolute right-1 top-0 grid h-4 min-w-4 place-items-center rounded-full bg-[#ffc928] px-1 text-[10px] font-extrabold leading-none text-[#1f252d]">
+                {itemCount}
+              </span>
             </div>
-          </div>
-
-          <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <StatusPill
-              icon={menu.orderSettings.enableDirectQrOrdering ? ShoppingBag : ReceiptText}
-              title={menu.orderSettings.enableDirectQrOrdering ? "Direct ordering on" : "Browse-only menu"}
-              tone={menu.orderSettings.enableDirectQrOrdering ? "success" : "neutral"}
-            />
-            <StatusPill
-              icon={menu.orderSettings.waiterCallEnabled ? Bell : Clock3}
-              title={menu.orderSettings.waiterCallEnabled ? "Waiter call available" : "Ask staff to order"}
-              tone={menu.orderSettings.waiterCallEnabled ? "success" : "neutral"}
-            />
           </div>
         </header>
 
@@ -109,28 +97,6 @@ async function loadMenu(qrToken: string): Promise<MenuLoadResult> {
 
     throw caught;
   }
-}
-
-function StatusPill({
-  icon: Icon,
-  title,
-  tone
-}: {
-  icon: typeof CheckCircle2;
-  title: string;
-  tone: "success" | "neutral";
-}) {
-  const toneClass =
-    tone === "success"
-      ? "border-emerald-200/30 bg-emerald-400/15 text-emerald-50"
-      : "border-white/15 bg-white/10 text-primary-fixed-dim";
-
-  return (
-    <div className={`flex min-h-12 items-center gap-3 rounded border px-3 py-2 ${toneClass}`}>
-      <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-      <span className="text-sm font-semibold">{title}</span>
-    </div>
-  );
 }
 
 function EmptyMenu({ branchName }: { branchName: string }) {

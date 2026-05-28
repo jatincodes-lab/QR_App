@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, CheckCircle2, Minus, Plus, ReceiptText, Send, ShoppingBag, Trash2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Menu, Minus, Plus, ReceiptText, Send, ShoppingBag, Trash2, Utensils } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
   ApiError,
@@ -135,13 +135,13 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
 
   return (
     <>
-      <nav className="sticky top-0 z-10 border-b border-line bg-surface/95 px-4 py-3 backdrop-blur sm:px-6">
-        <div className="flex gap-2 overflow-x-auto pb-1">
+      <nav className="sticky top-[65px] z-10 border-b border-[#edf0f2] bg-white/95 px-4 py-2 backdrop-blur">
+        <div className="flex gap-2 overflow-x-auto">
           {categories.map((category) => (
             <a
               key={category.menuCategoryId}
               href={`#category-${category.menuCategoryId}`}
-              className="shrink-0 rounded border border-line bg-white px-3 py-2 text-sm font-semibold text-on-surface-variant shadow-soft-saas"
+              className="shrink-0 rounded-full border border-[#edf0f2] bg-white px-3 py-1.5 text-xs font-extrabold uppercase text-[#4f5963]"
             >
               {category.name}
             </a>
@@ -149,8 +149,8 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
         </div>
       </nav>
 
-      <div className="flex-1 px-4 py-4 pb-40 sm:px-6">
-        <div className="space-y-5">
+      <div className="flex-1 pb-28">
+        <div>
           {categories.map((category) => (
             <MenuCategorySection
               key={category.menuCategoryId}
@@ -164,7 +164,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
         </div>
       </div>
 
-      {canOrder ? (
+      {canOrder && (cartCount > 0 || submitState.kind !== "idle") ? (
         <OrderDock
           cartCount={cartCount}
           cartLines={cartLines}
@@ -180,7 +180,9 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
           onNotesChange={setNotes}
           onSubmit={submitOrder}
         />
-      ) : null}
+      ) : (
+        <FloatingMenuButton cartCount={cartCount} />
+      )}
     </>
   );
 }
@@ -201,42 +203,46 @@ function MenuCategorySection({
   const items = [...category.items].sort((left, right) => left.displayOrder - right.displayOrder);
 
   return (
-    <section id={`category-${category.menuCategoryId}`} className="scroll-mt-20 border border-line bg-white">
-      <div className="border-b border-line px-4 py-3">
-        <h2 className="text-lg font-bold leading-7">{category.name}</h2>
+    <section id={`category-${category.menuCategoryId}`} className="scroll-mt-28 bg-white">
+      <div className="border-b border-[#edf0f2] px-4 py-4">
+        <h2 className="text-center text-[15px] font-extrabold uppercase tracking-normal text-[#1f252d]">{category.name}</h2>
       </div>
 
-      <div className="divide-y divide-line">
+      <div className="divide-y divide-[#edf0f2]">
         {items.map((item) => {
           const quantity = cart[item.menuItemId]?.quantity ?? 0;
 
           return (
-            <article key={item.menuItemId} className="grid grid-cols-[1fr_auto] gap-4 px-4 py-4">
-              <div className="min-w-0">
-                <h3 className="break-words text-base font-semibold leading-6">{item.name}</h3>
+            <article key={item.menuItemId} className="grid grid-cols-[76px_1fr_auto] gap-3 px-4 py-3">
+              <ItemImage name={item.name} />
+
+              <div className="min-w-0 py-0.5">
+                <h3 className="break-words text-[13px] font-extrabold uppercase leading-5 text-[#20262d]">{item.name}</h3>
                 {item.description ? (
-                  <p className="mt-1 break-words text-sm leading-6 text-on-surface-variant">{item.description}</p>
+                  <p className="mt-0.5 line-clamp-2 break-words text-[11px] font-medium leading-4 text-[#78818a]">
+                    {item.description}
+                  </p>
                 ) : null}
-                <p className="mt-2 whitespace-nowrap text-sm font-bold text-primary">{formatPrice(item.price)}</p>
+                <p className="mt-1 whitespace-nowrap text-[12px] font-extrabold text-[#f2b600]">{formatPrice(item.price)}</p>
               </div>
 
               {canOrder ? (
                 quantity > 0 ? (
-                  <div className="flex h-10 items-center overflow-hidden rounded border border-line">
+                  <div className="self-center flex h-9 items-center overflow-hidden rounded-full border border-[#e1e6ea]">
                     <button
                       type="button"
-                      className="grid h-10 w-10 place-items-center text-primary"
+                      className="grid h-9 w-9 place-items-center text-[#d9342b]"
                       onClick={() => onDecrement(item.menuItemId)}
                       aria-label={`Remove one ${item.name}`}
                     >
                       <Minus className="h-4 w-4" aria-hidden="true" />
                     </button>
-                    <span className="grid h-10 w-9 place-items-center border-x border-line text-sm font-bold">
+                    <span className="grid h-9 w-7 place-items-center border-x border-[#e1e6ea] text-xs font-extrabold">
                       {quantity}
                     </span>
                     <button
                       type="button"
-                      className="grid h-10 w-10 place-items-center text-primary"
+                      className="grid h-9 w-9 place-items-center text-[#d9342b]"
                       onClick={() => onAdd(item, category.name)}
                       aria-label={`Add one ${item.name}`}
                     >
@@ -246,7 +252,7 @@ function MenuCategorySection({
                 ) : (
                   <button
                     type="button"
-                    className="grid h-10 w-10 place-items-center rounded border border-primary text-primary"
+                    className="self-center grid h-9 w-9 place-items-center rounded-full border border-[#e1e6ea] text-[#d9342b]"
                     onClick={() => onAdd(item, category.name)}
                     aria-label={`Add ${item.name}`}
                   >
@@ -254,7 +260,7 @@ function MenuCategorySection({
                   </button>
                 )
               ) : (
-                <p className="whitespace-nowrap text-sm font-bold text-primary">{formatPrice(item.price)}</p>
+                <span aria-hidden="true" />
               )}
             </article>
           );
@@ -294,10 +300,10 @@ function OrderDock({
   onSubmit: () => void;
 }) {
   return (
-    <aside className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-white shadow-[0_-12px_30px_rgba(20,30,55,0.12)]">
-      <div className="mx-auto max-h-[72vh] w-full max-w-3xl overflow-y-auto px-4 py-4 sm:px-6">
+    <aside className="fixed inset-x-0 bottom-0 z-20">
+      <div className="mx-auto w-full max-w-md px-4 pb-4">
         {submitState.kind === "success" ? (
-          <div className="mb-3 flex items-start gap-3 rounded border border-emerald-200 bg-emerald-50 p-3 text-emerald-900">
+          <div className="mb-3 flex items-start gap-3 rounded border border-emerald-200 bg-emerald-50 p-3 text-emerald-900 shadow-[0_10px_30px_rgba(31,37,45,0.12)]">
             <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
             <div>
               <p className="text-sm font-bold">Order sent</p>
@@ -307,15 +313,16 @@ function OrderDock({
         ) : null}
 
         {submitState.kind === "error" ? (
-          <div className="mb-3 flex items-start gap-3 rounded border border-red-200 bg-red-50 p-3 text-red-900">
+          <div className="mb-3 flex items-start gap-3 rounded border border-red-200 bg-red-50 p-3 text-red-900 shadow-[0_10px_30px_rgba(31,37,45,0.12)]">
             <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
             <p className="text-sm font-semibold">{submitState.message}</p>
           </div>
         ) : null}
 
+        <div className="rounded-2xl border border-[#edf0f2] bg-white p-3 shadow-[0_14px_34px_rgba(31,37,45,0.18)]">
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="grid h-10 w-10 shrink-0 place-items-center rounded bg-primary text-on-primary">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#d9342b] text-white">
               <ShoppingBag className="h-5 w-5" aria-hidden="true" />
             </div>
             <div className="min-w-0">
@@ -325,7 +332,7 @@ function OrderDock({
           </div>
           <button
             type="button"
-            className="inline-flex h-11 items-center gap-2 rounded bg-primary px-4 text-sm font-bold text-on-primary disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex h-11 items-center gap-2 rounded-full bg-[#d9342b] px-4 text-sm font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-50"
             disabled={cartCount === 0 || submitState.kind === "submitting"}
             onClick={onSubmit}
           >
@@ -335,10 +342,10 @@ function OrderDock({
         </div>
 
         {cartLines.length > 0 ? (
-          <div className="mt-4 space-y-3">
+          <div className="mt-4 max-h-[48vh] space-y-3 overflow-y-auto pr-1">
             <div className="space-y-2">
               {cartLines.map((line) => (
-                <div key={line.item.menuItemId} className="grid grid-cols-[1fr_auto] gap-3 rounded border border-line p-3">
+                <div key={line.item.menuItemId} className="grid grid-cols-[1fr_auto] gap-3 rounded-xl border border-[#edf0f2] p-3">
                   <div className="min-w-0">
                     <p className="break-words text-sm font-bold">{line.item.name}</p>
                     <p className="mt-1 text-xs text-on-surface-variant">{line.categoryName}</p>
@@ -349,7 +356,7 @@ function OrderDock({
                     </span>
                     <button
                       type="button"
-                      className="grid h-9 w-9 place-items-center rounded border border-line text-on-surface-variant"
+                      className="grid h-9 w-9 place-items-center rounded-full border border-[#edf0f2] text-[#78818a]"
                       onClick={() => onDecrement(line.item.menuItemId)}
                       aria-label={`Remove one ${line.item.name}`}
                     >
@@ -393,7 +400,7 @@ function OrderDock({
             <label className="block">
               <span className="text-xs font-bold uppercase tracking-[0.12em] text-on-surface-variant">Notes</span>
               <textarea
-                className="mt-1 min-h-20 w-full resize-none rounded border border-line px-3 py-2 text-sm outline-none focus:border-primary"
+                className="mt-1 min-h-20 w-full resize-none rounded border border-[#edf0f2] px-3 py-2 text-sm outline-none focus:border-[#d9342b]"
                 value={notes}
                 onChange={(event) => onNotesChange(event.target.value)}
                 maxLength={500}
@@ -401,13 +408,49 @@ function OrderDock({
             </label>
           </div>
         ) : (
-          <div className="mt-4 flex items-center gap-3 rounded border border-line bg-surface p-3 text-sm text-on-surface-variant">
+          <div className="mt-4 flex items-center gap-3 rounded-xl border border-[#edf0f2] bg-[#f8fafb] p-3 text-sm text-[#78818a]">
             <ReceiptText className="h-4 w-4 shrink-0" aria-hidden="true" />
             Add menu items to send an order to the restaurant.
           </div>
         )}
+        </div>
       </div>
     </aside>
+  );
+}
+
+function FloatingMenuButton({ cartCount }: { cartCount: number }) {
+  return (
+    <div className="fixed inset-x-0 bottom-0 z-20 pointer-events-none">
+      <div className="mx-auto flex w-full max-w-md justify-end px-4 pb-5">
+        <button
+          type="button"
+          className="pointer-events-auto relative grid h-14 w-14 place-items-center rounded-full bg-[#d9342b] text-white shadow-[0_12px_28px_rgba(217,52,43,0.35)]"
+          aria-label="Menu"
+        >
+          <Menu className="h-7 w-7" aria-hidden="true" />
+          {cartCount > 0 ? (
+            <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-[#ffc928] px-1 text-[11px] font-extrabold text-[#1f252d]">
+              {cartCount}
+            </span>
+          ) : null}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ItemImage({ name }: { name: string }) {
+  return (
+    <div className="relative h-[64px] w-[76px] overflow-hidden rounded bg-[#f3f5f6]">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_25%,rgba(255,201,40,0.24),transparent_35%),linear-gradient(135deg,#f8fafb,#e8edf0)]" />
+      <div className="absolute inset-0 grid place-items-center">
+        <div className="grid h-10 w-10 place-items-center rounded-full bg-white text-[#d9342b] shadow-sm">
+          <Utensils className="h-5 w-5" aria-hidden="true" />
+        </div>
+      </div>
+      <span className="sr-only">{name}</span>
+    </div>
   );
 }
 

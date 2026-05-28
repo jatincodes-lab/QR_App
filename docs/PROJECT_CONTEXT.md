@@ -73,6 +73,7 @@ Base project structure has been created. The first backend foundation slice now 
 - Upgraded the frontend to Next.js `16.2.6` and PostCSS `8.5.15`; Next.js updated TypeScript config defaults for the current App Router toolchain.
 - Added the first public customer order creation backend slice at `POST /api/v1/public/qr/{qrToken}/orders`, gated by `BranchOrderSettings.EnableDirectQrOrdering` and priced from stored active menu item prices only.
 - Added customer cart/order submission UI on `/qr/{qrToken}` for branches with direct QR ordering enabled, including add/remove quantity controls, required customer field handling, notes, total preview, success/error states, and typed frontend order API contracts.
+- Refined the public QR menu into a cleaner mobile-first restaurant list layout with a compact sticky header, horizontal category chips, image-style item rows, yellow price emphasis, red add/cart controls, and a floating menu/cart action inspired by premium cafe menu apps.
 - Added `database/migrations/002_Public_Order_Runtime_Fix.sql` as an idempotent runtime migration for the public order tables, indexes, and `PublicOrder_CreateFromQrToken` procedure when deployed databases have not yet been brought up to the order slice.
 - Mapped missing SQL object/procedure errors to a clear `503` database schema response instead of a generic server error.
 
@@ -348,6 +349,7 @@ Base project structure has been created. The first backend foundation slice now 
 - `dotnet build "E:\ETPL-04\Jatin\Transferdata\QR-App\QRApp.sln" --no-restore` passed with 0 warnings and 0 errors.
 - Frontend production server was started at `http://localhost:3000`; `/qr/test-token` returned HTTP 200 with the backend unavailable fallback state. Next.js 16 `dev` mode returned empty HTTP 500 responses on this Windows workspace, so the verified local server is running with `npm run start`.
 - `cmd /c "set NODE_OPTIONS=--max-old-space-size=4096&& npm run build"` passed after adding the public customer cart/order submission UI.
+- `cmd /c "set NODE_OPTIONS=--max-old-space-size=4096&& npm run build"` passed after the public QR menu visual refresh.
 - `npm run lint` is currently blocked by the local Next.js 16 CLI behavior resolving `lint` as an invalid project directory (`Q:\lint`); production build and TypeScript checks pass through `npm run build`.
 - Added a targeted public order runtime migration after a production-style order submission returned a generic database 500, consistent with the deployed database missing the latest order tables/procedure.
 
