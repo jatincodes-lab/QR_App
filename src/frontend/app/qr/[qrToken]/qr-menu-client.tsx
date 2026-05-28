@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, CheckCircle2, Menu, Minus, Plus, ReceiptText, Send, ShoppingBag, Trash2, Utensils } from "lucide-react";
+import { AlertCircle, CheckCircle2, Menu, Minus, Plus, ReceiptText, Send, ShoppingBag, Trash2, Utensils, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
   ApiError,
@@ -43,6 +43,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
   const [customerName, setCustomerName] = useState("");
   const [customerWhatsApp, setCustomerWhatsApp] = useState("");
   const [notes, setNotes] = useState("");
+  const [isCartOpen, setIsCartOpen] = useState(false);
   const [submitState, setSubmitState] = useState<SubmitState>({ kind: "idle" });
 
   const cartLines = Object.values(cart);
@@ -124,6 +125,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
       const order = await createPublicQrOrder(menu.qrToken, input);
       setCart({});
       setNotes("");
+      setIsCartOpen(true);
       setSubmitState({ kind: "success", order });
     } catch (caught) {
       setSubmitState({
@@ -135,13 +137,13 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
 
   return (
     <>
-      <nav className="sticky top-[65px] z-10 border-b border-[#edf0f2] bg-white/95 px-4 py-2 backdrop-blur">
+      <nav className="sticky top-[65px] z-10 border-b border-line bg-white/95 px-4 py-2 backdrop-blur">
         <div className="flex gap-2 overflow-x-auto">
           {categories.map((category) => (
             <a
               key={category.menuCategoryId}
               href={`#category-${category.menuCategoryId}`}
-              className="shrink-0 rounded-full border border-[#edf0f2] bg-white px-3 py-1.5 text-xs font-extrabold uppercase text-[#4f5963]"
+              className="shrink-0 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-extrabold uppercase text-on-surface-variant"
             >
               {category.name}
             </a>
@@ -164,7 +166,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
         </div>
       </div>
 
-      {canOrder && (cartCount > 0 || submitState.kind !== "idle") ? (
+      {canOrder && isCartOpen ? (
         <OrderDock
           cartCount={cartCount}
           cartLines={cartLines}
@@ -176,12 +178,13 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
           submitState={submitState}
           onCustomerNameChange={setCustomerName}
           onCustomerWhatsAppChange={setCustomerWhatsApp}
+          onClose={() => setIsCartOpen(false)}
           onDecrement={decrementItem}
           onNotesChange={setNotes}
           onSubmit={submitOrder}
         />
       ) : (
-        <FloatingMenuButton cartCount={cartCount} />
+        <FloatingMenuButton cartCount={cartCount} onOpen={() => setIsCartOpen(true)} />
       )}
     </>
   );
@@ -204,11 +207,11 @@ function MenuCategorySection({
 
   return (
     <section id={`category-${category.menuCategoryId}`} className="scroll-mt-28 bg-white">
-      <div className="border-b border-[#edf0f2] px-4 py-4">
-        <h2 className="text-center text-[15px] font-extrabold uppercase tracking-normal text-[#1f252d]">{category.name}</h2>
+      <div className="border-b border-line px-4 py-4">
+        <h2 className="text-center text-[15px] font-extrabold uppercase tracking-normal text-ink">{category.name}</h2>
       </div>
 
-      <div className="divide-y divide-[#edf0f2]">
+      <div className="divide-y divide-line">
         {items.map((item) => {
           const quantity = cart[item.menuItemId]?.quantity ?? 0;
 
@@ -217,32 +220,32 @@ function MenuCategorySection({
               <ItemImage name={item.name} />
 
               <div className="min-w-0 py-0.5">
-                <h3 className="break-words text-[13px] font-extrabold uppercase leading-5 text-[#20262d]">{item.name}</h3>
+                <h3 className="break-words text-[13px] font-extrabold uppercase leading-5 text-ink">{item.name}</h3>
                 {item.description ? (
-                  <p className="mt-0.5 line-clamp-2 break-words text-[11px] font-medium leading-4 text-[#78818a]">
+                  <p className="mt-0.5 line-clamp-2 break-words text-[11px] font-medium leading-4 text-on-surface-variant">
                     {item.description}
                   </p>
                 ) : null}
-                <p className="mt-1 whitespace-nowrap text-[12px] font-extrabold text-[#f2b600]">{formatPrice(item.price)}</p>
+                <p className="mt-1 whitespace-nowrap text-[12px] font-extrabold text-gold">{formatPrice(item.price)}</p>
               </div>
 
               {canOrder ? (
                 quantity > 0 ? (
-                  <div className="self-center flex h-9 items-center overflow-hidden rounded-full border border-[#e1e6ea]">
+                  <div className="self-center flex h-9 items-center overflow-hidden rounded-full border border-line">
                     <button
                       type="button"
-                      className="grid h-9 w-9 place-items-center text-[#d9342b]"
+                      className="grid h-9 w-9 place-items-center text-primary"
                       onClick={() => onDecrement(item.menuItemId)}
                       aria-label={`Remove one ${item.name}`}
                     >
                       <Minus className="h-4 w-4" aria-hidden="true" />
                     </button>
-                    <span className="grid h-9 w-7 place-items-center border-x border-[#e1e6ea] text-xs font-extrabold">
+                    <span className="grid h-9 w-7 place-items-center border-x border-line text-xs font-extrabold">
                       {quantity}
                     </span>
                     <button
                       type="button"
-                      className="grid h-9 w-9 place-items-center text-[#d9342b]"
+                      className="grid h-9 w-9 place-items-center text-primary"
                       onClick={() => onAdd(item, category.name)}
                       aria-label={`Add one ${item.name}`}
                     >
@@ -252,7 +255,7 @@ function MenuCategorySection({
                 ) : (
                   <button
                     type="button"
-                    className="self-center grid h-9 w-9 place-items-center rounded-full border border-[#e1e6ea] text-[#d9342b]"
+                    className="self-center grid h-9 w-9 place-items-center rounded-full border border-line text-primary"
                     onClick={() => onAdd(item, category.name)}
                     aria-label={`Add ${item.name}`}
                   >
@@ -281,6 +284,7 @@ function OrderDock({
   submitState,
   onCustomerNameChange,
   onCustomerWhatsAppChange,
+  onClose,
   onDecrement,
   onNotesChange,
   onSubmit
@@ -295,6 +299,7 @@ function OrderDock({
   submitState: SubmitState;
   onCustomerNameChange: (value: string) => void;
   onCustomerWhatsAppChange: (value: string) => void;
+  onClose: () => void;
   onDecrement: (menuItemId: string) => void;
   onNotesChange: (value: string) => void;
   onSubmit: () => void;
@@ -319,10 +324,10 @@ function OrderDock({
           </div>
         ) : null}
 
-        <div className="rounded-2xl border border-[#edf0f2] bg-white p-3 shadow-[0_14px_34px_rgba(31,37,45,0.18)]">
+        <div className="rounded-xl border border-line bg-white p-3 shadow-modal">
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#d9342b] text-white">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary text-on-primary">
               <ShoppingBag className="h-5 w-5" aria-hidden="true" />
             </div>
             <div className="min-w-0">
@@ -332,7 +337,15 @@ function OrderDock({
           </div>
           <button
             type="button"
-            className="inline-flex h-11 items-center gap-2 rounded-full bg-[#d9342b] px-4 text-sm font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-50"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-line text-on-surface-variant"
+            onClick={onClose}
+            aria-label="Close cart"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className="inline-flex h-11 items-center gap-2 rounded-full bg-primary px-4 text-sm font-extrabold text-on-primary disabled:cursor-not-allowed disabled:opacity-50"
             disabled={cartCount === 0 || submitState.kind === "submitting"}
             onClick={onSubmit}
           >
@@ -345,7 +358,7 @@ function OrderDock({
           <div className="mt-4 max-h-[48vh] space-y-3 overflow-y-auto pr-1">
             <div className="space-y-2">
               {cartLines.map((line) => (
-                <div key={line.item.menuItemId} className="grid grid-cols-[1fr_auto] gap-3 rounded-xl border border-[#edf0f2] p-3">
+                <div key={line.item.menuItemId} className="grid grid-cols-[1fr_auto] gap-3 rounded-lg border border-line p-3">
                   <div className="min-w-0">
                     <p className="break-words text-sm font-bold">{line.item.name}</p>
                     <p className="mt-1 text-xs text-on-surface-variant">{line.categoryName}</p>
@@ -356,7 +369,7 @@ function OrderDock({
                     </span>
                     <button
                       type="button"
-                      className="grid h-9 w-9 place-items-center rounded-full border border-[#edf0f2] text-[#78818a]"
+                      className="grid h-9 w-9 place-items-center rounded-full border border-line text-on-surface-variant"
                       onClick={() => onDecrement(line.item.menuItemId)}
                       aria-label={`Remove one ${line.item.name}`}
                     >
@@ -400,7 +413,7 @@ function OrderDock({
             <label className="block">
               <span className="text-xs font-bold uppercase tracking-[0.12em] text-on-surface-variant">Notes</span>
               <textarea
-                className="mt-1 min-h-20 w-full resize-none rounded border border-[#edf0f2] px-3 py-2 text-sm outline-none focus:border-[#d9342b]"
+                className="mt-1 min-h-20 w-full resize-none rounded border border-line px-3 py-2 text-sm outline-none focus:border-primary"
                 value={notes}
                 onChange={(event) => onNotesChange(event.target.value)}
                 maxLength={500}
@@ -408,7 +421,7 @@ function OrderDock({
             </label>
           </div>
         ) : (
-          <div className="mt-4 flex items-center gap-3 rounded-xl border border-[#edf0f2] bg-[#f8fafb] p-3 text-sm text-[#78818a]">
+          <div className="mt-4 flex items-center gap-3 rounded-lg border border-line bg-surface-bright p-3 text-sm text-on-surface-variant">
             <ReceiptText className="h-4 w-4 shrink-0" aria-hidden="true" />
             Add menu items to send an order to the restaurant.
           </div>
@@ -419,18 +432,19 @@ function OrderDock({
   );
 }
 
-function FloatingMenuButton({ cartCount }: { cartCount: number }) {
+function FloatingMenuButton({ cartCount, onOpen }: { cartCount: number; onOpen: () => void }) {
   return (
     <div className="fixed inset-x-0 bottom-0 z-20 pointer-events-none">
       <div className="mx-auto flex w-full max-w-md justify-end px-4 pb-5">
         <button
           type="button"
-          className="pointer-events-auto relative grid h-14 w-14 place-items-center rounded-full bg-[#d9342b] text-white shadow-[0_12px_28px_rgba(217,52,43,0.35)]"
-          aria-label="Menu"
+          className="pointer-events-auto relative grid h-14 w-14 place-items-center rounded-full bg-primary text-on-primary shadow-modal"
+          onClick={onOpen}
+          aria-label={cartCount > 0 ? "Open cart" : "Open menu"}
         >
           <Menu className="h-7 w-7" aria-hidden="true" />
           {cartCount > 0 ? (
-            <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-[#ffc928] px-1 text-[11px] font-extrabold text-[#1f252d]">
+            <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-secondary-container px-1 text-[11px] font-extrabold text-on-secondary-container">
               {cartCount}
             </span>
           ) : null}
@@ -442,10 +456,10 @@ function FloatingMenuButton({ cartCount }: { cartCount: number }) {
 
 function ItemImage({ name }: { name: string }) {
   return (
-    <div className="relative h-[64px] w-[76px] overflow-hidden rounded bg-[#f3f5f6]">
+    <div className="relative h-[64px] w-[76px] overflow-hidden rounded bg-surface-container-low">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_25%,rgba(255,201,40,0.24),transparent_35%),linear-gradient(135deg,#f8fafb,#e8edf0)]" />
       <div className="absolute inset-0 grid place-items-center">
-        <div className="grid h-10 w-10 place-items-center rounded-full bg-white text-[#d9342b] shadow-sm">
+        <div className="grid h-10 w-10 place-items-center rounded-full bg-white text-primary shadow-sm">
           <Utensils className="h-5 w-5" aria-hidden="true" />
         </div>
       </div>

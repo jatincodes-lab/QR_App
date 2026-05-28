@@ -41,24 +41,24 @@ export default async function QrMenuPage({ params }: QrMenuPageProps) {
   const hasItems = itemCount > 0;
 
   return (
-    <main className="min-h-screen bg-[#eef3f5] text-[#1f252d]">
-      <section className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-white shadow-[0_0_40px_rgba(31,37,45,0.08)]">
-        <header className="sticky top-0 z-20 border-b border-[#edf0f2] bg-white px-4 py-3">
+    <main className="min-h-screen bg-surface text-ink">
+      <section className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-white shadow-soft-saas">
+        <header className="sticky top-0 z-20 border-b border-line bg-white px-4 py-3">
           <div className="grid h-10 grid-cols-[40px_1fr_40px] items-center">
             <button
               type="button"
-              className="grid h-10 w-10 place-items-center text-[#1f252d]"
+              className="grid h-10 w-10 place-items-center text-ink"
               aria-label="Back"
             >
               <ArrowLeft className="h-5 w-5" aria-hidden="true" />
             </button>
             <div className="min-w-0 text-center">
               <h1 className="truncate text-[15px] font-extrabold uppercase tracking-normal">{menu.branchName}</h1>
-              <p className="mt-0.5 truncate text-[11px] font-semibold text-[#8b929a]">{menu.tableName}</p>
+              <p className="mt-0.5 truncate text-[11px] font-semibold text-on-surface-variant">{menu.tableName}</p>
             </div>
-            <div className="relative grid h-10 w-10 place-items-center text-[#1f252d]" aria-label={`${itemCount} items`}>
+            <div className="relative grid h-10 w-10 place-items-center text-ink" aria-label={`${itemCount} items`}>
               <ShoppingCart className="h-5 w-5" aria-hidden="true" />
-              <span className="absolute right-1 top-0 grid h-4 min-w-4 place-items-center rounded-full bg-[#ffc928] px-1 text-[10px] font-extrabold leading-none text-[#1f252d]">
+              <span className="absolute right-1 top-0 grid h-4 min-w-4 place-items-center rounded-full bg-secondary-container px-1 text-[10px] font-extrabold leading-none text-on-secondary-container">
                 {itemCount}
               </span>
             </div>
