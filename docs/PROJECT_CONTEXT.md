@@ -18,7 +18,7 @@ Core flow:
 
 ## Current State
 
-Base project structure has been created. The first backend foundation slice now supports tenants, branches, branch order settings, owner registration, login, JWT authentication, tenant context resolution, authenticated admin branch/settings APIs, menu category/item foundations, branch table management, QR token public menu resolution, customer QR order creation through SQL Server stored procedures and minimal v1 APIs, and a mobile-first public QR menu frontend with customer cart/order submission.
+Base project structure has been created. The first backend foundation slice now supports tenants, branches, branch order settings, owner registration, login, JWT authentication, tenant context resolution, authenticated admin branch/settings APIs, menu category/item foundations, branch table management, QR token public menu resolution, customer QR order creation through SQL Server stored procedures and minimal v1 APIs, a mobile-first public QR menu frontend with customer cart/order submission, and an admin kitchen order dashboard.
 
 ## What Changed
 
@@ -79,6 +79,8 @@ Base project structure has been created. The first backend foundation slice now 
 - Replaced the public QR cart popup with a full in-page cart view that shows selected items, subtotal, total amount, customer fields, and the place-order action.
 - Added a public QR order confirmation view after successful order submission with short order code, status, ordered items, total amount, and a back-to-menu action.
 - Added a public QR previous-orders page backed by browser local storage for orders placed from the same device/browser, opened from the header orders icon and scoped per QR token.
+- Added authenticated admin order APIs for branch order listing and status updates, backed by stored procedures and tenant-scoped repository access.
+- Added the admin branch detail kitchen orders panel with incoming order cards, item details, totals, customer/table context, refresh, and status transition buttons.
 - Added `database/migrations/002_Public_Order_Runtime_Fix.sql` as an idempotent runtime migration for the public order tables, indexes, and `PublicOrder_CreateFromQrToken` procedure when deployed databases have not yet been brought up to the order slice.
 - Mapped missing SQL object/procedure errors to a clear `503` database schema response instead of a generic server error.
 
@@ -108,6 +110,7 @@ Base project structure has been created. The first backend foundation slice now 
 - `src/backend/QRApp.Api/Endpoints/AdminBranchEndpoints.cs`
 - `src/backend/QRApp.Api/Endpoints/AdminMenuEndpoints.cs`
 - `src/backend/QRApp.Api/Endpoints/AdminTableEndpoints.cs`
+- `src/backend/QRApp.Api/Endpoints/AdminOrderEndpoints.cs`
 - `src/backend/QRApp.Api/Endpoints/PublicMenuEndpoints.cs`
 - `src/backend/QRApp.Api/Endpoints/PublicQrEndpoints.cs`
 - `src/backend/QRApp.Api/Endpoints/PublicOrderEndpoints.cs`
@@ -126,6 +129,7 @@ Base project structure has been created. The first backend foundation slice now 
 - `src/backend/QRApp.Infrastructure/Menus/SqlMenuItemRepository.cs`
 - `src/backend/QRApp.Infrastructure/Tables/SqlBranchTableRepository.cs`
 - `src/backend/QRApp.Infrastructure/Orders/SqlOrderRepository.cs`
+- `src/backend/QRApp.Infrastructure/Orders/SqlAdminOrderRepository.cs`
 - `src/backend/QRApp.Infrastructure/Tenants/SqlTenantRepository.cs`
 - `src/backend/QRApp.Infrastructure/Branches/SqlBranchRepository.cs`
 - `src/backend/QRApp.Infrastructure/BranchOrderSettings/SqlBranchOrderSettingsRepository.cs`
@@ -159,6 +163,10 @@ Base project structure has been created. The first backend foundation slice now 
 - `src/backend/QRApp.Application/Orders/IOrderRepository.cs`
 - `src/backend/QRApp.Application/Orders/IOrderService.cs`
 - `src/backend/QRApp.Application/Orders/OrderService.cs`
+- `src/backend/QRApp.Application/Orders/AdminOrderContracts.cs`
+- `src/backend/QRApp.Application/Orders/IAdminOrderRepository.cs`
+- `src/backend/QRApp.Application/Orders/IAdminOrderService.cs`
+- `src/backend/QRApp.Application/Orders/AdminOrderService.cs`
 - `src/backend/QRApp.Application/Tenants/TenantContracts.cs`
 - `src/backend/QRApp.Application/Tenants/ITenantRepository.cs`
 - `src/backend/QRApp.Application/Tenants/ITenantService.cs`
@@ -208,6 +216,7 @@ Base project structure has been created. The first backend foundation slice now 
 - `database/seeds/.gitkeep`
 - `database/migrations/.gitkeep`
 - `database/migrations/002_Public_Order_Runtime_Fix.sql`
+- `database/migrations/003_Admin_Order_Workflow.sql`
 - `docs/postman/QR-App.postman_collection.json`
 - `docs/postman/API_CURLS.md`
 
@@ -265,6 +274,9 @@ Base project structure has been created. The first backend foundation slice now 
   - `PublicMenu_GetByQrToken`
 - Order stored procedures:
   - `PublicOrder_CreateFromQrToken`
+  - `AdminOrder_GetListByBranch`
+  - `AdminOrder_GetItemsByBranch`
+  - `AdminOrder_UpdateStatus`
 
 ## API Changes
 
@@ -297,6 +309,8 @@ Base project structure has been created. The first backend foundation slice now 
 - Added `GET /api/v1/public/branches/{branchId}/menu`.
 - Added `GET /api/v1/public/qr/{qrToken}`.
 - Added `POST /api/v1/public/qr/{qrToken}/orders`.
+- Added `GET /api/v1/admin/branches/{branchId}/orders`.
+- Added `PUT /api/v1/admin/branches/{branchId}/orders/{orderId}/status`.
 - Added `POST /api/v1/tenants`.
 - Added `GET /api/v1/tenants/{tenantId}`.
 - Added `POST /api/v1/tenants/{tenantId}/branches`.
@@ -320,6 +334,8 @@ Base project structure has been created. The first backend foundation slice now 
   - `404 Not Found` for missing branch/table records in table workflows.
   - `404 Not Found` for inactive or missing QR table during order creation.
   - `400 Bad Request` for required customer fields or unavailable order items during order creation.
+  - `400 Bad Request` for invalid admin order status updates.
+  - `404 Not Found` for missing admin branch orders during status updates.
   - `400 Bad Request` for relationship constraint violations.
   - `503 Service Unavailable` for database timeout/unavailable/configuration failures.
   - `503 Service Unavailable` for missing database objects/procedures when the deployed schema is behind the API.
@@ -360,6 +376,9 @@ Base project structure has been created. The first backend foundation slice now 
 - `cmd /c "set NODE_OPTIONS=--max-old-space-size=4096&& npm run build"` passed after replacing the cart popup with a full cart page view.
 - `cmd /c "set NODE_OPTIONS=--max-old-space-size=4096&& npm run build"` passed after adding the public QR order confirmation view.
 - `cmd /c "set NODE_OPTIONS=--max-old-space-size=4096&& npm run build"` passed after adding the browser-backed public QR previous-orders page.
+- `dotnet build src\backend\QRApp.Api\QRApp.Api.csproj --no-restore` passed with a temporary output path after adding the admin order workflow.
+- `dotnet test tests\QRApp.Application.Tests\QRApp.Application.Tests.csproj --no-build` passed: 18 tests.
+- `cmd /c "set NODE_OPTIONS=--max-old-space-size=4096&& npm run build"` passed after adding the admin kitchen orders panel.
 - `npm run lint` is currently blocked by the local Next.js 16 CLI behavior resolving `lint` as an invalid project directory (`Q:\lint`); production build and TypeScript checks pass through `npm run build`.
 - Added a targeted public order runtime migration after a production-style order submission returned a generic database 500, consistent with the deployed database missing the latest order tables/procedure.
 
@@ -373,15 +392,15 @@ Base project structure has been created. The first backend foundation slice now 
 - Apply the new menu SQL scripts to LocalDB before runtime menu testing.
 - Apply the new table/QR/order SQL scripts to LocalDB before runtime table, QR token, and customer order testing.
 - Apply `database/migrations/002_Public_Order_Runtime_Fix.sql` to any deployed database that returns a schema-related error from `POST /api/v1/public/qr/{qrToken}/orders`.
+- Apply `database/migrations/003_Admin_Order_Workflow.sql` to deployed databases before using the admin kitchen order dashboard.
 - Public QR menu lookup by `branchId` still exists for foundation testing, but `/api/v1/public/qr/{qrToken}` is now the production-oriented lookup path.
 - Add waiter-call workflow when `BranchOrderSettings.WaiterCallEnabled` is enabled.
-- Add staff/kitchen dashboard order listing and status updates.
 - Investigate the Next.js 16 local `dev` server empty HTTP 500 behavior on this Windows workspace; production build/start works.
 - Investigate the Next.js 16 `next lint`/lint script behavior on this Windows workspace; `npm run lint` currently resolves `lint` as an invalid project directory.
 
 ## Next Recommended Task
 
-Add staff/kitchen dashboard order listing and status updates.
+Add realtime order updates with SignalR so staff dashboards receive new QR orders without manual refresh.
 
 ## Frontend CSS/Tailwind Setup
 

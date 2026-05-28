@@ -169,6 +169,35 @@ export type PublicQrOrder = {
   items: PublicQrOrderItem[];
 };
 
+export type AdminOrderItem = {
+  orderItemId: string;
+  orderId: string;
+  menuItemId: string;
+  menuItemName: string;
+  unitPrice: number;
+  quantity: number;
+  lineTotal: number;
+};
+
+export type AdminOrder = {
+  orderId: string;
+  tenantId: string;
+  branchId: string;
+  tableId: string;
+  tableName: string;
+  orderStatusCode: string;
+  customerName: string | null;
+  customerWhatsApp: string | null;
+  notes: string | null;
+  subtotalAmount: number;
+  totalAmount: number;
+  createdAtUtc: string;
+  updatedAtUtc: string | null;
+  items: AdminOrderItem[];
+};
+
+export type OrderStatusCode = "Placed" | "Accepted" | "Preparing" | "Ready" | "Completed" | "Cancelled";
+
 export type CreateBranchInput = {
   name: string;
   phoneNumber: string | null;
@@ -327,6 +356,25 @@ export async function deactivateBranchTable(branchId: string, tableId: string): 
 export async function regenerateBranchTableQrToken(branchId: string, tableId: string): Promise<BranchTable> {
   return request<BranchTable>(`/api/v1/admin/branches/${branchId}/tables/${tableId}/qr-token/regenerate`, {
     method: "POST",
+    requireAuth: true
+  });
+}
+
+export async function getAdminOrders(branchId: string, includeCompleted = false): Promise<AdminOrder[]> {
+  return request<AdminOrder[]>(`/api/v1/admin/branches/${branchId}/orders?includeCompleted=${includeCompleted}`, {
+    method: "GET",
+    requireAuth: true
+  });
+}
+
+export async function updateAdminOrderStatus(
+  branchId: string,
+  orderId: string,
+  orderStatusCode: OrderStatusCode
+): Promise<AdminOrder> {
+  return request<AdminOrder>(`/api/v1/admin/branches/${branchId}/orders/${orderId}/status`, {
+    method: "PUT",
+    body: { orderStatusCode },
     requireAuth: true
   });
 }

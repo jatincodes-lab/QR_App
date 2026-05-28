@@ -136,6 +136,7 @@ app.MapAuthEndpoints();
 app.MapAdminBranchEndpoints();
 app.MapAdminMenuEndpoints();
 app.MapAdminTableEndpoints();
+app.MapAdminOrderEndpoints();
 app.MapPublicMenuEndpoints();
 app.MapPublicQrEndpoints();
 app.MapPublicOrderEndpoints();

@@ -385,6 +385,26 @@ curl --request POST "{{baseUrl}}/api/v1/admin/branches/{{branchId}}/tables/{{tab
   --header "Authorization: Bearer {{accessToken}}"
 ```
 
+## Admin Orders
+
+### GET /api/v1/admin/branches/{branchId}/orders
+
+```bash
+curl --request GET "{{baseUrl}}/api/v1/admin/branches/{{branchId}}/orders?includeCompleted=false" \
+  --header "Authorization: Bearer {{accessToken}}"
+```
+
+### PUT /api/v1/admin/branches/{branchId}/orders/{orderId}/status
+
+```bash
+curl --request PUT "{{baseUrl}}/api/v1/admin/branches/{{branchId}}/orders/{{orderId}}/status" \
+  --header "Authorization: Bearer {{accessToken}}" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "orderStatusCode": "Preparing"
+  }'
+```
+
 ## Public Menu
 
 ### GET /api/v1/public/branches/{branchId}/menu

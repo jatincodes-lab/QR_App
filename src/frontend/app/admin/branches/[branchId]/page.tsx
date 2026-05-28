@@ -15,7 +15,8 @@ import {
   Settings,
   Store,
   Trash2,
-  Utensils
+  Utensils,
+  ClipboardList
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { AdminShell } from "../../../../components/admin-shell";
@@ -29,6 +30,7 @@ import { Skeleton } from "../../../../components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../../../components/ui/table";
 import {
   ApiError,
+  AdminOrder,
   BranchListItem,
   BranchOrderSettings,
   BranchTable,
@@ -44,10 +46,13 @@ import {
   getBranch,
   getBranchOrderSettings,
   getBranchTables,
+  getAdminOrders,
   getMenuCategories,
   getMenuItems,
   regenerateBranchTableQrToken,
-  updateBranchOrderSettings
+  updateAdminOrderStatus,
+  updateBranchOrderSettings,
+  type OrderStatusCode
 } from "../../../../lib/api";
 import { clearAccessToken, getAccessToken } from "../../../../lib/auth";
 
@@ -103,6 +108,7 @@ export default function AdminBranchDetailPage() {
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [items, setItems] = useState<MenuItem[]>([]);
   const [tables, setTables] = useState<BranchTable[]>([]);
+  const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [settings, setSettings] = useState<BranchOrderSettings | null>(null);
   const [settingsForm, setSettingsForm] = useState<SettingsForm>(DefaultSettingsForm);
   const [categoryForm, setCategoryForm] = useState<CategoryForm>(EmptyCategoryForm);
@@ -125,6 +131,10 @@ export default function AdminBranchDetailPage() {
     () => [...tables].filter((table) => table.isActive).sort((a, b) => a.displayOrder - b.displayOrder),
     [tables]
   );
+  const openOrders = useMemo(
+    () => orders.filter((order) => !["Completed", "Cancelled"].includes(order.orderStatusCode)),
+    [orders]
+  );
 
   useEffect(() => {
     if (!getAccessToken()) {
@@ -146,18 +156,20 @@ export default function AdminBranchDetailPage() {
     setError(null);
 
     try {
-      const [branchResponse, categoryResponse, itemResponse, tableResponse, settingsResponse] = await Promise.all([
+      const [branchResponse, categoryResponse, itemResponse, tableResponse, settingsResponse, orderResponse] = await Promise.all([
         getBranch(branchId),
         getMenuCategories(branchId),
         getMenuItems(branchId),
         getBranchTables(branchId),
-        getBranchOrderSettings(branchId)
+        getBranchOrderSettings(branchId),
+        getAdminOrders(branchId)
       ]);
 
       setBranch(branchResponse);
       setCategories(categoryResponse);
       setItems(itemResponse);
       setTables(tableResponse);
+      setOrders(orderResponse);
       setSettings(settingsResponse);
       setSettingsForm(toSettingsForm(settingsResponse));
     } catch (caught) {
@@ -259,6 +271,14 @@ export default function AdminBranchDetailPage() {
     });
   }
 
+  async function handleUpdateOrderStatus(order: AdminOrder, status: OrderStatusCode) {
+    await runSaving(`order-${order.orderId}-${status}`, async () => {
+      const updated = await updateAdminOrderStatus(branchId, order.orderId, status);
+      setOrders((current) => current.map((currentOrder) => (currentOrder.orderId === updated.orderId ? updated : currentOrder)));
+      setNotice(`Order #${shortId(updated.orderId)} moved to ${updated.orderStatusCode}.`);
+    });
+  }
+
   async function handleCopyQrLink(table: BranchTable) {
     const url = `${window.location.origin}/qr/${table.qrToken}`;
     await window.navigator.clipboard.writeText(url);
@@ -329,7 +349,7 @@ export default function AdminBranchDetailPage() {
               <Metric icon={<ChefHat size={20} />} label="Categories" value={activeCategories.length.toString()} />
               <Metric icon={<Utensils size={20} />} label="Menu items" value={activeItems.length.toString()} />
               <Metric icon={<QrCode size={20} />} label="Tables" value={activeTables.length.toString()} />
-              <Metric icon={<Settings size={20} />} label="Ordering" value={settingsForm.enableDirectQrOrdering ? "Direct" : "Browse"} />
+              <Metric icon={<ClipboardList size={20} />} label="Open orders" value={openOrders.length.toString()} />
             </section>
 
             <section className="grid gap-gutter xl:grid-cols-[minmax(0,1.1fr)_minmax(22rem,0.9fr)]">
@@ -348,6 +368,7 @@ export default function AdminBranchDetailPage() {
               />
 
               <div className="space-y-gutter">
+                <OrdersPanel orders={orders} savingKey={savingKey} onRefresh={loadBranchDetail} onUpdateStatus={handleUpdateOrderStatus} />
                 <SettingsPanel
                   form={settingsForm}
                   isSaving={savingKey === "settings"}
@@ -591,6 +612,100 @@ function SettingsPanel({
   );
 }
 
+const OrderStatuses: OrderStatusCode[] = ["Accepted", "Preparing", "Ready", "Completed", "Cancelled"];
+
+function OrdersPanel({
+  orders,
+  savingKey,
+  onRefresh,
+  onUpdateStatus
+}: {
+  orders: AdminOrder[];
+  savingKey: string | null;
+  onRefresh: () => void;
+  onUpdateStatus: (order: AdminOrder, status: OrderStatusCode) => void;
+}) {
+  return (
+    <Card className="border-outline-variant/30 bg-surface-container-lowest shadow-soft-saas">
+      <CardHeader>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <CardTitle className="text-headline-md text-primary">Kitchen orders</CardTitle>
+            <CardDescription>Review incoming QR orders and update kitchen status.</CardDescription>
+          </div>
+          <Button type="button" variant="outline" size="sm" onClick={onRefresh}>
+            <RefreshCw size={15} />
+            Refresh
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {orders.length === 0 ? (
+          <div className="rounded-lg border border-outline-variant/30 bg-surface-container-low p-5 text-center text-sm text-on-surface-variant">
+            No QR orders yet.
+          </div>
+        ) : (
+          orders.map((order) => (
+            <article key={order.orderId} className="rounded-lg border border-outline-variant/30 bg-white p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-bold text-on-surface">#{shortId(order.orderId)}</p>
+                    <Badge
+                      variant={order.orderStatusCode === "Completed" ? "secondary" : order.orderStatusCode === "Cancelled" ? "outline" : "success"}
+                      className={order.orderStatusCode === "Cancelled" ? "border-destructive/30 text-destructive" : undefined}
+                    >
+                      {order.orderStatusCode}
+                    </Badge>
+                  </div>
+                  <p className="mt-1 text-sm text-on-surface-variant">
+                    {order.tableName} · {formatDateTime(order.createdAtUtc)}
+                  </p>
+                  {order.customerName || order.customerWhatsApp ? (
+                    <p className="mt-1 text-sm text-on-surface-variant">
+                      {[order.customerName, order.customerWhatsApp].filter(Boolean).join(" · ")}
+                    </p>
+                  ) : null}
+                </div>
+                <p className="text-lg font-extrabold text-primary">{formatMoney(order.totalAmount)}</p>
+              </div>
+
+              <div className="mt-3 divide-y divide-outline-variant/30 border-t border-outline-variant/30">
+                {order.items.map((item) => (
+                  <div key={item.orderItemId} className="flex items-center justify-between gap-3 py-2 text-sm">
+                    <span className="min-w-0 break-words font-semibold text-on-surface">{item.menuItemName}</span>
+                    <span className="shrink-0 text-on-surface-variant">
+                      {item.quantity} x {formatMoney(item.unitPrice)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {order.notes ? <p className="mt-3 rounded bg-surface-container-low p-2 text-sm text-on-surface-variant">{order.notes}</p> : null}
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                {OrderStatuses.map((status) => (
+                  <Button
+                    key={status}
+                    type="button"
+                    variant={order.orderStatusCode === status ? "default" : "outline"}
+                    size="sm"
+                    disabled={savingKey === `order-${order.orderId}-${status}` || order.orderStatusCode === status}
+                    onClick={() => onUpdateStatus(order, status)}
+                  >
+                    {savingKey === `order-${order.orderId}-${status}` ? <Loader2 size={14} className="animate-spin" /> : null}
+                    {status}
+                  </Button>
+                ))}
+              </div>
+            </article>
+          ))
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function TablesPanel({
   tables,
   form,
@@ -757,6 +872,17 @@ function toPositiveNumber(value: string): number {
 function optional(value: string): string | null {
   const cleaned = value.trim();
   return cleaned.length === 0 ? null : cleaned;
+}
+
+function shortId(value: string): string {
+  return value.replaceAll("-", "").slice(0, 8).toUpperCase();
+}
+
+function formatDateTime(value: string): string {
+  return new Intl.DateTimeFormat("en-IN", {
+    dateStyle: "medium",
+    timeStyle: "short"
+  }).format(new Date(value));
 }
 
 function formatMoney(value: number): string {

@@ -36,6 +36,8 @@ internal static class SqlProblemMapper
             51704 => ApiProblemResponses.BadRequest("Customer WhatsApp is required for this branch."),
             51705 => ApiProblemResponses.BadRequest("At least one valid order item is required."),
             51706 => ApiProblemResponses.BadRequest("One or more menu items are unavailable for ordering."),
+            51707 => ApiProblemResponses.BadRequest("Order status is invalid."),
+            51708 => ApiProblemResponses.NotFound("Order was not found for this tenant and branch."),
 
             547 => ApiProblemResponses.BadRequest("The request violates a database relationship constraint."),
 

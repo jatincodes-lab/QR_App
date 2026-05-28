@@ -30,6 +30,7 @@ public static class DependencyInjection
         services.AddScoped<IMenuItemRepository, SqlMenuItemRepository>();
         services.AddScoped<IBranchTableRepository, SqlBranchTableRepository>();
         services.AddScoped<IOrderRepository, SqlOrderRepository>();
+        services.AddScoped<IAdminOrderRepository, SqlAdminOrderRepository>();
 
         return services;
     }
