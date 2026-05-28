@@ -78,6 +78,7 @@ Base project structure has been created. The first backend foundation slice now 
 - Updated the public QR interaction split so the floating three-bars button opens a category sheet, while the top-right cart icon opens the selected-items cart/order panel and displays the selected item count.
 - Replaced the public QR cart popup with a full in-page cart view that shows selected items, subtotal, total amount, customer fields, and the place-order action.
 - Added a public QR order confirmation view after successful order submission with short order code, status, ordered items, total amount, and a back-to-menu action.
+- Added a public QR previous-orders page backed by browser local storage for orders placed from the same device/browser, opened from the header orders icon and scoped per QR token.
 - Added `database/migrations/002_Public_Order_Runtime_Fix.sql` as an idempotent runtime migration for the public order tables, indexes, and `PublicOrder_CreateFromQrToken` procedure when deployed databases have not yet been brought up to the order slice.
 - Mapped missing SQL object/procedure errors to a clear `503` database schema response instead of a generic server error.
 
@@ -358,6 +359,7 @@ Base project structure has been created. The first backend foundation slice now 
 - `cmd /c "set NODE_OPTIONS=--max-old-space-size=4096&& npm run build"` passed after splitting category navigation and selected-item cart actions.
 - `cmd /c "set NODE_OPTIONS=--max-old-space-size=4096&& npm run build"` passed after replacing the cart popup with a full cart page view.
 - `cmd /c "set NODE_OPTIONS=--max-old-space-size=4096&& npm run build"` passed after adding the public QR order confirmation view.
+- `cmd /c "set NODE_OPTIONS=--max-old-space-size=4096&& npm run build"` passed after adding the browser-backed public QR previous-orders page.
 - `npm run lint` is currently blocked by the local Next.js 16 CLI behavior resolving `lint` as an invalid project directory (`Q:\lint`); production build and TypeScript checks pass through `npm run build`.
 - Added a targeted public order runtime migration after a production-style order submission returned a generic database 500, consistent with the deployed database missing the latest order tables/procedure.
 

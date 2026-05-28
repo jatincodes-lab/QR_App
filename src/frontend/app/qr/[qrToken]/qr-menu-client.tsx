@@ -13,7 +13,7 @@ import {
   Utensils,
   X
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ApiError,
   createPublicQrOrder,
@@ -30,7 +30,7 @@ type CartLine = {
   quantity: number;
 };
 
-type ActiveView = "menu" | "cart";
+type ActiveView = "menu" | "cart" | "orders";
 
 type SubmitState =
   | {
@@ -59,12 +59,17 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
   const [notes, setNotes] = useState("");
   const [activeView, setActiveView] = useState<ActiveView>("menu");
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+  const [previousOrders, setPreviousOrders] = useState<PublicQrOrder[]>([]);
   const [submitState, setSubmitState] = useState<SubmitState>({ kind: "idle" });
 
   const cartLines = Object.values(cart);
   const cartCount = cartLines.reduce((total, line) => total + line.quantity, 0);
   const cartTotal = cartLines.reduce((total, line) => total + line.item.price * line.quantity, 0);
   const canOrder = menu.orderSettings.enableDirectQrOrdering;
+
+  useEffect(() => {
+    setPreviousOrders(loadStoredOrders(menu.qrToken));
+  }, [menu.qrToken]);
 
   function addItem(item: PublicQrMenuItem, categoryName: string) {
     if (!canOrder) {
@@ -140,6 +145,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
       const order = await createPublicQrOrder(menu.qrToken, input);
       setCart({});
       setNotes("");
+      setPreviousOrders(saveStoredOrder(menu.qrToken, order));
       setActiveView("cart");
       setSubmitState({ kind: "success", order });
     } catch (caught) {
@@ -152,9 +158,12 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
 
   return (
     <>
+      <HeaderOrdersButton orderCount={previousOrders.length} onOpen={() => setActiveView("orders")} />
       <HeaderCartButton cartCount={cartCount} onOpen={() => setActiveView("cart")} />
 
-      {activeView === "cart" ? (
+      {activeView === "orders" ? (
+        <PreviousOrdersPage orders={previousOrders} onBackToMenu={() => setActiveView("menu")} />
+      ) : activeView === "cart" ? (
         <CartPage
           cartCount={cartCount}
           cartLines={cartLines}
@@ -539,6 +548,106 @@ function HeaderCartButton({ cartCount, onOpen }: { cartCount: number; onOpen: ()
   );
 }
 
+function HeaderOrdersButton({ orderCount, onOpen }: { orderCount: number; onOpen: () => void }) {
+  return (
+    <div className="fixed inset-x-0 top-0 z-30 pointer-events-none">
+      <div className="mx-auto flex h-[65px] w-full max-w-md items-center justify-start px-4">
+        <button
+          type="button"
+          className="pointer-events-auto relative grid h-10 w-10 place-items-center text-ink"
+          onClick={onOpen}
+          aria-label="Open previous orders"
+        >
+          <ReceiptText className="h-5 w-5" aria-hidden="true" />
+          {orderCount > 0 ? (
+            <span className="absolute right-0 top-1 grid h-4 min-w-4 place-items-center rounded-full bg-secondary-container px-1 text-[10px] font-extrabold leading-none text-on-secondary-container">
+              {orderCount}
+            </span>
+          ) : null}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PreviousOrdersPage({
+  orders,
+  onBackToMenu
+}: {
+  orders: PublicQrOrder[];
+  onBackToMenu: () => void;
+}) {
+  return (
+    <section className="flex-1 bg-surface-bright px-4 py-4 pb-8">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-extrabold text-ink">Previous orders</h2>
+          <p className="mt-1 text-sm text-on-surface-variant">
+            {orders.length} order{orders.length === 1 ? "" : "s"} on this device
+          </p>
+        </div>
+        <button
+          type="button"
+          className="rounded-full border border-line bg-white px-4 py-2 text-sm font-bold text-ink"
+          onClick={onBackToMenu}
+        >
+          Menu
+        </button>
+      </div>
+
+      {orders.length > 0 ? (
+        <div className="space-y-3">
+          {orders.map((order) => (
+            <article key={order.orderId} className="rounded-lg border border-line bg-white p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-bold uppercase text-on-surface-variant">Order</p>
+                  <h3 className="mt-1 text-lg font-extrabold text-ink">#{shortOrderCode(order.orderId)}</h3>
+                  <p className="mt-1 text-xs text-on-surface-variant">{formatOrderDate(order.createdAtUtc)}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs font-bold uppercase text-on-surface-variant">Status</p>
+                  <p className="mt-1 text-sm font-extrabold text-primary">{order.orderStatusCode}</p>
+                  <p className="mt-2 text-base font-extrabold text-ink">{formatPrice(order.totalAmount)}</p>
+                </div>
+              </div>
+
+              <div className="mt-3 divide-y divide-line border-t border-line">
+                {order.items.map((item) => (
+                  <div key={item.orderItemId} className="grid grid-cols-[1fr_auto] gap-3 py-2">
+                    <div className="min-w-0">
+                      <p className="break-words text-sm font-bold text-ink">{item.menuItemName}</p>
+                      <p className="mt-1 text-xs text-on-surface-variant">
+                        {item.quantity} x {formatPrice(item.unitPrice)}
+                      </p>
+                    </div>
+                    <p className="text-sm font-extrabold text-ink">{formatPrice(item.lineTotal)}</p>
+                  </div>
+                ))}
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="flex min-h-[280px] flex-col items-center justify-center rounded-lg border border-line bg-white p-5 text-center">
+          <ReceiptText className="h-8 w-8 text-gold" aria-hidden="true" />
+          <p className="mt-3 text-sm font-bold text-ink">No previous orders yet</p>
+          <p className="mt-1 text-sm leading-6 text-on-surface-variant">
+            Orders placed from this browser will appear here.
+          </p>
+          <button
+            type="button"
+            className="mt-4 rounded bg-primary px-4 py-2 text-sm font-bold text-on-primary"
+            onClick={onBackToMenu}
+          >
+            Back to menu
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function FloatingMenuButton({ onOpen }: { onOpen: () => void }) {
   return (
     <div className="fixed inset-x-0 bottom-0 z-20 pointer-events-none">
@@ -619,6 +728,61 @@ function valueOrNull(value: string): string | null {
 
 function shortOrderCode(orderId: string): string {
   return orderId.replaceAll("-", "").slice(0, 8).toUpperCase();
+}
+
+function orderStorageKey(qrToken: string): string {
+  return `qrapp.public.orders.${qrToken}`;
+}
+
+function loadStoredOrders(qrToken: string): PublicQrOrder[] {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  const raw = window.localStorage.getItem(orderStorageKey(qrToken));
+  if (!raw) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter(isPublicQrOrder).slice(0, 20) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveStoredOrder(qrToken: string, order: PublicQrOrder): PublicQrOrder[] {
+  if (typeof window === "undefined") {
+    return [order];
+  }
+
+  const existing = loadStoredOrders(qrToken).filter((stored) => stored.orderId !== order.orderId);
+  const next = [order, ...existing].slice(0, 20);
+  window.localStorage.setItem(orderStorageKey(qrToken), JSON.stringify(next));
+  return next;
+}
+
+function isPublicQrOrder(value: unknown): value is PublicQrOrder {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const candidate = value as Partial<PublicQrOrder>;
+  return (
+    typeof candidate.orderId === "string" &&
+    typeof candidate.orderStatusCode === "string" &&
+    typeof candidate.totalAmount === "number" &&
+    typeof candidate.createdAtUtc === "string" &&
+    Array.isArray(candidate.items)
+  );
+}
+
+function formatOrderDate(value: string): string {
+  return new Intl.DateTimeFormat("en-IN", {
+    dateStyle: "medium",
+    timeStyle: "short"
+  }).format(new Date(value));
 }
 
 function formatPrice(price: number): string {
