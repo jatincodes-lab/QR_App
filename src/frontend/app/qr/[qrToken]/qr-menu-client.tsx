@@ -3,6 +3,7 @@
 import {
   AlertCircle,
   CheckCircle2,
+  ChevronRight,
   Menu,
   Minus,
   Plus,
@@ -66,6 +67,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
   const cartCount = cartLines.reduce((total, line) => total + line.quantity, 0);
   const cartTotal = cartLines.reduce((total, line) => total + line.item.price * line.quantity, 0);
   const canOrder = menu.orderSettings.enableDirectQrOrdering;
+  const itemCount = categories.reduce((total, category) => total + category.items.length, 0);
 
   useEffect(() => {
     setPreviousOrders(loadStoredOrders(menu.qrToken));
@@ -182,6 +184,8 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
         />
       ) : (
         <>
+          {!canOrder ? <OrderingUnavailableNotice /> : null}
+
           <nav className="sticky top-[65px] z-10 border-b border-line bg-white/95 px-4 py-2 backdrop-blur">
             <div className="flex gap-2 overflow-x-auto">
               {categories.map((category) => (
@@ -197,8 +201,8 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
           </nav>
 
           <div className="flex-1 pb-28">
-            <div>
-              {categories.map((category) => (
+            {itemCount > 0 ? (
+              categories.map((category) => (
                 <MenuCategorySection
                   key={category.menuCategoryId}
                   canOrder={canOrder}
@@ -207,16 +211,42 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
                   onAdd={addItem}
                   onDecrement={decrementItem}
                 />
-              ))}
-            </div>
+              ))
+            ) : (
+              <MenuEmptyState canOrder={canOrder} />
+            )}
           </div>
 
-          <FloatingMenuButton onOpen={() => setIsCategoryOpen(true)} />
+          {canOrder && cartCount > 0 ? (
+            <CheckoutBar cartCount={cartCount} cartTotal={cartTotal} onOpen={() => setActiveView("cart")} />
+          ) : null}
+
+          <FloatingMenuButton hasCheckoutBar={canOrder && cartCount > 0} onOpen={() => setIsCategoryOpen(true)} />
         </>
       )}
 
       {isCategoryOpen ? <CategorySheet categories={categories} onClose={() => setIsCategoryOpen(false)} /> : null}
     </>
+  );
+}
+
+function OrderingUnavailableNotice() {
+  return (
+    <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold leading-5 text-amber-950">
+      Ordering is paused for this table. You can still browse the menu.
+    </div>
+  );
+}
+
+function MenuEmptyState({ canOrder }: { canOrder: boolean }) {
+  return (
+    <div className="flex min-h-[320px] flex-col items-center justify-center px-5 text-center">
+      <ReceiptText className="h-9 w-9 text-gold" aria-hidden="true" />
+      <h2 className="mt-4 text-lg font-extrabold text-ink">No items available</h2>
+      <p className="mt-2 max-w-xs text-sm leading-6 text-on-surface-variant">
+        {canOrder ? "Please check back in a few minutes." : "Ordering is currently paused by the restaurant."}
+      </p>
+    </div>
   );
 }
 
@@ -300,6 +330,37 @@ function MenuCategorySection({
         })}
       </div>
     </section>
+  );
+}
+
+function CheckoutBar({
+  cartCount,
+  cartTotal,
+  onOpen
+}: {
+  cartCount: number;
+  cartTotal: number;
+  onOpen: () => void;
+}) {
+  return (
+    <div className="fixed inset-x-0 bottom-0 z-20 pointer-events-none">
+      <div className="mx-auto w-full max-w-md px-4 pb-5">
+        <button
+          type="button"
+          className="pointer-events-auto flex h-14 w-full items-center justify-between gap-3 rounded bg-primary px-4 text-on-primary shadow-modal"
+          onClick={onOpen}
+        >
+          <span className="grid h-8 min-w-8 place-items-center rounded-full bg-white/15 px-2 text-sm font-extrabold">
+            {cartCount}
+          </span>
+          <span className="min-w-0 flex-1 text-left text-sm font-extrabold">View cart</span>
+          <span className="flex items-center gap-2 text-sm font-extrabold">
+            {formatPrice(cartTotal)}
+            <ChevronRight className="h-4 w-4" aria-hidden="true" />
+          </span>
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -648,10 +709,10 @@ function PreviousOrdersPage({
   );
 }
 
-function FloatingMenuButton({ onOpen }: { onOpen: () => void }) {
+function FloatingMenuButton({ hasCheckoutBar, onOpen }: { hasCheckoutBar: boolean; onOpen: () => void }) {
   return (
     <div className="fixed inset-x-0 bottom-0 z-20 pointer-events-none">
-      <div className="mx-auto flex w-full max-w-md justify-end px-4 pb-5">
+      <div className={`mx-auto flex w-full max-w-md justify-end px-4 ${hasCheckoutBar ? "pb-24" : "pb-5"}`}>
         <button
           type="button"
           className="pointer-events-auto relative grid h-14 w-14 place-items-center rounded-full bg-primary text-on-primary shadow-modal"
