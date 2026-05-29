@@ -98,6 +98,7 @@ const DefaultSettingsForm: SettingsForm = {
   requireCustomerWhatsApp: true,
   waiterCallEnabled: true
 };
+const OrderPollIntervalMs = 10_000;
 
 export default function AdminBranchDetailPage() {
   const router = useRouter();
@@ -115,6 +116,8 @@ export default function AdminBranchDetailPage() {
   const [itemForm, setItemForm] = useState<ItemForm>(EmptyItemForm);
   const [tableForm, setTableForm] = useState<TableForm>(EmptyTableForm);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshingOrders, setIsRefreshingOrders] = useState(false);
+  const [lastOrdersRefreshAt, setLastOrdersRefreshAt] = useState<Date | null>(null);
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -146,6 +149,22 @@ export default function AdminBranchDetailPage() {
   }, [branchId, router]);
 
   useEffect(() => {
+    if (!getAccessToken()) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      if (document.hidden) {
+        return;
+      }
+
+      void loadBranchOrders({ silent: true });
+    }, OrderPollIntervalMs);
+
+    return () => window.clearInterval(timer);
+  }, [branchId]);
+
+  useEffect(() => {
     if (!itemForm.menuCategoryId && activeCategories.length > 0) {
       setItemForm((current) => ({ ...current, menuCategoryId: activeCategories[0].menuCategoryId }));
     }
@@ -172,10 +191,34 @@ export default function AdminBranchDetailPage() {
       setOrders(orderResponse);
       setSettings(settingsResponse);
       setSettingsForm(toSettingsForm(settingsResponse));
+      setLastOrdersRefreshAt(new Date());
     } catch (caught) {
       handleApiError(caught);
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  async function loadBranchOrders(options: { silent?: boolean } = {}) {
+    if (!options.silent) {
+      setIsRefreshingOrders(true);
+      setError(null);
+    }
+
+    try {
+      const orderResponse = await getAdminOrders(branchId);
+      setOrders(orderResponse);
+      setLastOrdersRefreshAt(new Date());
+    } catch (caught) {
+      if (!options.silent) {
+        handleApiError(caught);
+      } else if (caught instanceof ApiError && caught.status === 401) {
+        router.replace("/admin/login");
+      }
+    } finally {
+      if (!options.silent) {
+        setIsRefreshingOrders(false);
+      }
     }
   }
 
@@ -368,7 +411,14 @@ export default function AdminBranchDetailPage() {
               />
 
               <div className="space-y-gutter">
-                <OrdersPanel orders={orders} savingKey={savingKey} onRefresh={loadBranchDetail} onUpdateStatus={handleUpdateOrderStatus} />
+                <OrdersPanel
+                  isRefreshing={isRefreshingOrders}
+                  lastRefreshedAt={lastOrdersRefreshAt}
+                  orders={orders}
+                  savingKey={savingKey}
+                  onRefresh={() => void loadBranchOrders()}
+                  onUpdateStatus={handleUpdateOrderStatus}
+                />
                 <SettingsPanel
                   form={settingsForm}
                   isSaving={savingKey === "settings"}
@@ -615,11 +665,15 @@ function SettingsPanel({
 const OrderStatuses: OrderStatusCode[] = ["Accepted", "Preparing", "Ready", "Completed", "Cancelled"];
 
 function OrdersPanel({
+  isRefreshing,
+  lastRefreshedAt,
   orders,
   savingKey,
   onRefresh,
   onUpdateStatus
 }: {
+  isRefreshing: boolean;
+  lastRefreshedAt: Date | null;
   orders: AdminOrder[];
   savingKey: string | null;
   onRefresh: () => void;
@@ -631,10 +685,12 @@ function OrdersPanel({
         <div className="flex items-start justify-between gap-3">
           <div>
             <CardTitle className="text-headline-md text-primary">Kitchen orders</CardTitle>
-            <CardDescription>Review incoming QR orders and update kitchen status.</CardDescription>
+            <CardDescription>
+              Auto-refreshes every 10 seconds{lastRefreshedAt ? ` · updated ${formatClockTime(lastRefreshedAt)}` : ""}.
+            </CardDescription>
           </div>
-          <Button type="button" variant="outline" size="sm" onClick={onRefresh}>
-            <RefreshCw size={15} />
+          <Button type="button" variant="outline" size="sm" onClick={onRefresh} disabled={isRefreshing}>
+            <RefreshCw size={15} className={isRefreshing ? "animate-spin" : undefined} />
             Refresh
           </Button>
         </div>
@@ -883,6 +939,13 @@ function formatDateTime(value: string): string {
     dateStyle: "medium",
     timeStyle: "short"
   }).format(new Date(value));
+}
+
+function formatClockTime(value: Date): string {
+  return new Intl.DateTimeFormat("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(value);
 }
 
 function formatMoney(value: number): string {

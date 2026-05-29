@@ -158,6 +158,14 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
     }
   }
 
+  function returnToMenu() {
+    if (submitState.kind === "success") {
+      setSubmitState({ kind: "idle" });
+    }
+
+    setActiveView("menu");
+  }
+
   return (
     <>
       <HeaderOrdersButton orderCount={previousOrders.length} onOpen={() => setActiveView("orders")} />
@@ -178,7 +186,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
           onCustomerNameChange={setCustomerName}
           onCustomerWhatsAppChange={setCustomerWhatsApp}
           onDecrement={decrementItem}
-          onBackToMenu={() => setActiveView("menu")}
+          onBackToMenu={returnToMenu}
           onNotesChange={setNotes}
           onSubmit={submitOrder}
         />
