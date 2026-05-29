@@ -8,4 +8,9 @@ public interface IOrderService
         string qrToken,
         CreatePublicQrOrderRequest request,
         CancellationToken cancellationToken);
+
+    Task<OperationResult<PublicOrderResponse>> GetByQrTokenAsync(
+        string qrToken,
+        Guid orderId,
+        CancellationToken cancellationToken);
 }

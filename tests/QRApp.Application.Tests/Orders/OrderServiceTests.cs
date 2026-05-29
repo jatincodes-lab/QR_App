@@ -75,6 +75,32 @@ public sealed class OrderServiceTests
         Assert.Contains(result.Errors, error => error.Field == nameof(CreatePublicQrOrderItemRequest.Quantity));
     }
 
+    [Fact]
+    public async Task GetByQrTokenAsync_WhenRequestIsValid_NormalizesToken()
+    {
+        var orderId = Guid.NewGuid();
+        var repository = new FakeOrderRepository();
+        var service = new OrderService(repository);
+
+        var result = await service.GetByQrTokenAsync(" demo-table-1 ", orderId, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("demo-table-1", repository.QrToken);
+        Assert.Equal(orderId, result.Value!.OrderId);
+        Assert.Equal("Preparing", result.Value.OrderStatusCode);
+    }
+
+    [Fact]
+    public async Task GetByQrTokenAsync_WhenOrderIdIsEmpty_ReturnsValidationError()
+    {
+        var service = new OrderService(new FakeOrderRepository());
+
+        var result = await service.GetByQrTokenAsync("demo-table-1", Guid.Empty, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains(result.Errors, error => error.Field == "orderId");
+    }
+
     private sealed class FakeOrderRepository : IOrderRepository
     {
         public string? QrToken { get; private set; }
@@ -102,6 +128,29 @@ public sealed class OrderServiceTests
                 100m,
                 DateTime.UtcNow,
                 null,
+                []));
+        }
+
+        public Task<PublicOrderResponse> GetByQrTokenAsync(
+            string qrToken,
+            Guid orderId,
+            CancellationToken cancellationToken)
+        {
+            QrToken = qrToken;
+
+            return Task.FromResult(new PublicOrderResponse(
+                orderId,
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                "Preparing",
+                null,
+                null,
+                null,
+                100m,
+                100m,
+                DateTime.UtcNow,
+                DateTime.UtcNow,
                 []));
         }
     }

@@ -5,6 +5,9 @@ namespace QRApp.Application.Orders;
 
 public sealed class OrderService(IOrderRepository repository) : IOrderService
 {
+    private const int MinQrTokenLength = 8;
+    private const int MaxQrTokenLength = 80;
+
     public async Task<OperationResult<PublicOrderResponse>> CreateFromQrTokenAsync(
         string qrToken,
         CreatePublicQrOrderRequest request,
@@ -30,11 +33,38 @@ public sealed class OrderService(IOrderRepository repository) : IOrderService
         return OperationResult<PublicOrderResponse>.Success(order);
     }
 
+    public async Task<OperationResult<PublicOrderResponse>> GetByQrTokenAsync(
+        string qrToken,
+        Guid orderId,
+        CancellationToken cancellationToken)
+    {
+        var cleanToken = TextRules.CleanRequired(qrToken);
+        var errors = new List<ValidationFailure>();
+
+        if (cleanToken.Length is < MinQrTokenLength or > MaxQrTokenLength)
+        {
+            errors.Add(new ValidationFailure("QrToken", "QR token is invalid."));
+        }
+
+        if (orderId == Guid.Empty)
+        {
+            errors.Add(new ValidationFailure(nameof(orderId), "Order is required."));
+        }
+
+        if (errors.Count > 0)
+        {
+            return OperationResult<PublicOrderResponse>.Failed(errors.ToArray());
+        }
+
+        var order = await repository.GetByQrTokenAsync(cleanToken, orderId, cancellationToken);
+        return OperationResult<PublicOrderResponse>.Success(order);
+    }
+
     private static List<ValidationFailure> Validate(string qrToken, CreatePublicQrOrderRequest request)
     {
         var errors = new List<ValidationFailure>();
 
-        if (qrToken.Length is < 16 or > 80)
+        if (qrToken.Length is < MinQrTokenLength or > MaxQrTokenLength)
         {
             errors.Add(new ValidationFailure("QrToken", "QR token is invalid."));
         }

@@ -561,6 +561,31 @@
           ]
         }
       }
+    },
+    {
+      "name": "13 Public - Get QR Order",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/public/qr/{{qrToken}}/orders/{{orderId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "public",
+            "qr",
+            "{{qrToken}}",
+            "orders",
+            "{{orderId}}"
+          ]
+        }
+      }
     }
   ]
 }

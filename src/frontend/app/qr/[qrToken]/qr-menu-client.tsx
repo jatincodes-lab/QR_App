@@ -18,6 +18,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ApiError,
   createPublicQrOrder,
+  getPublicQrOrder,
   type CreatePublicQrOrderInput,
   type PublicQrMenu,
   type PublicQrMenuCategory,
@@ -61,6 +62,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
   const [activeView, setActiveView] = useState<ActiveView>("menu");
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [previousOrders, setPreviousOrders] = useState<PublicQrOrder[]>([]);
+  const [isRefreshingOrders, setIsRefreshingOrders] = useState(false);
   const [submitState, setSubmitState] = useState<SubmitState>({ kind: "idle" });
 
   const cartLines = Object.values(cart);
@@ -72,6 +74,22 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
   useEffect(() => {
     setPreviousOrders(loadStoredOrders(menu.qrToken));
   }, [menu.qrToken]);
+
+  useEffect(() => {
+    if (previousOrders.length === 0) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      if (document.hidden) {
+        return;
+      }
+
+      void refreshPreviousOrders({ silent: true });
+    }, 15_000);
+
+    return () => window.clearInterval(timer);
+  }, [menu.qrToken, previousOrders.length]);
 
   function addItem(item: PublicQrMenuItem, categoryName: string) {
     if (!canOrder) {
@@ -166,13 +184,53 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
     setActiveView("menu");
   }
 
+  async function openPreviousOrders() {
+    setActiveView("orders");
+    await refreshPreviousOrders();
+  }
+
+  async function refreshPreviousOrders(options: { silent?: boolean } = {}) {
+    const storedOrders = loadStoredOrders(menu.qrToken);
+    if (storedOrders.length === 0) {
+      setPreviousOrders([]);
+      return;
+    }
+
+    if (!options.silent) {
+      setIsRefreshingOrders(true);
+    }
+
+    try {
+      const refreshed = await Promise.all(
+        storedOrders.map(async (order) => {
+          try {
+            return await getPublicQrOrder(menu.qrToken, order.orderId);
+          } catch {
+            return order;
+          }
+        })
+      );
+
+      setPreviousOrders(saveStoredOrders(menu.qrToken, refreshed));
+    } finally {
+      if (!options.silent) {
+        setIsRefreshingOrders(false);
+      }
+    }
+  }
+
   return (
     <>
-      <HeaderOrdersButton orderCount={previousOrders.length} onOpen={() => setActiveView("orders")} />
+      <HeaderOrdersButton orderCount={previousOrders.length} onOpen={() => void openPreviousOrders()} />
       <HeaderCartButton cartCount={cartCount} onOpen={() => setActiveView("cart")} />
 
       {activeView === "orders" ? (
-        <PreviousOrdersPage orders={previousOrders} onBackToMenu={() => setActiveView("menu")} />
+        <PreviousOrdersPage
+          isRefreshing={isRefreshingOrders}
+          orders={previousOrders}
+          onBackToMenu={() => setActiveView("menu")}
+          onRefresh={() => void refreshPreviousOrders()}
+        />
       ) : activeView === "cart" ? (
         <CartPage
           cartCount={cartCount}
@@ -640,11 +698,15 @@ function HeaderOrdersButton({ orderCount, onOpen }: { orderCount: number; onOpen
 }
 
 function PreviousOrdersPage({
+  isRefreshing,
   orders,
-  onBackToMenu
+  onBackToMenu,
+  onRefresh
 }: {
+  isRefreshing: boolean;
   orders: PublicQrOrder[];
   onBackToMenu: () => void;
+  onRefresh: () => void;
 }) {
   return (
     <section className="flex-1 bg-surface-bright px-4 py-4 pb-8">
@@ -655,13 +717,23 @@ function PreviousOrdersPage({
             {orders.length} order{orders.length === 1 ? "" : "s"} on this device
           </p>
         </div>
-        <button
-          type="button"
-          className="rounded-full border border-line bg-white px-4 py-2 text-sm font-bold text-ink"
-          onClick={onBackToMenu}
-        >
-          Menu
-        </button>
+        <div className="flex shrink-0 gap-2">
+          <button
+            type="button"
+            className="rounded-full border border-line bg-white px-4 py-2 text-sm font-bold text-ink disabled:opacity-50"
+            onClick={onRefresh}
+            disabled={isRefreshing}
+          >
+            {isRefreshing ? "Updating" : "Refresh"}
+          </button>
+          <button
+            type="button"
+            className="rounded-full border border-line bg-white px-4 py-2 text-sm font-bold text-ink"
+            onClick={onBackToMenu}
+          >
+            Menu
+          </button>
+        </div>
       </div>
 
       {orders.length > 0 ? (
@@ -829,6 +901,16 @@ function saveStoredOrder(qrToken: string, order: PublicQrOrder): PublicQrOrder[]
   const existing = loadStoredOrders(qrToken).filter((stored) => stored.orderId !== order.orderId);
   const next = [order, ...existing].slice(0, 20);
   window.localStorage.setItem(orderStorageKey(qrToken), JSON.stringify(next));
+  return next;
+}
+
+function saveStoredOrders(qrToken: string, orders: PublicQrOrder[]): PublicQrOrder[] {
+  const next = orders.filter(isPublicQrOrder).slice(0, 20);
+
+  if (typeof window !== "undefined") {
+    window.localStorage.setItem(orderStorageKey(qrToken), JSON.stringify(next));
+  }
+
   return next;
 }
 

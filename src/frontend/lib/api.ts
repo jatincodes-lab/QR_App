@@ -258,6 +258,13 @@ export async function createPublicQrOrder(qrToken: string, input: CreatePublicQr
   });
 }
 
+export async function getPublicQrOrder(qrToken: string, orderId: string): Promise<PublicQrOrder> {
+  return request<PublicQrOrder>(`/api/v1/public/qr/${encodeURIComponent(qrToken)}/orders/${encodeURIComponent(orderId)}`, {
+    method: "GET",
+    requireAuth: false
+  });
+}
+
 export async function getBranches(): Promise<BranchListItem[]> {
   return request<BranchListItem[]>("/api/v1/admin/branches?includeInactive=false", {
     method: "GET",

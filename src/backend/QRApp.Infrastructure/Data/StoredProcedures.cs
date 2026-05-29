@@ -37,6 +37,7 @@ internal static class StoredProcedures
     public const string PublicMenuGetByQrToken = "dbo.PublicMenu_GetByQrToken";
 
     public const string PublicOrderCreateFromQrToken = "dbo.PublicOrder_CreateFromQrToken";
+    public const string PublicOrderGetByQrToken = "dbo.PublicOrder_GetByQrToken";
     public const string AdminOrderGetListByBranch = "dbo.AdminOrder_GetListByBranch";
     public const string AdminOrderGetItemsByBranch = "dbo.AdminOrder_GetItemsByBranch";
     public const string AdminOrderUpdateStatus = "dbo.AdminOrder_UpdateStatus";

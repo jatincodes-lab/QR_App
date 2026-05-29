@@ -50,6 +50,41 @@ public sealed class SqlOrderRepository(ISqlConnectionFactory connectionFactory) 
         return order with { Items = items };
     }
 
+    public async Task<PublicOrderResponse> GetByQrTokenAsync(
+        string qrToken,
+        Guid orderId,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = (SqlConnection)connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new SqlCommand(StoredProcedures.PublicOrderGetByQrToken, connection)
+        {
+            CommandType = CommandType.StoredProcedure
+        };
+
+        command.AddString("@QrToken", qrToken, 80);
+        command.AddGuid("@OrderId", orderId);
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            throw new DataException("PublicOrder_GetByQrToken did not return an order row.");
+        }
+
+        var order = ReadOrder(reader);
+        var items = new List<PublicOrderItemResponse>();
+
+        if (await reader.NextResultAsync(cancellationToken))
+        {
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                items.Add(ReadOrderItem(reader));
+            }
+        }
+
+        return order with { Items = items };
+    }
+
     private static PublicOrderResponse ReadOrder(SqlDataReader reader)
     {
         return new PublicOrderResponse(

@@ -11,6 +11,7 @@ public static class PublicOrderEndpoints
         var group = app.MapGroup("/api/v1/public");
 
         group.MapPost("/qr/{qrToken}/orders", CreateOrderAsync).AllowAnonymous();
+        group.MapGet("/qr/{qrToken}/orders/{orderId:guid}", GetOrderAsync).AllowAnonymous();
 
         return app;
     }
@@ -40,6 +41,34 @@ public static class PublicOrderEndpoints
         {
             loggerFactory.CreateLogger(nameof(PublicOrderEndpoints)).LogError(ex, "Failed to create public QR order.");
             return ApiProblemResponses.ServerError("Order could not be created.");
+        }
+    }
+
+    private static async Task<IResult> GetOrderAsync(
+        string qrToken,
+        Guid orderId,
+        IOrderService orderService,
+        ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await orderService.GetByQrTokenAsync(qrToken, orderId, cancellationToken);
+            return result.IsSuccess
+                ? Results.Ok(result.Value)
+                : ApiProblemResponses.Validation(result.Errors);
+        }
+        catch (Exception ex)
+        when (ex is SqlException)
+        {
+            var sqlException = (SqlException)ex;
+            loggerFactory.CreateLogger(nameof(PublicOrderEndpoints)).LogWarning(sqlException, "Database rejected public QR order lookup.");
+            return SqlProblemMapper.ToProblem(sqlException);
+        }
+        catch (Exception ex)
+        {
+            loggerFactory.CreateLogger(nameof(PublicOrderEndpoints)).LogError(ex, "Failed to read public QR order.");
+            return ApiProblemResponses.ServerError("Order could not be read.");
         }
     }
 }

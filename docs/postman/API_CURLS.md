@@ -439,6 +439,14 @@ curl --request POST "{{baseUrl}}/api/v1/public/qr/{{qrToken}}/orders" \
   }'
 ```
 
+### GET /api/v1/public/qr/{qrToken}/orders/{orderId}
+
+Reads a previously placed public QR order scoped to the same table QR token. Use this for customer-facing order status refresh.
+
+```bash
+curl --request GET "{{baseUrl}}/api/v1/public/qr/{{qrToken}}/orders/{{orderId}}"
+```
+
 ## Foundation Tenant Routes
 
 These unauthenticated tenant routes exist for foundation testing. Prefer the authenticated admin routes for production-oriented flows.

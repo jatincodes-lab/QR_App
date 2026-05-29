@@ -38,6 +38,7 @@ internal static class SqlProblemMapper
             51706 => ApiProblemResponses.BadRequest("One or more menu items are unavailable for ordering."),
             51707 => ApiProblemResponses.BadRequest("Order status is invalid."),
             51708 => ApiProblemResponses.NotFound("Order was not found for this tenant and branch."),
+            51709 => ApiProblemResponses.NotFound("Order was not found for this QR table."),
 
             547 => ApiProblemResponses.BadRequest("The request violates a database relationship constraint."),
 
