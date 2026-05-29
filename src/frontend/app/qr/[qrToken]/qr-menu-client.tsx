@@ -63,6 +63,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [previousOrders, setPreviousOrders] = useState<PublicQrOrder[]>([]);
   const [isRefreshingOrders, setIsRefreshingOrders] = useState(false);
+  const [ordersRefreshError, setOrdersRefreshError] = useState<string | null>(null);
   const [submitState, setSubmitState] = useState<SubmitState>({ kind: "idle" });
 
   const cartLines = Object.values(cart);
@@ -193,6 +194,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
     const storedOrders = loadStoredOrders(menu.qrToken);
     if (storedOrders.length === 0) {
       setPreviousOrders([]);
+      setOrdersRefreshError(null);
       return;
     }
 
@@ -201,17 +203,20 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
     }
 
     try {
+      let hasRefreshFailure = false;
       const refreshed = await Promise.all(
         storedOrders.map(async (order) => {
           try {
             return await getPublicQrOrder(menu.qrToken, order.orderId);
           } catch {
+            hasRefreshFailure = true;
             return order;
           }
         })
       );
 
       setPreviousOrders(saveStoredOrders(menu.qrToken, refreshed));
+      setOrdersRefreshError(hasRefreshFailure ? "Some order statuses could not be refreshed. Check that the backend database is up to date." : null);
     } finally {
       if (!options.silent) {
         setIsRefreshingOrders(false);
@@ -228,6 +233,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
         <PreviousOrdersPage
           isRefreshing={isRefreshingOrders}
           orders={previousOrders}
+          refreshError={ordersRefreshError}
           onBackToMenu={() => setActiveView("menu")}
           onRefresh={() => void refreshPreviousOrders()}
         />
@@ -700,11 +706,13 @@ function HeaderOrdersButton({ orderCount, onOpen }: { orderCount: number; onOpen
 function PreviousOrdersPage({
   isRefreshing,
   orders,
+  refreshError,
   onBackToMenu,
   onRefresh
 }: {
   isRefreshing: boolean;
   orders: PublicQrOrder[];
+  refreshError: string | null;
   onBackToMenu: () => void;
   onRefresh: () => void;
 }) {
@@ -735,6 +743,13 @@ function PreviousOrdersPage({
           </button>
         </div>
       </div>
+
+      {refreshError ? (
+        <div className="mb-4 flex items-start gap-3 rounded border border-amber-200 bg-amber-50 p-3 text-amber-950">
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+          <p className="text-sm font-semibold">{refreshError}</p>
+        </div>
+      ) : null}
 
       {orders.length > 0 ? (
         <div className="space-y-3">
