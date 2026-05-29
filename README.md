@@ -1,23 +1,21 @@
 # Qrave
 
-Qrave is an industry-focused multi-tenant QR menu and table-ordering SaaS for cafes and restaurants.
+Qrave is a multi-tenant QR menu and table-ordering SaaS for cafes and restaurants.
 
-## Scope
+## Current Capabilities
 
-This repository is intentionally built step by step. The current foundation contains:
-
-- ASP.NET Core Web API backend skeleton
-- Clean architecture project layout
-- Next.js admin/customer frontend skeleton
-- SQL Server script folders
-- Docker Compose setup for API, frontend, SQL Server, and Redis
-- Health endpoint for deployment checks
-
-Business modules are not implemented yet.
+- ASP.NET Core Web API with clean architecture project layout.
+- Next.js admin and public QR frontend.
+- Owner login with JWT authentication.
+- Admin branch, order settings, menu category, menu item, and table management.
+- Public QR menu browsing and customer order placement.
+- Admin kitchen/order dashboard with order status updates.
+- SQL Server schema, procedures, indexes, migrations, and seed scripts.
+- Docker Compose setup for API, frontend, SQL Server, and Redis.
 
 ## Architecture
 
-Backend follows a modular monolith with clean architecture boundaries:
+Backend projects:
 
 - `src/backend/QRApp.Api`
 - `src/backend/QRApp.Application`
@@ -34,8 +32,8 @@ Database scripts:
 - `database/tables/001_Foundation_Tables.sql`
 - `database/procedures/001_Foundation_Procedures.sql`
 - `database/indexes/001_Foundation_Indexes.sql`
-- `database/seeds`
 - `database/migrations`
+- `database/seeds`
 
 ## Local Development
 
@@ -46,12 +44,18 @@ dotnet build QRApp.sln
 dotnet run --project src/backend/QRApp.Api
 ```
 
-
-Health endpoint:
+Development URLs:
 
 ```text
-GET /health
-GET /health/live
+https://localhost:59126
+http://localhost:59127
+```
+
+Health endpoints:
+
+```text
+GET http://localhost:59127/health
+GET http://localhost:59127/health/live
 ```
 
 ### Frontend
@@ -62,7 +66,58 @@ npm install
 npm run dev
 ```
 
-### Docker
+Frontend URL:
+
+```text
+http://localhost:3000
+```
+
+The frontend defaults to the local API at `http://localhost:59127`. Override with `NEXT_PUBLIC_API_BASE_URL` when needed.
+
+## Demo Seed Data
+
+Run the seed after applying the foundation table/procedure/index scripts.
+
+```powershell
+sqlcmd -S "(localdb)\MSSQLLocalDB" -d master -E -C -b -i database\seeds\001_Demo_Smoke_Data.sql
+```
+
+The seed is idempotent and can be rerun.
+
+Demo admin login:
+
+```text
+owner.demo@example.com
+TestPass123!
+```
+
+Demo public QR URL:
+
+```text
+http://localhost:3000/qr/demo-table-1
+```
+
+Seeded records:
+
+- Tenant: `demo-cafe`
+- Branch: `Main Branch`
+- Table: `Table 1`
+- QR token: `demo-table-1`
+- Menu categories and items
+- Direct QR ordering enabled
+
+## Smoke Test
+
+1. Start backend and frontend.
+2. Run the demo seed.
+3. Login at `http://localhost:3000/admin/login`.
+4. Open `Main Branch`.
+5. Open `http://localhost:3000/qr/demo-table-1`.
+6. Add an item and place an order.
+7. Confirm the order appears in the admin kitchen/orders panel.
+8. Update the order status.
+
+## Docker
 
 ```powershell
 docker compose up --build
