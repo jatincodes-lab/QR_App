@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "node --preserve-symlinks --preserve-symlinks-main scripts/next-cli.cjs dev",
-    "build": "node --preserve-symlinks --preserve-symlinks-main scripts/next-cli.cjs build",
-    "start": "node --preserve-symlinks --preserve-symlinks-main scripts/next-cli.cjs start",
-    "lint": "node --preserve-symlinks --preserve-symlinks-main scripts/next-cli.cjs lint"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
   },
   "dependencies": {
     "lucide-react": "^1.16.0",

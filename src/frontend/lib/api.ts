@@ -1,6 +1,6 @@
 import { clearAccessToken, getAccessToken } from "./auth";
 
-const ApiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:58927";
+const ApiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:59127";
 
 type ProblemDetails = {
   title?: string;

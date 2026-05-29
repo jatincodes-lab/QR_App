@@ -8,7 +8,7 @@ Maintenance rule: whenever an API route, request body, auth requirement, or resp
 
 These examples use Postman collection variables:
 
-- `baseUrl`: `http://localhost:58927`
+- `baseUrl`: `http://localhost:59127`
 - `accessToken`: JWT returned by login/register
 - `tenantId`: foundation tenant ID
 - `branchId`: admin/foundation branch ID

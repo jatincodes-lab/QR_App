@@ -8,7 +8,7 @@
   "variable": [
     {
       "key": "baseUrl",
-      "value": "http://localhost:58927"
+      "value": "http://localhost:59127"
     },
     {
       "key": "accessToken",
