@@ -9,6 +9,13 @@ export type AdminOrderRealtimeEvent = {
   orderStatusCode: string;
 };
 
+export type AdminWaiterCallRealtimeEvent = {
+  waiterCallId: string;
+  tenantId: string;
+  branchId: string;
+  statusCode: string;
+};
+
 export function createAdminOrderConnection(): HubConnection {
   return new HubConnectionBuilder()
     .withUrl(`${ApiBaseUrl}/hubs/admin/orders`, {

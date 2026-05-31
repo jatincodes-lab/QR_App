@@ -405,6 +405,26 @@ curl --request PUT "{{baseUrl}}/api/v1/admin/branches/{{branchId}}/orders/{{orde
   }'
 ```
 
+## Admin Waiter Calls
+
+### GET /api/v1/admin/branches/{branchId}/waiter-calls
+
+```bash
+curl --request GET "{{baseUrl}}/api/v1/admin/branches/{{branchId}}/waiter-calls?includeResolved=false" \
+  --header "Authorization: Bearer {{accessToken}}"
+```
+
+### PUT /api/v1/admin/branches/{branchId}/waiter-calls/{waiterCallId}/status
+
+```bash
+curl --request PUT "{{baseUrl}}/api/v1/admin/branches/{{branchId}}/waiter-calls/{{waiterCallId}}/status" \
+  --header "Authorization: Bearer {{accessToken}}" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "statusCode": "Acknowledged"
+  }'
+```
+
 ## Public Menu
 
 ### GET /api/v1/public/branches/{branchId}/menu
@@ -445,6 +465,19 @@ Reads a previously placed public QR order scoped to the same table QR token. Use
 
 ```bash
 curl --request GET "{{baseUrl}}/api/v1/public/qr/{{qrToken}}/orders/{{orderId}}"
+```
+
+### POST /api/v1/public/qr/{qrToken}/waiter-calls
+
+Creates a waiter-call request from a table QR token when waiter calls are enabled for the branch.
+
+```bash
+curl --request POST "{{baseUrl}}/api/v1/public/qr/{{qrToken}}/waiter-calls" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "customerName": "Priya Shah",
+    "note": "Need water"
+  }'
 ```
 
 ## Foundation Tenant Routes

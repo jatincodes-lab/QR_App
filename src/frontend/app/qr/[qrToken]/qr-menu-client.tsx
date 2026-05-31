@@ -2,6 +2,7 @@
 
 import {
   AlertCircle,
+  Bell,
   CheckCircle2,
   ChevronRight,
   Menu,
@@ -17,6 +18,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import {
   ApiError,
+  createWaiterCall,
   createPublicQrOrder,
   getPublicQrOrder,
   type CreatePublicQrOrderInput,
@@ -50,6 +52,21 @@ type SubmitState =
       message: string;
     };
 
+type WaiterCallState =
+  | {
+      kind: "idle";
+    }
+  | {
+      kind: "submitting";
+    }
+  | {
+      kind: "success";
+    }
+  | {
+      kind: "error";
+      message: string;
+    };
+
 export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
   const categories = useMemo(
     () => [...menu.categories].sort((left, right) => left.displayOrder - right.displayOrder),
@@ -65,11 +82,14 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
   const [isRefreshingOrders, setIsRefreshingOrders] = useState(false);
   const [ordersRefreshError, setOrdersRefreshError] = useState<string | null>(null);
   const [submitState, setSubmitState] = useState<SubmitState>({ kind: "idle" });
+  const [waiterCallNote, setWaiterCallNote] = useState("");
+  const [waiterCallState, setWaiterCallState] = useState<WaiterCallState>({ kind: "idle" });
 
   const cartLines = Object.values(cart);
   const cartCount = cartLines.reduce((total, line) => total + line.quantity, 0);
   const cartTotal = cartLines.reduce((total, line) => total + line.item.price * line.quantity, 0);
   const canOrder = menu.orderSettings.enableDirectQrOrdering;
+  const canCallWaiter = menu.orderSettings.waiterCallEnabled;
   const itemCount = categories.reduce((total, category) => total + category.items.length, 0);
 
   useEffect(() => {
@@ -224,6 +244,28 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
     }
   }
 
+  async function submitWaiterCall() {
+    if (!canCallWaiter || waiterCallState.kind === "submitting") {
+      return;
+    }
+
+    setWaiterCallState({ kind: "submitting" });
+
+    try {
+      await createWaiterCall(menu.qrToken, {
+        customerName: valueOrNull(customerName),
+        note: valueOrNull(waiterCallNote)
+      });
+      setWaiterCallNote("");
+      setWaiterCallState({ kind: "success" });
+    } catch (caught) {
+      setWaiterCallState({
+        kind: "error",
+        message: caught instanceof ApiError ? caught.message : "Waiter could not be called. Please try again."
+      });
+    }
+  }
+
   return (
     <>
       <HeaderOrdersButton orderCount={previousOrders.length} onOpen={() => void openPreviousOrders()} />
@@ -257,6 +299,19 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
       ) : (
         <>
           {!canOrder ? <OrderingUnavailableNotice /> : null}
+          {canCallWaiter ? (
+            <WaiterCallAction
+              note={waiterCallNote}
+              state={waiterCallState}
+              onNoteChange={(value) => {
+                setWaiterCallNote(value);
+                if (waiterCallState.kind !== "submitting") {
+                  setWaiterCallState({ kind: "idle" });
+                }
+              }}
+              onSubmit={() => void submitWaiterCall()}
+            />
+          ) : null}
 
           <nav className="sticky top-[65px] z-10 border-b border-line bg-white/95 px-4 py-2 backdrop-blur">
             <div className="flex gap-2 overflow-x-auto">
@@ -307,6 +362,53 @@ function OrderingUnavailableNotice() {
     <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold leading-5 text-amber-950">
       Ordering is paused for this table. You can still browse the menu.
     </div>
+  );
+}
+
+function WaiterCallAction({
+  note,
+  state,
+  onNoteChange,
+  onSubmit
+}: {
+  note: string;
+  state: WaiterCallState;
+  onNoteChange: (value: string) => void;
+  onSubmit: () => void;
+}) {
+  return (
+    <section className="border-b border-line bg-white px-4 py-3">
+      <div className="rounded-lg border border-line bg-surface-bright p-3">
+        <div className="flex items-start gap-3">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary text-on-primary">
+            <Bell className="h-5 w-5" aria-hidden="true" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-extrabold text-ink">Need staff?</p>
+            <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto]">
+              <input
+                value={note}
+                onChange={(event) => onNoteChange(event.target.value)}
+                maxLength={500}
+                placeholder="Optional note"
+                className="h-10 min-w-0 rounded border border-line bg-white px-3 text-sm outline-none focus:border-primary"
+              />
+              <button
+                type="button"
+                disabled={state.kind === "submitting"}
+                onClick={onSubmit}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded bg-primary px-4 text-sm font-extrabold text-on-primary disabled:opacity-50"
+              >
+                <Bell className="h-4 w-4" aria-hidden="true" />
+                {state.kind === "submitting" ? "Calling" : "Call waiter"}
+              </button>
+            </div>
+            {state.kind === "success" ? <p className="mt-2 text-xs font-bold text-emerald-700">Staff has been notified.</p> : null}
+            {state.kind === "error" ? <p className="mt-2 text-xs font-bold text-red-700">{state.message}</p> : null}
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 

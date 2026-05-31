@@ -198,6 +198,26 @@ export type AdminOrder = {
 
 export type OrderStatusCode = "Placed" | "Accepted" | "Preparing" | "Ready" | "Completed" | "Cancelled";
 
+export type WaiterCallStatusCode = "Open" | "Acknowledged" | "Resolved" | "Cancelled";
+
+export type WaiterCall = {
+  waiterCallId: string;
+  tenantId: string;
+  branchId: string;
+  tableId: string;
+  tableName: string;
+  statusCode: WaiterCallStatusCode;
+  customerName: string | null;
+  note: string | null;
+  createdAtUtc: string;
+  updatedAtUtc: string | null;
+};
+
+export type CreateWaiterCallInput = {
+  customerName: string | null;
+  note: string | null;
+};
+
 export type CreateBranchInput = {
   name: string;
   phoneNumber: string | null;
@@ -261,6 +281,14 @@ export async function createPublicQrOrder(qrToken: string, input: CreatePublicQr
 export async function getPublicQrOrder(qrToken: string, orderId: string): Promise<PublicQrOrder> {
   return request<PublicQrOrder>(`/api/v1/public/qr/${encodeURIComponent(qrToken)}/orders/${encodeURIComponent(orderId)}`, {
     method: "GET",
+    requireAuth: false
+  });
+}
+
+export async function createWaiterCall(qrToken: string, input: CreateWaiterCallInput): Promise<WaiterCall> {
+  return request<WaiterCall>(`/api/v1/public/qr/${encodeURIComponent(qrToken)}/waiter-calls`, {
+    method: "POST",
+    body: input,
     requireAuth: false
   });
 }
@@ -382,6 +410,25 @@ export async function updateAdminOrderStatus(
   return request<AdminOrder>(`/api/v1/admin/branches/${branchId}/orders/${orderId}/status`, {
     method: "PUT",
     body: { orderStatusCode },
+    requireAuth: true
+  });
+}
+
+export async function getWaiterCalls(branchId: string, includeResolved = false): Promise<WaiterCall[]> {
+  return request<WaiterCall[]>(`/api/v1/admin/branches/${branchId}/waiter-calls?includeResolved=${includeResolved}`, {
+    method: "GET",
+    requireAuth: true
+  });
+}
+
+export async function updateWaiterCallStatus(
+  branchId: string,
+  waiterCallId: string,
+  statusCode: WaiterCallStatusCode
+): Promise<WaiterCall> {
+  return request<WaiterCall>(`/api/v1/admin/branches/${branchId}/waiter-calls/${waiterCallId}/status`, {
+    method: "PUT",
+    body: { statusCode },
     requireAuth: true
   });
 }

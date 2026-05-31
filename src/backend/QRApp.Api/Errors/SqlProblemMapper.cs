@@ -39,6 +39,10 @@ internal static class SqlProblemMapper
             51707 => ApiProblemResponses.BadRequest("Order status is invalid."),
             51708 => ApiProblemResponses.NotFound("Order was not found for this tenant and branch."),
             51709 => ApiProblemResponses.NotFound("Order was not found for this QR table."),
+            51801 => ApiProblemResponses.NotFound("Active QR table was not found."),
+            51802 => Conflict("Waiter call is disabled for this branch."),
+            51803 => ApiProblemResponses.BadRequest("Waiter call status is invalid."),
+            51804 => ApiProblemResponses.NotFound("Waiter call was not found for this tenant and branch."),
 
             547 => ApiProblemResponses.BadRequest("The request violates a database relationship constraint."),
 

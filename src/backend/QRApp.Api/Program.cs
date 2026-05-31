@@ -157,6 +157,7 @@ app.MapPublicMenuEndpoints();
 app.MapPublicQrEndpoints();
 app.MapPublicOrderEndpoints();
 app.MapTenantBranchEndpoints();
+app.MapWaiterCallEndpoints();
 app.MapHub<AdminOrderHub>(AdminOrderHub.Route);
 
 app.Run();

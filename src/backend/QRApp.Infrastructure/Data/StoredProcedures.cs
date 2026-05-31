@@ -41,4 +41,8 @@ internal static class StoredProcedures
     public const string AdminOrderGetListByBranch = "dbo.AdminOrder_GetListByBranch";
     public const string AdminOrderGetItemsByBranch = "dbo.AdminOrder_GetItemsByBranch";
     public const string AdminOrderUpdateStatus = "dbo.AdminOrder_UpdateStatus";
+
+    public const string WaiterCallCreateFromQrToken = "dbo.WaiterCall_CreateFromQrToken";
+    public const string WaiterCallGetListByBranch = "dbo.WaiterCall_GetListByBranch";
+    public const string WaiterCallUpdateStatus = "dbo.WaiterCall_UpdateStatus";
 }
