@@ -1,5 +1,7 @@
-import { ReactNode } from "react";
-import { BarChart3, Bell, ChefHat, LayoutDashboard, LogOut, QrCode, Search, Settings, Store } from "lucide-react";
+"use client";
+
+import { ReactNode, useState } from "react";
+import { BarChart3, Bell, ChefHat, ChevronLeft, ChevronRight, LayoutDashboard, LogOut, QrCode, Search, Settings, Store } from "lucide-react";
 import { Button } from "./ui/button";
 
 type AdminShellProps = {
@@ -18,20 +20,39 @@ const navItems = [
 ] as const;
 
 export function AdminShell({ active, branchName = "Downtown Flagship", children, onLogout }: AdminShellProps) {
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
   return (
-    <div className="min-h-screen bg-background text-on-background lg:grid lg:grid-cols-[16rem_1fr]">
-      <aside className="border-b border-outline-variant/30 bg-surface-container-lowest lg:fixed lg:inset-y-0 lg:left-0 lg:z-50 lg:w-64 lg:border-b-0 lg:border-r">
-        <div className="flex h-16 items-center justify-between px-4 lg:h-full lg:min-h-screen lg:flex-col lg:items-stretch lg:px-4 lg:py-8">
+    <div className={`min-h-screen bg-background text-on-background lg:grid ${isCollapsed ? "lg:grid-cols-[5rem_1fr]" : "lg:grid-cols-[16rem_1fr]"}`}>
+      <aside
+        className={`border-b border-outline-variant/30 bg-surface-container-lowest transition-[width] duration-200 lg:fixed lg:inset-y-0 lg:left-0 lg:z-50 lg:border-b-0 lg:border-r ${
+          isCollapsed ? "lg:w-20" : "lg:w-64"
+        }`}
+      >
+        <div className={`flex h-16 items-center justify-between px-4 lg:h-full lg:min-h-screen lg:flex-col lg:py-8 ${isCollapsed ? "lg:px-3" : "lg:items-stretch lg:px-4"}`}>
           <div>
-            <div className="flex items-center gap-3 px-1 lg:px-2">
+            <div className={`flex items-center gap-3 px-1 lg:px-2 ${isCollapsed ? "lg:justify-center" : ""}`}>
               <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary text-soft-gold shadow-soft-saas">
                 <QrCode size={21} strokeWidth={2.3} />
               </div>
-              <div>
+              <div className={isCollapsed ? "lg:hidden" : ""}>
                 <p className="text-[15px] font-bold leading-tight text-primary">Qrave</p>
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-on-surface-variant/70">Restaurant OS</p>
               </div>
             </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsCollapsed((current) => !current)}
+              className={`mt-6 hidden h-9 border-outline-variant/50 bg-white lg:flex ${isCollapsed ? "mx-auto w-10 px-0" : "w-full justify-between"}`}
+              aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              <span className={isCollapsed ? "hidden" : ""}>Collapse</span>
+              {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+            </Button>
 
             <nav className="mt-10 hidden space-y-1 lg:block">
               {navItems.map((item) => {
@@ -41,33 +62,41 @@ export function AdminShell({ active, branchName = "Downtown Flagship", children,
                 return (
                   <div
                     key={item.id}
+                    title={isCollapsed ? item.label : undefined}
                     className={[
-                      "flex h-11 items-center gap-3 rounded-lg px-4 text-sm font-semibold transition-colors",
+                      "flex h-11 items-center rounded-lg text-sm font-semibold transition-colors",
+                      isCollapsed ? "justify-center px-0" : "gap-3 px-4",
                       isActive ? "border-l-4 border-primary bg-primary/5 text-primary" : "text-on-surface-variant hover:bg-surface-container hover:text-primary",
                       item.disabled ? "opacity-60" : ""
                     ].join(" ")}
                   >
                     <Icon size={18} />
-                    {item.label}
+                    <span className={isCollapsed ? "lg:hidden" : ""}>{item.label}</span>
                   </div>
                 );
               })}
             </nav>
           </div>
 
-          <div className="flex items-center gap-3 lg:block lg:border-t lg:border-outline-variant/20 lg:px-2 lg:pt-6">
-            <div className="hidden rounded-xl border border-outline-variant/20 bg-surface-container-low p-3 lg:flex lg:items-center lg:gap-3">
+          <div className={`flex items-center gap-3 lg:block lg:border-t lg:border-outline-variant/20 lg:pt-6 ${isCollapsed ? "lg:px-0" : "lg:px-2"}`}>
+            <div className={`hidden rounded-xl border border-outline-variant/20 bg-surface-container-low p-3 lg:flex lg:items-center ${isCollapsed ? "lg:justify-center" : "lg:gap-3"}`}>
               <div className="grid h-10 w-10 place-items-center rounded-lg bg-primary-fixed-dim text-primary">
                 <Store size={18} />
               </div>
-              <div className="min-w-0">
+              <div className={`min-w-0 ${isCollapsed ? "lg:hidden" : ""}`}>
                 <p className="truncate text-sm font-semibold text-on-surface">{branchName}</p>
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-on-surface-variant/70">Owner workspace</p>
               </div>
             </div>
-            <Button type="button" variant="outline" onClick={onLogout} className="gap-2 lg:mt-4 lg:w-full">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onLogout}
+              className={`gap-2 lg:mt-4 ${isCollapsed ? "lg:w-full lg:px-0" : "lg:w-full"}`}
+              title={isCollapsed ? "Logout" : undefined}
+            >
               <LogOut size={17} />
-              <span className="hidden sm:inline">Logout</span>
+              <span className={`hidden sm:inline ${isCollapsed ? "lg:hidden" : ""}`}>Logout</span>
             </Button>
           </div>
         </div>

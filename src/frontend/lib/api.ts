@@ -41,7 +41,11 @@ export type BranchListItem = {
   tenantId: string;
   name: string;
   phoneNumber: string | null;
+  addressLine1: string | null;
+  addressLine2: string | null;
   city: string | null;
+  state: string | null;
+  postalCode: string | null;
   countryCode: string;
   isActive: boolean;
   createdAtUtc: string;
@@ -237,6 +241,10 @@ export type CreateBranchInput = {
   countryCode: string;
 };
 
+export type UpdateBranchInput = CreateBranchInput & {
+  isActive: boolean;
+};
+
 export type CreateMenuCategoryInput = {
   name: string;
   displayOrder: number;
@@ -336,6 +344,14 @@ export async function getBranch(branchId: string): Promise<BranchListItem> {
 export async function createBranch(input: CreateBranchInput): Promise<BranchListItem> {
   return request<BranchListItem>("/api/v1/admin/branches", {
     method: "POST",
+    body: input,
+    requireAuth: true
+  });
+}
+
+export async function updateBranch(branchId: string, input: UpdateBranchInput): Promise<BranchListItem> {
+  return request<BranchListItem>(`/api/v1/admin/branches/${branchId}`, {
+    method: "PUT",
     body: input,
     requireAuth: true
   });

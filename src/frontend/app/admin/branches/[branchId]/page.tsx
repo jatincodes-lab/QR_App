@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   CircleAlert,
@@ -61,6 +61,7 @@ import {
   getMenuCategories,
   getMenuItems,
   regenerateBranchTableQrToken,
+  updateBranch,
   updateAdminOrderStatus,
   updateMenuCategory,
   updateMenuItem,
@@ -98,8 +99,23 @@ type SettingsForm = {
   waiterCallEnabled: boolean;
 };
 
+type BranchProfileForm = {
+  name: string;
+  phoneNumber: string;
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  countryCode: string;
+};
+
+type FeedbackState = {
+  type: "loading" | "success" | "error";
+  message: string;
+};
+
 type WorkspaceTab = "kitchen" | "menu" | "tables" | "settings";
-type KitchenFilterId = "all" | KitchenLane["id"];
 
 const EmptyCategoryForm: CategoryForm = { name: "", displayOrder: "1" };
 const EmptyItemForm: ItemForm = {
@@ -111,6 +127,16 @@ const EmptyItemForm: ItemForm = {
   isAvailable: true
 };
 const EmptyTableForm: TableForm = { name: "", displayOrder: "1" };
+const EmptyBranchProfileForm: BranchProfileForm = {
+  name: "",
+  phoneNumber: "",
+  addressLine1: "",
+  addressLine2: "",
+  city: "",
+  state: "",
+  postalCode: "",
+  countryCode: "IN"
+};
 const DefaultSettingsForm: SettingsForm = {
   enableDirectQrOrdering: false,
   requireCustomerName: true,
@@ -137,6 +163,7 @@ export default function AdminBranchDetailPage() {
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [waiterCalls, setWaiterCalls] = useState<WaiterCall[]>([]);
   const [settings, setSettings] = useState<BranchOrderSettings | null>(null);
+  const [branchProfileForm, setBranchProfileForm] = useState<BranchProfileForm>(EmptyBranchProfileForm);
   const [settingsForm, setSettingsForm] = useState<SettingsForm>(DefaultSettingsForm);
   const [categoryForm, setCategoryForm] = useState<CategoryForm>(EmptyCategoryForm);
   const [itemForm, setItemForm] = useState<ItemForm>(EmptyItemForm);
@@ -153,6 +180,20 @@ export default function AdminBranchDetailPage() {
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<FeedbackState | null>(null);
+  const [highlightedOrderIds, setHighlightedOrderIds] = useState<Set<string>>(new Set());
+  const [soundAlertsEnabled, setSoundAlertsEnabled] = useState(false);
+  const knownOrderIdsRef = useRef<Set<string>>(new Set());
+  const soundAlertsEnabledRef = useRef(false);
+
+  useEffect(() => {
+    if (!feedback || feedback.type === "loading") {
+      return;
+    }
+
+    const timer = window.setTimeout(() => setFeedback(null), 5_000);
+    return () => window.clearTimeout(timer);
+  }, [feedback]);
 
   const activeCategories = useMemo(
     () => [...categories].filter((category) => category.isActive).sort((a, b) => a.displayOrder - b.displayOrder),
@@ -174,6 +215,10 @@ export default function AdminBranchDetailPage() {
     () => waiterCalls.filter((call) => !["Resolved", "Cancelled"].includes(call.statusCode)),
     [waiterCalls]
   );
+
+  useEffect(() => {
+    soundAlertsEnabledRef.current = soundAlertsEnabled;
+  }, [soundAlertsEnabled]);
 
   useEffect(() => {
     if (!getAccessToken()) {
@@ -289,10 +334,12 @@ export default function AdminBranchDetailPage() {
       ]);
 
       setBranch(branchResponse);
+      setBranchProfileForm(toBranchProfileForm(branchResponse));
       setCategories(categoryResponse);
       setItems(itemResponse);
       setTables(tableResponse);
       setOrders(orderResponse);
+      knownOrderIdsRef.current = new Set(orderResponse.map((order) => order.orderId));
       setWaiterCalls(waiterCallResponse);
       setSettings(settingsResponse);
       setSettingsForm(toSettingsForm(settingsResponse));
@@ -319,6 +366,26 @@ export default function AdminBranchDetailPage() {
         getAdminOrders(branchId),
         getWaiterCalls(branchId)
       ]);
+      const newOrderIds = orderResponse
+        .filter((order) => !knownOrderIdsRef.current.has(order.orderId) && order.orderStatusCode === "Placed")
+        .map((order) => order.orderId);
+      knownOrderIdsRef.current = new Set(orderResponse.map((order) => order.orderId));
+
+      if (newOrderIds.length > 0) {
+        setHighlightedOrderIds((current) => new Set([...current, ...newOrderIds]));
+        window.setTimeout(() => {
+          setHighlightedOrderIds((current) => {
+            const next = new Set(current);
+            newOrderIds.forEach((orderId) => next.delete(orderId));
+            return next;
+          });
+        }, 20_000);
+
+        if (soundAlertsEnabledRef.current) {
+          playKitchenAlert();
+        }
+      }
+
       setOrders(orderResponse);
       setWaiterCalls(waiterCallResponse);
       setLastOrdersRefreshAt(new Date());
@@ -344,7 +411,7 @@ export default function AdminBranchDetailPage() {
       });
       setCategories((current) => [...current, category]);
       setCategoryForm({ name: "", displayOrder: String(activeCategories.length + 2) });
-      setNotice("Menu category added.");
+      showSuccess("Menu category added.");
     });
   }
 
@@ -365,7 +432,7 @@ export default function AdminBranchDetailPage() {
         menuCategoryId: current.menuCategoryId,
         displayOrder: String(activeItems.length + 2)
       }));
-      setNotice("Menu item added.");
+      showSuccess("Menu item added.");
     });
   }
 
@@ -378,7 +445,7 @@ export default function AdminBranchDetailPage() {
       });
       setTables((current) => [...current, table]);
       setTableForm({ name: "", displayOrder: String(activeTables.length + 2) });
-      setNotice("Table and QR token added.");
+      showSuccess("Table and QR token added.");
     });
   }
 
@@ -391,7 +458,7 @@ export default function AdminBranchDetailPage() {
 
       setSettings(saved);
       setSettingsForm(toSettingsForm(saved));
-      setNotice("Order settings saved.");
+      showSuccess("Order settings saved.");
     });
   }
 
@@ -399,7 +466,7 @@ export default function AdminBranchDetailPage() {
     await runSaving(`category-${category.menuCategoryId}`, async () => {
       await deactivateMenuCategory(branchId, category.menuCategoryId);
       setCategories((current) => current.filter((item) => item.menuCategoryId !== category.menuCategoryId));
-      setNotice("Menu category turned off.");
+      showSuccess("Menu category turned off.");
     });
   }
 
@@ -407,7 +474,7 @@ export default function AdminBranchDetailPage() {
     await runSaving(`item-${item.menuItemId}`, async () => {
       await deactivateMenuItem(branchId, item.menuItemId);
       setItems((current) => current.filter((currentItem) => currentItem.menuItemId !== item.menuItemId));
-      setNotice("Menu item turned off.");
+      showSuccess("Menu item turned off.");
     });
   }
 
@@ -415,7 +482,7 @@ export default function AdminBranchDetailPage() {
     await runSaving(`table-${table.tableId}`, async () => {
       await deactivateBranchTable(branchId, table.tableId);
       setTables((current) => current.filter((currentTable) => currentTable.tableId !== table.tableId));
-      setNotice("Table turned off.");
+      showSuccess("Table turned off.");
     });
   }
 
@@ -423,7 +490,7 @@ export default function AdminBranchDetailPage() {
     await runSaving(`qr-${table.tableId}`, async () => {
       const updated = await regenerateBranchTableQrToken(branchId, table.tableId);
       setTables((current) => current.map((currentTable) => (currentTable.tableId === updated.tableId ? updated : currentTable)));
-      setNotice("QR token regenerated.");
+      showSuccess("QR token regenerated.");
     });
   }
 
@@ -431,7 +498,33 @@ export default function AdminBranchDetailPage() {
     await runSaving(`order-${order.orderId}-${status}`, async () => {
       const updated = await updateAdminOrderStatus(branchId, order.orderId, status);
       setOrders((current) => current.map((currentOrder) => (currentOrder.orderId === updated.orderId ? updated : currentOrder)));
-      setNotice(`Order #${shortId(updated.orderId)} moved to ${updated.orderStatusCode}.`);
+      showSuccess(`Order #${shortId(updated.orderId)} moved to ${updated.orderStatusCode}.`);
+    });
+  }
+
+  async function handleSaveBranchProfile(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!branch) {
+      return;
+    }
+
+    await runSaving("branch-profile", async () => {
+      const updated = await updateBranch(branchId, {
+        name: branchProfileForm.name.trim(),
+        phoneNumber: optional(branchProfileForm.phoneNumber),
+        addressLine1: optional(branchProfileForm.addressLine1),
+        addressLine2: optional(branchProfileForm.addressLine2),
+        city: optional(branchProfileForm.city),
+        state: optional(branchProfileForm.state),
+        postalCode: optional(branchProfileForm.postalCode),
+        countryCode: branchProfileForm.countryCode.trim().toUpperCase(),
+        isActive: branch.isActive
+      });
+
+      setBranch(updated);
+      setBranchProfileForm(toBranchProfileForm(updated));
+      showSuccess("Branch profile updated.");
     });
   }
 
@@ -439,7 +532,7 @@ export default function AdminBranchDetailPage() {
     await runSaving(`waiter-call-${waiterCall.waiterCallId}-${status}`, async () => {
       const updated = await updateWaiterCallStatus(branchId, waiterCall.waiterCallId, status);
       setWaiterCalls((current) => current.map((call) => (call.waiterCallId === updated.waiterCallId ? updated : call)));
-      setNotice(`Waiter call for ${updated.tableName} moved to ${updated.statusCode}.`);
+      showSuccess(`Waiter call for ${updated.tableName} moved to ${updated.statusCode}.`);
     });
   }
 
@@ -461,7 +554,7 @@ export default function AdminBranchDetailPage() {
       setCategories((current) => current.map((item) => (item.menuCategoryId === updated.menuCategoryId ? updated : item)));
       setEditingCategoryId(null);
       setEditingCategoryForm(EmptyCategoryForm);
-      setNotice("Menu category updated.");
+      showSuccess("Menu category updated.");
     });
   }
 
@@ -491,14 +584,14 @@ export default function AdminBranchDetailPage() {
       setItems((current) => current.map((currentItem) => (currentItem.menuItemId === updated.menuItemId ? updated : currentItem)));
       setEditingItemId(null);
       setEditingItemForm(EmptyItemForm);
-      setNotice("Menu item updated.");
+      showSuccess("Menu item updated.");
     });
   }
 
   async function handleCopyQrLink(table: BranchTable) {
     const url = getQrMenuUrl(table);
     await window.navigator.clipboard.writeText(url);
-    setNotice("QR menu link copied.");
+    showSuccess("QR menu link copied.");
   }
 
   async function handleDownloadQr(table: BranchTable) {
@@ -516,11 +609,9 @@ export default function AdminBranchDetailPage() {
       link.href = dataUrl;
       link.download = `${safeFileName(branchName)}-${safeFileName(table.name)}-table-qr.png`;
       link.click();
-      setError(null);
-      setNotice("Table QR placard downloaded.");
+      showSuccess("Table QR placard downloaded.");
     } catch {
-      setNotice(null);
-      setError("Could not generate the QR placard. Please try again.");
+      showError("Could not generate the QR placard. Please try again.");
     }
   }
 
@@ -535,8 +626,7 @@ export default function AdminBranchDetailPage() {
       const printWindow = window.open("", "_blank", "width=520,height=720");
 
       if (!printWindow) {
-        setNotice(null);
-        setError("Popup blocked. Please allow popups for this site and try printing again.");
+        showError("Popup blocked. Please allow popups for this site and try printing again.");
         return;
       }
 
@@ -547,11 +637,9 @@ export default function AdminBranchDetailPage() {
       printWindow.document.close();
       printWindow.focus();
       printWindow.print();
-      setError(null);
-      setNotice("QR print view opened.");
+      showSuccess("QR print view opened.");
     } catch {
-      setNotice(null);
-      setError("Could not prepare the QR print view. Please try again.");
+      showError("Could not prepare the QR print view. Please try again.");
     }
   }
 
@@ -559,6 +647,7 @@ export default function AdminBranchDetailPage() {
     setSavingKey(key);
     setError(null);
     setNotice(null);
+    setFeedback({ type: "loading", message: getSavingMessage(key) });
 
     try {
       await action();
@@ -567,6 +656,18 @@ export default function AdminBranchDetailPage() {
     } finally {
       setSavingKey(null);
     }
+  }
+
+  function showSuccess(message: string) {
+    setError(null);
+    setNotice(message);
+    setFeedback({ type: "success", message });
+  }
+
+  function showError(message: string) {
+    setNotice(null);
+    setError(message);
+    setFeedback({ type: "error", message });
   }
 
   function handleLogout() {
@@ -580,7 +681,7 @@ export default function AdminBranchDetailPage() {
       return;
     }
 
-    setError(caught instanceof ApiError ? caught.message : "Something went wrong. Please try again.");
+    showError(caught instanceof ApiError ? caught.message : "Something went wrong. Please try again.");
   }
 
   return (
@@ -629,10 +730,13 @@ export default function AdminBranchDetailPage() {
                 <OrdersPanel
                   isRefreshing={isRefreshingOrders}
                   isRealtimeConnected={isRealtimeConnected}
+                  soundAlertsEnabled={soundAlertsEnabled}
+                  highlightedOrderIds={highlightedOrderIds}
                   lastRefreshedAt={lastOrdersRefreshAt}
                   orders={orders}
                   waiterCalls={waiterCalls}
                   savingKey={savingKey}
+                  onToggleSoundAlerts={() => setSoundAlertsEnabled((current) => !current)}
                   onRefresh={() => void loadKitchenActivity()}
                   onUpdateStatus={handleUpdateOrderStatus}
                   onUpdateWaiterCallStatus={handleUpdateWaiterCallStatus}
@@ -684,8 +788,12 @@ export default function AdminBranchDetailPage() {
 
               {activeTab === "settings" ? (
                 <SettingsPanel
+                  branchProfileForm={branchProfileForm}
                   form={settingsForm}
+                  isSavingProfile={savingKey === "branch-profile"}
                   isSaving={savingKey === "settings"}
+                  onBranchProfileChange={setBranchProfileForm}
+                  onBranchProfileSubmit={handleSaveBranchProfile}
                   onChange={setSettingsForm}
                   onSubmit={handleSaveSettings}
                 />
@@ -694,6 +802,7 @@ export default function AdminBranchDetailPage() {
           </>
         )}
       </div>
+      <FloatingFeedback feedback={feedback} onClose={() => setFeedback(null)} />
     </AdminShell>
   );
 }
@@ -1059,35 +1168,84 @@ function MenuPanel({
 }
 
 function SettingsPanel({
+  branchProfileForm,
   form,
+  isSavingProfile,
   isSaving,
+  onBranchProfileChange,
+  onBranchProfileSubmit,
   onChange,
   onSubmit
 }: {
+  branchProfileForm: BranchProfileForm;
   form: SettingsForm;
+  isSavingProfile: boolean;
   isSaving: boolean;
+  onBranchProfileChange: (form: BranchProfileForm) => void;
+  onBranchProfileSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onChange: (form: SettingsForm) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   return (
-    <Card className="border-outline-variant/30 bg-surface-container-lowest shadow-soft-saas">
-      <CardHeader>
-        <CardTitle className="text-headline-md text-primary">Order settings</CardTitle>
-        <CardDescription>Control customer ordering rules for QR menus.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={onSubmit} className="space-y-4">
-          <Toggle label="Direct QR ordering" checked={form.enableDirectQrOrdering} onChange={(value) => onChange({ ...form, enableDirectQrOrdering: value })} />
-          <Toggle label="Require customer name" checked={form.requireCustomerName} onChange={(value) => onChange({ ...form, requireCustomerName: value })} />
-          <Toggle label="Require WhatsApp number" checked={form.requireCustomerWhatsApp} onChange={(value) => onChange({ ...form, requireCustomerWhatsApp: value })} />
-          <Toggle label="Waiter call enabled" checked={form.waiterCallEnabled} onChange={(value) => onChange({ ...form, waiterCallEnabled: value })} />
-          <Button type="submit" disabled={isSaving} className="w-full">
-            {isSaving ? <Loader2 size={17} className="animate-spin" /> : <Save size={17} />}
-            Save Settings
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+    <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
+      <Card className="border-outline-variant/30 bg-surface-container-lowest shadow-soft-saas">
+        <CardHeader>
+          <CardTitle className="text-headline-md text-primary">Branch profile</CardTitle>
+          <CardDescription>These details appear on admin pages and printable table QR placards.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={onBranchProfileSubmit} className="grid gap-4 md:grid-cols-2">
+            <Field label="Branch name">
+              <Input value={branchProfileForm.name} onChange={(event) => onBranchProfileChange({ ...branchProfileForm, name: event.target.value })} required />
+            </Field>
+            <Field label="Phone">
+              <Input value={branchProfileForm.phoneNumber} onChange={(event) => onBranchProfileChange({ ...branchProfileForm, phoneNumber: event.target.value })} />
+            </Field>
+            <Field label="Address line 1">
+              <Input value={branchProfileForm.addressLine1} onChange={(event) => onBranchProfileChange({ ...branchProfileForm, addressLine1: event.target.value })} />
+            </Field>
+            <Field label="Address line 2">
+              <Input value={branchProfileForm.addressLine2} onChange={(event) => onBranchProfileChange({ ...branchProfileForm, addressLine2: event.target.value })} />
+            </Field>
+            <Field label="City">
+              <Input value={branchProfileForm.city} onChange={(event) => onBranchProfileChange({ ...branchProfileForm, city: event.target.value })} />
+            </Field>
+            <Field label="State">
+              <Input value={branchProfileForm.state} onChange={(event) => onBranchProfileChange({ ...branchProfileForm, state: event.target.value })} />
+            </Field>
+            <Field label="Postal code">
+              <Input value={branchProfileForm.postalCode} onChange={(event) => onBranchProfileChange({ ...branchProfileForm, postalCode: event.target.value })} />
+            </Field>
+            <Field label="Country code">
+              <Input value={branchProfileForm.countryCode} maxLength={2} onChange={(event) => onBranchProfileChange({ ...branchProfileForm, countryCode: event.target.value.toUpperCase() })} required />
+            </Field>
+            <Button type="submit" disabled={isSavingProfile} className="md:col-span-2">
+              {isSavingProfile ? <Loader2 size={17} className="animate-spin" /> : <Save size={17} />}
+              Save Branch Profile
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card className="border-outline-variant/30 bg-surface-container-lowest shadow-soft-saas">
+        <CardHeader>
+          <CardTitle className="text-headline-md text-primary">Order settings</CardTitle>
+          <CardDescription>Control customer ordering rules for QR menus.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={onSubmit} className="space-y-4">
+            <Toggle label="Direct QR ordering" checked={form.enableDirectQrOrdering} onChange={(value) => onChange({ ...form, enableDirectQrOrdering: value })} />
+            <Toggle label="Require customer name" checked={form.requireCustomerName} onChange={(value) => onChange({ ...form, requireCustomerName: value })} />
+            <Toggle label="Require WhatsApp number" checked={form.requireCustomerWhatsApp} onChange={(value) => onChange({ ...form, requireCustomerWhatsApp: value })} />
+            <Toggle label="Waiter call enabled" checked={form.waiterCallEnabled} onChange={(value) => onChange({ ...form, waiterCallEnabled: value })} />
+            <Button type="submit" disabled={isSaving} className="w-full">
+              {isSaving ? <Loader2 size={17} className="animate-spin" /> : <Save size={17} />}
+              Save Settings
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
@@ -1135,30 +1293,31 @@ const KitchenLanes: KitchenLane[] = [
   }
 ];
 
-const KitchenOrderFilters: Array<{ id: KitchenFilterId; label: string }> = [
-  { id: "all", label: "All active" },
-  ...KitchenLanes.map((lane) => ({ id: lane.id, label: lane.title }))
-];
-
 const SecondaryOrderStatuses: OrderStatusCode[] = ["Cancelled"];
 
 function OrdersPanel({
   isRefreshing,
   isRealtimeConnected,
+  soundAlertsEnabled,
+  highlightedOrderIds,
   lastRefreshedAt,
   orders,
   waiterCalls,
   savingKey,
+  onToggleSoundAlerts,
   onRefresh,
   onUpdateStatus,
   onUpdateWaiterCallStatus
 }: {
   isRefreshing: boolean;
   isRealtimeConnected: boolean;
+  soundAlertsEnabled: boolean;
+  highlightedOrderIds: Set<string>;
   lastRefreshedAt: Date | null;
   orders: AdminOrder[];
   waiterCalls: WaiterCall[];
   savingKey: string | null;
+  onToggleSoundAlerts: () => void;
   onRefresh: () => void;
   onUpdateStatus: (order: AdminOrder, status: OrderStatusCode) => void;
   onUpdateWaiterCallStatus: (waiterCall: WaiterCall, status: WaiterCallStatusCode) => void;
@@ -1174,16 +1333,22 @@ function OrdersPanel({
               {lastRefreshedAt ? ` · updated ${formatClockTime(lastRefreshedAt)}` : ""}.
             </CardDescription>
           </div>
-          <Button type="button" variant="outline" size="sm" onClick={onRefresh} disabled={isRefreshing}>
-            <RefreshCw size={15} className={isRefreshing ? "animate-spin" : undefined} />
-            Refresh
-          </Button>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button type="button" variant={soundAlertsEnabled ? "default" : "outline"} size="sm" onClick={onToggleSoundAlerts}>
+              Sound {soundAlertsEnabled ? "On" : "Off"}
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={onRefresh} disabled={isRefreshing}>
+              <RefreshCw size={15} className={isRefreshing ? "animate-spin" : undefined} />
+              Refresh
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
         <KitchenBoard
           orders={orders}
           waiterCalls={waiterCalls}
+          highlightedOrderIds={highlightedOrderIds}
           savingKey={savingKey}
           onUpdateStatus={onUpdateStatus}
           onUpdateWaiterCallStatus={onUpdateWaiterCallStatus}
@@ -1196,36 +1361,43 @@ function OrdersPanel({
 function KitchenBoard({
   orders,
   waiterCalls,
+  highlightedOrderIds,
   savingKey,
   onUpdateStatus,
   onUpdateWaiterCallStatus
 }: {
   orders: AdminOrder[];
   waiterCalls: WaiterCall[];
+  highlightedOrderIds: Set<string>;
   savingKey: string | null;
   onUpdateStatus: (order: AdminOrder, status: OrderStatusCode) => void;
   onUpdateWaiterCallStatus: (waiterCall: WaiterCall, status: WaiterCallStatusCode) => void;
 }) {
-  const [activeFilter, setActiveFilter] = useState<KitchenFilterId>("all");
+  const [historySearch, setHistorySearch] = useState("");
+  const [historyStatus, setHistoryStatus] = useState<"all" | "Completed" | "Cancelled">("all");
+  const [historyFromDate, setHistoryFromDate] = useState("");
+  const [historyToDate, setHistoryToDate] = useState("");
   const activeOrders = orders
     .filter((order) => !["Completed", "Cancelled"].includes(order.orderStatusCode))
     .sort((a, b) => new Date(b.createdAtUtc).getTime() - new Date(a.createdAtUtc).getTime());
   const closedOrders = orders
     .filter((order) => ["Completed", "Cancelled"].includes(order.orderStatusCode))
     .sort((a, b) => new Date(b.updatedAtUtc ?? b.createdAtUtc).getTime() - new Date(a.updatedAtUtc ?? a.createdAtUtc).getTime());
+  const filteredClosedOrders = closedOrders.filter((order) =>
+    matchesOrderHistoryFilters(order, historySearch, historyStatus, historyFromDate, historyToDate)
+  );
   const activeWaiterCalls = waiterCalls
     .filter((call) => !["Resolved", "Cancelled"].includes(call.statusCode))
     .sort((a, b) => new Date(b.createdAtUtc).getTime() - new Date(a.createdAtUtc).getTime());
   const closedWaiterCalls = waiterCalls
     .filter((call) => ["Resolved", "Cancelled"].includes(call.statusCode))
     .sort((a, b) => new Date(b.updatedAtUtc ?? b.createdAtUtc).getTime() - new Date(a.updatedAtUtc ?? a.createdAtUtc).getTime());
-  const filteredActiveOrders = activeFilter === "all" ? activeOrders : activeOrders.filter((order) => order.orderStatusCode === activeFilter);
-  const orderCounts = KitchenLanes.reduce<Record<KitchenFilterId, number>>(
+  const orderCounts = KitchenLanes.reduce<Record<KitchenLane["id"], number>>(
     (counts, lane) => ({
       ...counts,
       [lane.id]: activeOrders.filter((order) => order.orderStatusCode === lane.id).length
     }),
-    { all: activeOrders.length, Placed: 0, Accepted: 0, Preparing: 0, Ready: 0 }
+    { Placed: 0, Accepted: 0, Preparing: 0, Ready: 0 }
   );
 
   return (
@@ -1237,27 +1409,12 @@ function KitchenBoard({
         onUpdateStatus={onUpdateWaiterCallStatus}
       />
 
-      <div className="overflow-x-auto rounded-xl border border-outline-variant/30 bg-surface-container-low p-2">
-        <div className="flex min-w-max gap-2">
-          {KitchenOrderFilters.map((filter) => {
-            const isActive = activeFilter === filter.id;
-
-            return (
-              <button
-                key={filter.id}
-                type="button"
-                onClick={() => setActiveFilter(filter.id)}
-                className={`flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-bold transition ${
-                  isActive ? "bg-primary text-on-primary shadow-sm" : "bg-white text-on-surface hover:bg-surface-container"
-                }`}
-              >
-                <span>{filter.label}</span>
-                <span className={`rounded-full px-2 py-0.5 text-xs ${isActive ? "bg-white/20 text-on-primary" : "bg-surface-container-low text-on-surface-variant"}`}>
-                  {orderCounts[filter.id]}
-                </span>
-              </button>
-            );
-          })}
+      <div className="overflow-x-auto rounded-xl border border-outline-variant/30 bg-surface-container-low p-3">
+        <div className="flex min-w-max items-center gap-2">
+          <OrderCountChip label="Active orders" value={activeOrders.length} strong />
+          {KitchenLanes.map((lane) => (
+            <OrderCountChip key={lane.id} label={lane.title} value={orderCounts[lane.id]} />
+          ))}
         </div>
       </div>
 
@@ -1265,14 +1422,10 @@ function KitchenBoard({
         <div className="rounded-lg border border-outline-variant/30 bg-surface-container-low p-5 text-center text-sm text-on-surface-variant">
           No active QR orders right now.
         </div>
-      ) : filteredActiveOrders.length === 0 ? (
-        <div className="rounded-lg border border-outline-variant/30 bg-surface-container-low p-5 text-center text-sm text-on-surface-variant">
-          No orders match this filter.
-        </div>
       ) : (
         <div className="grid gap-3 xl:grid-cols-4">
           {KitchenLanes.map((lane) => {
-            const laneOrders = filteredActiveOrders.filter((order) => order.orderStatusCode === lane.id);
+            const laneOrders = activeOrders.filter((order) => order.orderStatusCode === lane.id);
             const Icon = lane.icon;
 
             return (
@@ -1300,6 +1453,7 @@ function KitchenBoard({
                         order={order}
                         primaryStatus={lane.nextStatus}
                         primaryLabel={lane.actionLabel}
+                        isHighlighted={highlightedOrderIds.has(order.orderId)}
                         savingKey={savingKey}
                         onUpdateStatus={onUpdateStatus}
                       />
@@ -1316,18 +1470,49 @@ function KitchenBoard({
         <section className="rounded-xl border border-outline-variant/30 bg-surface-container-low p-3">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
-              <h3 className="text-sm font-extrabold text-on-surface">Recently closed</h3>
-              <p className="mt-1 text-xs text-on-surface-variant">Completed or cancelled orders from this refresh.</p>
+              <h3 className="text-sm font-extrabold text-on-surface">Order history</h3>
+              <p className="mt-1 text-xs text-on-surface-variant">Search closed orders by table, customer, order id, status, or date.</p>
             </div>
-            <Badge variant="secondary">{closedOrders.length}</Badge>
+            <Badge variant="secondary">{filteredClosedOrders.length}</Badge>
           </div>
-          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-            {closedOrders.slice(0, 6).map((order) => (
-              <ClosedOrderRow key={order.orderId} order={order} />
-            ))}
+          <div className="mb-3 grid gap-2 md:grid-cols-[1fr_10rem_9rem_9rem]">
+            <Input placeholder="Search orders" value={historySearch} onChange={(event) => setHistorySearch(event.target.value)} />
+            <select
+              value={historyStatus}
+              onChange={(event) => setHistoryStatus(event.target.value as "all" | "Completed" | "Cancelled")}
+              className="h-10 rounded-md border border-outline-variant/50 bg-white px-3 text-sm font-medium text-on-surface"
+            >
+              <option value="all">All status</option>
+              <option value="Completed">Completed</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
+            <Input type="date" value={historyFromDate} onChange={(event) => setHistoryFromDate(event.target.value)} />
+            <Input type="date" value={historyToDate} onChange={(event) => setHistoryToDate(event.target.value)} />
           </div>
+          {filteredClosedOrders.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-outline-variant/40 bg-white/60 px-3 py-6 text-center text-xs text-on-surface-variant">
+              No closed orders match these filters.
+            </div>
+          ) : (
+            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+              {filteredClosedOrders.slice(0, 12).map((order) => (
+                <ClosedOrderRow key={order.orderId} order={order} />
+              ))}
+            </div>
+          )}
         </section>
       ) : null}
+    </div>
+  );
+}
+
+function OrderCountChip({ label, value, strong = false }: { label: string; value: number; strong?: boolean }) {
+  return (
+    <div className={`flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-bold ${strong ? "bg-primary text-on-primary" : "bg-white text-on-surface"}`}>
+      <span>{label}</span>
+      <span className={`rounded-full px-2 py-0.5 text-xs ${strong ? "bg-white/20 text-on-primary" : "bg-surface-container-low text-on-surface-variant"}`}>
+        {value}
+      </span>
     </div>
   );
 }
@@ -1434,19 +1619,21 @@ function KitchenOrderCard({
   order,
   primaryStatus,
   primaryLabel,
+  isHighlighted,
   savingKey,
   onUpdateStatus
 }: {
   order: AdminOrder;
   primaryStatus: OrderStatusCode;
   primaryLabel: string;
+  isHighlighted: boolean;
   savingKey: string | null;
   onUpdateStatus: (order: AdminOrder, status: OrderStatusCode) => void;
 }) {
   const isPrimarySaving = savingKey === `order-${order.orderId}-${primaryStatus}`;
 
   return (
-    <article className="rounded-lg border border-outline-variant/30 bg-white p-3 shadow-sm">
+    <article className={`rounded-lg border p-3 shadow-sm transition ${isHighlighted ? "border-primary bg-primary/5 ring-2 ring-primary/20" : "border-outline-variant/30 bg-white"}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -1617,6 +1804,44 @@ function TablesPanel({
   );
 }
 
+function FloatingFeedback({ feedback, onClose }: { feedback: FeedbackState | null; onClose: () => void }) {
+  if (!feedback) {
+    return null;
+  }
+
+  const isLoading = feedback.type === "loading";
+  const isError = feedback.type === "error";
+
+  return (
+    <div className="fixed inset-x-3 bottom-3 z-50 sm:inset-x-auto sm:right-5 sm:w-full sm:max-w-sm">
+      <div
+        className={`rounded-xl border bg-white p-4 shadow-2xl ${
+          isError ? "border-destructive/30" : feedback.type === "success" ? "border-primary/30" : "border-outline-variant/40"
+        }`}
+      >
+        <div className="flex items-start gap-3">
+          <div
+            className={`mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full ${
+              isError ? "bg-destructive/10 text-destructive" : feedback.type === "success" ? "bg-primary/10 text-primary" : "bg-surface-container-low text-primary"
+            }`}
+          >
+            {isLoading ? <Loader2 size={17} className="animate-spin" /> : isError ? <CircleAlert size={17} /> : <CheckCircle2 size={17} />}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-extrabold text-on-surface">{isLoading ? "Working" : isError ? "Action failed" : "Done"}</p>
+            <p className="mt-1 text-sm leading-5 text-on-surface-variant">{feedback.message}</p>
+          </div>
+          {!isLoading ? (
+            <button type="button" onClick={onClose} className="rounded-md px-2 py-1 text-sm font-bold text-on-surface-variant hover:bg-surface-container-low">
+              Close
+            </button>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Metric({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
   return (
     <Card className="rounded-xl border border-outline-variant/40 bg-white shadow-none">
@@ -1689,6 +1914,19 @@ function toSettingsForm(settings: BranchOrderSettings | null): SettingsForm {
   };
 }
 
+function toBranchProfileForm(branch: BranchListItem): BranchProfileForm {
+  return {
+    name: branch.name,
+    phoneNumber: branch.phoneNumber ?? "",
+    addressLine1: branch.addressLine1 ?? "",
+    addressLine2: branch.addressLine2 ?? "",
+    city: branch.city ?? "",
+    state: branch.state ?? "",
+    postalCode: branch.postalCode ?? "",
+    countryCode: branch.countryCode ?? "IN"
+  };
+}
+
 function toPositiveNumber(value: string): number {
   const number = Number(value);
   return Number.isFinite(number) && number > 0 ? number : 1;
@@ -1699,8 +1937,134 @@ function optional(value: string): string | null {
   return cleaned.length === 0 ? null : cleaned;
 }
 
+function getSavingMessage(key: string): string {
+  if (key === "branch-profile") {
+    return "Saving branch profile...";
+  }
+
+  if (key === "settings") {
+    return "Saving order settings...";
+  }
+
+  if (key === "category") {
+    return "Adding menu category...";
+  }
+
+  if (key === "item") {
+    return "Adding menu item...";
+  }
+
+  if (key === "table") {
+    return "Adding table QR...";
+  }
+
+  if (key.startsWith("category-edit")) {
+    return "Saving menu category...";
+  }
+
+  if (key.startsWith("item-edit")) {
+    return "Saving menu item...";
+  }
+
+  if (key.startsWith("category-")) {
+    return "Turning off menu category...";
+  }
+
+  if (key.startsWith("item-")) {
+    return "Turning off menu item...";
+  }
+
+  if (key.startsWith("table-")) {
+    return "Turning off table...";
+  }
+
+  if (key.startsWith("qr-")) {
+    return "Regenerating QR token...";
+  }
+
+  if (key.startsWith("order-")) {
+    return "Updating order status...";
+  }
+
+  if (key.startsWith("waiter-call-")) {
+    return "Updating waiter call...";
+  }
+
+  return "Saving changes...";
+}
+
 function getQrMenuUrl(table: BranchTable): string {
   return `${window.location.origin}/qr/${table.qrToken}`;
+}
+
+function matchesOrderHistoryFilters(
+  order: AdminOrder,
+  search: string,
+  status: "all" | "Completed" | "Cancelled",
+  fromDate: string,
+  toDate: string
+): boolean {
+  if (status !== "all" && order.orderStatusCode !== status) {
+    return false;
+  }
+
+  const closedAt = new Date(order.updatedAtUtc ?? order.createdAtUtc);
+  if (fromDate && closedAt < new Date(`${fromDate}T00:00:00`)) {
+    return false;
+  }
+
+  if (toDate && closedAt > new Date(`${toDate}T23:59:59`)) {
+    return false;
+  }
+
+  const query = search.trim().toLowerCase();
+  if (!query) {
+    return true;
+  }
+
+  const haystack = [
+    order.orderId,
+    shortId(order.orderId),
+    order.tableName,
+    order.customerName,
+    order.customerWhatsApp,
+    order.orderStatusCode,
+    ...order.items.map((item) => item.menuItemName)
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  return haystack.includes(query);
+}
+
+function playKitchenAlert(): void {
+  try {
+    const AudioContextClass = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+
+    if (!AudioContextClass) {
+      return;
+    }
+
+    const audioContext = new AudioContextClass();
+    const oscillator = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(880, audioContext.currentTime);
+    oscillator.frequency.setValueAtTime(660, audioContext.currentTime + 0.12);
+    gain.gain.setValueAtTime(0.001, audioContext.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.18, audioContext.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.34);
+
+    oscillator.connect(gain);
+    gain.connect(audioContext.destination);
+    oscillator.start();
+    oscillator.stop(audioContext.currentTime + 0.36);
+    window.setTimeout(() => void audioContext.close(), 500);
+  } catch {
+    // Browsers can block audio until the user interacts with the page.
+  }
 }
 
 function getQrContactLine(branch: BranchListItem | null): string {
