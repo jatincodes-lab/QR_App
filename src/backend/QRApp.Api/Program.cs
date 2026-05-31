@@ -5,6 +5,7 @@ using Microsoft.IdentityModel.Tokens;
 using QRApp.Api.Auth;
 using QRApp.Api.Endpoints;
 using QRApp.Api.Errors;
+using QRApp.Api.Hubs;
 using QRApp.Application;
 using QRApp.Application.Auth;
 using QRApp.Infrastructure;
@@ -30,13 +31,16 @@ builder.Services.AddCors(options =>
                 "http://localhost:3010",
                 "http://127.0.0.1:3010")
             .AllowAnyHeader()
-            .AllowAnyMethod();
+            .AllowAnyMethod()
+            .AllowCredentials();
     });
 });
+builder.Services.AddSignalR();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure();
 builder.Services.AddScoped<ITenantContext, HttpTenantContext>();
 builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
+builder.Services.AddSingleton<IAdminOrderRealtimeNotifier, AdminOrderRealtimeNotifier>();
 
 builder.Services
     .AddOptions<JwtOptions>()
@@ -64,6 +68,18 @@ builder.Services
 
         options.Events = new JwtBearerEvents
         {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+
+                if (!string.IsNullOrWhiteSpace(accessToken) && path.StartsWithSegments(AdminOrderHub.Route))
+                {
+                    context.Token = accessToken;
+                }
+
+                return Task.CompletedTask;
+            },
             OnChallenge = AuthProblemResponses.WriteUnauthorizedAsync,
             OnForbidden = AuthProblemResponses.WriteForbiddenAsync
         };
@@ -141,6 +157,7 @@ app.MapPublicMenuEndpoints();
 app.MapPublicQrEndpoints();
 app.MapPublicOrderEndpoints();
 app.MapTenantBranchEndpoints();
+app.MapHub<AdminOrderHub>(AdminOrderHub.Route);
 
 app.Run();
 

@@ -55,6 +55,7 @@ import {
   type OrderStatusCode
 } from "../../../../lib/api";
 import { clearAccessToken, getAccessToken } from "../../../../lib/auth";
+import { AdminOrderRealtimeEvent, createAdminOrderConnection, stopConnection } from "../../../../lib/realtime";
 
 type CategoryForm = {
   name: string;
@@ -117,6 +118,7 @@ export default function AdminBranchDetailPage() {
   const [tableForm, setTableForm] = useState<TableForm>(EmptyTableForm);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshingOrders, setIsRefreshingOrders] = useState(false);
+  const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
   const [lastOrdersRefreshAt, setLastOrdersRefreshAt] = useState<Date | null>(null);
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -162,6 +164,66 @@ export default function AdminBranchDetailPage() {
     }, OrderPollIntervalMs);
 
     return () => window.clearInterval(timer);
+  }, [branchId]);
+
+  useEffect(() => {
+    if (!getAccessToken()) {
+      return;
+    }
+
+    let isActive = true;
+    let refreshQueued = false;
+    const connection = createAdminOrderConnection();
+
+    const refreshOrders = () => {
+      if (!isActive || refreshQueued || document.hidden) {
+        return;
+      }
+
+      refreshQueued = true;
+      window.setTimeout(() => {
+        refreshQueued = false;
+        void loadBranchOrders({ silent: true });
+      }, 250);
+    };
+
+    const handleOrderEvent = (event: AdminOrderRealtimeEvent) => {
+      if (event.branchId.toLowerCase() === branchId.toLowerCase()) {
+        refreshOrders();
+      }
+    };
+
+    connection.on("OrderCreated", handleOrderEvent);
+    connection.on("OrderStatusUpdated", handleOrderEvent);
+    connection.onreconnected(() => {
+      setIsRealtimeConnected(true);
+      void connection.invoke("JoinBranch", branchId).catch(() => setIsRealtimeConnected(false));
+    });
+    connection.onreconnecting(() => setIsRealtimeConnected(false));
+    connection.onclose(() => setIsRealtimeConnected(false));
+
+    void connection
+      .start()
+      .then(async () => {
+        if (!isActive) {
+          return;
+        }
+
+        await connection.invoke("JoinBranch", branchId);
+        setIsRealtimeConnected(true);
+      })
+      .catch(() => setIsRealtimeConnected(false));
+
+    return () => {
+      isActive = false;
+      setIsRealtimeConnected(false);
+      void connection
+        .invoke("LeaveBranch", branchId)
+        .catch(() => undefined)
+        .finally(() => {
+          void stopConnection(connection);
+        });
+    };
   }, [branchId]);
 
   useEffect(() => {
@@ -413,6 +475,7 @@ export default function AdminBranchDetailPage() {
               <div className="space-y-gutter">
                 <OrdersPanel
                   isRefreshing={isRefreshingOrders}
+                  isRealtimeConnected={isRealtimeConnected}
                   lastRefreshedAt={lastOrdersRefreshAt}
                   orders={orders}
                   savingKey={savingKey}
@@ -666,6 +729,7 @@ const OrderStatuses: OrderStatusCode[] = ["Accepted", "Preparing", "Ready", "Com
 
 function OrdersPanel({
   isRefreshing,
+  isRealtimeConnected,
   lastRefreshedAt,
   orders,
   savingKey,
@@ -673,6 +737,7 @@ function OrdersPanel({
   onUpdateStatus
 }: {
   isRefreshing: boolean;
+  isRealtimeConnected: boolean;
   lastRefreshedAt: Date | null;
   orders: AdminOrder[];
   savingKey: string | null;
@@ -686,7 +751,8 @@ function OrdersPanel({
           <div>
             <CardTitle className="text-headline-md text-primary">Kitchen orders</CardTitle>
             <CardDescription>
-              Auto-refreshes every 10 seconds{lastRefreshedAt ? ` · updated ${formatClockTime(lastRefreshedAt)}` : ""}.
+              {isRealtimeConnected ? "Live updates enabled" : "Auto-refreshes every 10 seconds"}
+              {lastRefreshedAt ? ` · updated ${formatClockTime(lastRefreshedAt)}` : ""}.
             </CardDescription>
           </div>
           <Button type="button" variant="outline" size="sm" onClick={onRefresh} disabled={isRefreshing}>

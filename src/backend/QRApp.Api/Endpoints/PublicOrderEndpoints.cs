@@ -1,5 +1,6 @@
 using Microsoft.Data.SqlClient;
 using QRApp.Api.Errors;
+using QRApp.Api.Hubs;
 using QRApp.Application.Orders;
 
 namespace QRApp.Api.Endpoints;
@@ -20,15 +21,21 @@ public static class PublicOrderEndpoints
         string qrToken,
         CreatePublicQrOrderRequest request,
         IOrderService orderService,
+        IAdminOrderRealtimeNotifier realtimeNotifier,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
         try
         {
             var result = await orderService.CreateFromQrTokenAsync(qrToken, request, cancellationToken);
-            return result.IsSuccess
-                ? Results.Created($"/api/v1/public/orders/{result.Value!.OrderId}", result.Value)
-                : ApiProblemResponses.Validation(result.Errors);
+            if (!result.IsSuccess)
+            {
+                return ApiProblemResponses.Validation(result.Errors);
+            }
+
+            var order = result.Value!;
+            await realtimeNotifier.OrderCreatedAsync(order, cancellationToken);
+            return Results.Created($"/api/v1/public/orders/{order.OrderId}", order);
         }
         catch (Exception ex)
         when (ex is SqlException)

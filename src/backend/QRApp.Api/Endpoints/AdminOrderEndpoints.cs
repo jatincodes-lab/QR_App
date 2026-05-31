@@ -1,5 +1,6 @@
 using Microsoft.Data.SqlClient;
 using QRApp.Api.Errors;
+using QRApp.Api.Hubs;
 using QRApp.Application.Auth;
 using QRApp.Application.Orders;
 
@@ -50,13 +51,20 @@ public static class AdminOrderEndpoints
         UpdateAdminOrderStatusRequest request,
         ITenantContext tenantContext,
         IAdminOrderService service,
+        IAdminOrderRealtimeNotifier realtimeNotifier,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
         try
         {
             var result = await service.UpdateStatusAsync(tenantContext.TenantId, branchId, orderId, request, cancellationToken);
-            return result.IsSuccess ? Results.Ok(result.Value) : ApiProblemResponses.Validation(result.Errors);
+            if (!result.IsSuccess)
+            {
+                return ApiProblemResponses.Validation(result.Errors);
+            }
+
+            await realtimeNotifier.OrderStatusUpdatedAsync(result.Value!, cancellationToken);
+            return Results.Ok(result.Value);
         }
         catch (Exception ex)
         when (ex is SqlException)
