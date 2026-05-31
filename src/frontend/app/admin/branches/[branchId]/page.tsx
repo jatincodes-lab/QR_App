@@ -7,9 +7,11 @@ import {
   Copy,
   CheckCircle2,
   ChefHat,
+  Download,
   Loader2,
   Plus,
   Power,
+  Printer,
   QrCode,
   RefreshCw,
   Save,
@@ -25,6 +27,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
+import QRCode from "qrcode";
 import { AdminShell } from "../../../../components/admin-shell";
 import { Alert, AlertDescription } from "../../../../components/ui/alert";
 import { Badge } from "../../../../components/ui/badge";
@@ -492,9 +495,59 @@ export default function AdminBranchDetailPage() {
   }
 
   async function handleCopyQrLink(table: BranchTable) {
-    const url = `${window.location.origin}/qr/${table.qrToken}`;
+    const url = getQrMenuUrl(table);
     await window.navigator.clipboard.writeText(url);
     setNotice("QR menu link copied.");
+  }
+
+  async function handleDownloadQr(table: BranchTable) {
+    try {
+      const url = getQrMenuUrl(table);
+      const dataUrl = await QRCode.toDataURL(url, {
+        errorCorrectionLevel: "M",
+        margin: 2,
+        width: 1024
+      });
+      const link = document.createElement("a");
+      link.href = dataUrl;
+      link.download = `${safeFileName(branch?.name ?? "qrave")}-${safeFileName(table.name)}-qr.png`;
+      link.click();
+      setError(null);
+      setNotice("QR code downloaded.");
+    } catch {
+      setNotice(null);
+      setError("Could not generate the QR code. Please try again.");
+    }
+  }
+
+  async function handlePrintQr(table: BranchTable) {
+    try {
+      const url = getQrMenuUrl(table);
+      const dataUrl = await QRCode.toDataURL(url, {
+        errorCorrectionLevel: "M",
+        margin: 2,
+        width: 768
+      });
+      const printWindow = window.open("", "_blank", "width=520,height=720");
+
+      if (!printWindow) {
+        setNotice(null);
+        setError("Popup blocked. Please allow popups for this site and try printing again.");
+        return;
+      }
+
+      const branchName = branch?.name ?? "Qrave";
+      const title = `${branchName} - ${table.name}`;
+      printWindow.document.write(buildQrPrintHtml(title, branchName, table.name, url, dataUrl));
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
+      setError(null);
+      setNotice("QR print view opened.");
+    } catch {
+      setNotice(null);
+      setError("Could not prepare the QR print view. Please try again.");
+    }
   }
 
   async function runSaving(key: string, action: () => Promise<void>) {
@@ -617,6 +670,8 @@ export default function AdminBranchDetailPage() {
                   onFormChange={setTableForm}
                   onCreateTable={handleCreateTable}
                   onCopyQrLink={handleCopyQrLink}
+                  onDownloadQr={handleDownloadQr}
+                  onPrintQr={handlePrintQr}
                   onDeactivateTable={handleDeactivateTable}
                   onRegenerateQr={handleRegenerateQr}
                 />
@@ -1423,6 +1478,8 @@ function TablesPanel({
   onFormChange,
   onCreateTable,
   onCopyQrLink,
+  onDownloadQr,
+  onPrintQr,
   onDeactivateTable,
   onRegenerateQr
 }: {
@@ -1432,6 +1489,8 @@ function TablesPanel({
   onFormChange: (form: TableForm) => void;
   onCreateTable: (event: FormEvent<HTMLFormElement>) => void;
   onCopyQrLink: (table: BranchTable) => void;
+  onDownloadQr: (table: BranchTable) => void;
+  onPrintQr: (table: BranchTable) => void;
   onDeactivateTable: (table: BranchTable) => void;
   onRegenerateQr: (table: BranchTable) => void;
 }) {
@@ -1476,6 +1535,14 @@ function TablesPanel({
                   <Button type="button" variant="outline" size="sm" onClick={() => onCopyQrLink(table)}>
                     <Copy size={15} />
                     Copy Link
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => onDownloadQr(table)}>
+                    <Download size={15} />
+                    Download QR
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => onPrintQr(table)}>
+                    <Printer size={15} />
+                    Print QR
                   </Button>
                   <Button type="button" variant="outline" size="sm" onClick={() => onRegenerateQr(table)} disabled={savingKey === `qr-${table.tableId}`}>
                     <RefreshCw size={15} />
@@ -1582,6 +1649,92 @@ function toPositiveNumber(value: string): number {
 function optional(value: string): string | null {
   const cleaned = value.trim();
   return cleaned.length === 0 ? null : cleaned;
+}
+
+function getQrMenuUrl(table: BranchTable): string {
+  return `${window.location.origin}/qr/${table.qrToken}`;
+}
+
+function safeFileName(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "qr-code";
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function buildQrPrintHtml(title: string, branchName: string, tableName: string, url: string, qrDataUrl: string): string {
+  const safeTitle = escapeHtml(title);
+  const safeBranchName = escapeHtml(branchName);
+  const safeTableName = escapeHtml(tableName);
+  const safeUrl = escapeHtml(url);
+
+  return `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>${safeTitle}</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        color: #151515;
+      }
+      .sheet {
+        display: grid;
+        min-height: 100vh;
+        place-items: center;
+        padding: 32px;
+        text-align: center;
+      }
+      .branch {
+        margin: 0 0 8px;
+        font-size: 28px;
+        font-weight: 700;
+      }
+      .table {
+        margin: 0 0 24px;
+        font-size: 20px;
+        font-weight: 600;
+      }
+      img {
+        width: min(72vw, 360px);
+        height: auto;
+      }
+      .url {
+        margin: 24px auto 0;
+        max-width: 420px;
+        overflow-wrap: anywhere;
+        color: #555;
+        font-size: 13px;
+      }
+      @media print {
+        .sheet {
+          min-height: auto;
+          padding: 20mm;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="sheet">
+      <section>
+        <h1 class="branch">${safeBranchName}</h1>
+        <p class="table">${safeTableName}</p>
+        <img src="${qrDataUrl}" alt="QR code for ${safeTableName}" />
+        <p class="url">${safeUrl}</p>
+      </section>
+    </main>
+  </body>
+</html>`;
 }
 
 function shortId(value: string): string {
