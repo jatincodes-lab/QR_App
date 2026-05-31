@@ -1050,7 +1050,12 @@ function formatOrderDate(value: string): string {
   return new Intl.DateTimeFormat("en-IN", {
     dateStyle: "medium",
     timeStyle: "short"
-  }).format(new Date(value));
+  }).format(parseUtcDate(value));
+}
+
+function parseUtcDate(value: string): Date {
+  const hasTimeZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value);
+  return new Date(hasTimeZone ? value : `${value}Z`);
 }
 
 function formatPrice(price: number): string {

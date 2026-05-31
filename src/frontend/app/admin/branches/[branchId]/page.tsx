@@ -7,6 +7,7 @@ import {
   Copy,
   CheckCircle2,
   ChefHat,
+  ChevronRight,
   Download,
   Loader2,
   Plus,
@@ -182,8 +183,10 @@ export default function AdminBranchDetailPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<FeedbackState | null>(null);
   const [highlightedOrderIds, setHighlightedOrderIds] = useState<Set<string>>(new Set());
+  const [highlightedWaiterCallIds, setHighlightedWaiterCallIds] = useState<Set<string>>(new Set());
   const [soundAlertsEnabled, setSoundAlertsEnabled] = useState(false);
   const knownOrderIdsRef = useRef<Set<string>>(new Set());
+  const knownWaiterCallIdsRef = useRef<Set<string>>(new Set());
   const soundAlertsEnabledRef = useRef(false);
 
   useEffect(() => {
@@ -341,6 +344,7 @@ export default function AdminBranchDetailPage() {
       setOrders(orderResponse);
       knownOrderIdsRef.current = new Set(orderResponse.map((order) => order.orderId));
       setWaiterCalls(waiterCallResponse);
+      knownWaiterCallIdsRef.current = new Set(waiterCallResponse.map((call) => call.waiterCallId));
       setSettings(settingsResponse);
       setSettingsForm(toSettingsForm(settingsResponse));
       setLastOrdersRefreshAt(new Date());
@@ -369,7 +373,11 @@ export default function AdminBranchDetailPage() {
       const newOrderIds = orderResponse
         .filter((order) => !knownOrderIdsRef.current.has(order.orderId) && order.orderStatusCode === "Placed")
         .map((order) => order.orderId);
+      const newWaiterCallIds = waiterCallResponse
+        .filter((call) => !knownWaiterCallIdsRef.current.has(call.waiterCallId) && call.statusCode === "Open")
+        .map((call) => call.waiterCallId);
       knownOrderIdsRef.current = new Set(orderResponse.map((order) => order.orderId));
+      knownWaiterCallIdsRef.current = new Set(waiterCallResponse.map((call) => call.waiterCallId));
 
       if (newOrderIds.length > 0) {
         setHighlightedOrderIds((current) => new Set([...current, ...newOrderIds]));
@@ -384,6 +392,25 @@ export default function AdminBranchDetailPage() {
         if (soundAlertsEnabledRef.current) {
           playKitchenAlert();
         }
+
+        setFeedback({ type: "success", message: `${newOrderIds.length} new kitchen order${newOrderIds.length === 1 ? "" : "s"} received.` });
+      }
+
+      if (newWaiterCallIds.length > 0) {
+        setHighlightedWaiterCallIds((current) => new Set([...current, ...newWaiterCallIds]));
+        window.setTimeout(() => {
+          setHighlightedWaiterCallIds((current) => {
+            const next = new Set(current);
+            newWaiterCallIds.forEach((waiterCallId) => next.delete(waiterCallId));
+            return next;
+          });
+        }, 20_000);
+
+        if (soundAlertsEnabledRef.current) {
+          playKitchenAlert();
+        }
+
+        setFeedback({ type: "success", message: `${newWaiterCallIds.length} new waiter call${newWaiterCallIds.length === 1 ? "" : "s"} received.` });
       }
 
       setOrders(orderResponse);
@@ -393,7 +420,7 @@ export default function AdminBranchDetailPage() {
       if (!options.silent) {
         handleApiError(caught);
       } else if (caught instanceof ApiError && caught.status === 401) {
-        router.replace("/admin/login");
+        router.replace("/admin/login?reason=session-expired");
       }
     } finally {
       if (!options.silent) {
@@ -672,12 +699,12 @@ export default function AdminBranchDetailPage() {
 
   function handleLogout() {
     clearAccessToken();
-    router.replace("/admin/login");
+    router.replace("/admin/login?reason=logged-out");
   }
 
   function handleApiError(caught: unknown) {
     if (caught instanceof ApiError && caught.status === 401) {
-      router.replace("/admin/login");
+      router.replace("/admin/login?reason=session-expired");
       return;
     }
 
@@ -723,6 +750,14 @@ export default function AdminBranchDetailPage() {
               <Metric icon={<Settings size={20} />} label="Direct ordering" value={settingsForm.enableDirectQrOrdering ? "On" : "Off"} />
             </section>
 
+            <SetupChecklist
+              hasProfile={Boolean(branch?.name && (branch.phoneNumber || branch.city))}
+              hasMenu={activeCategories.length > 0 && activeItems.length > 0}
+              hasTables={activeTables.length > 0}
+              isOrderingEnabled={settingsForm.enableDirectQrOrdering}
+              onOpenTab={setActiveTab}
+            />
+
             <section className="space-y-gutter">
               <WorkspaceTabNav activeTab={activeTab} onChange={setActiveTab} />
 
@@ -732,6 +767,7 @@ export default function AdminBranchDetailPage() {
                   isRealtimeConnected={isRealtimeConnected}
                   soundAlertsEnabled={soundAlertsEnabled}
                   highlightedOrderIds={highlightedOrderIds}
+                  highlightedWaiterCallIds={highlightedWaiterCallIds}
                   lastRefreshedAt={lastOrdersRefreshAt}
                   orders={orders}
                   waiterCalls={waiterCalls}
@@ -1300,6 +1336,7 @@ function OrdersPanel({
   isRealtimeConnected,
   soundAlertsEnabled,
   highlightedOrderIds,
+  highlightedWaiterCallIds,
   lastRefreshedAt,
   orders,
   waiterCalls,
@@ -1313,6 +1350,7 @@ function OrdersPanel({
   isRealtimeConnected: boolean;
   soundAlertsEnabled: boolean;
   highlightedOrderIds: Set<string>;
+  highlightedWaiterCallIds: Set<string>;
   lastRefreshedAt: Date | null;
   orders: AdminOrder[];
   waiterCalls: WaiterCall[];
@@ -1349,6 +1387,7 @@ function OrdersPanel({
           orders={orders}
           waiterCalls={waiterCalls}
           highlightedOrderIds={highlightedOrderIds}
+          highlightedWaiterCallIds={highlightedWaiterCallIds}
           savingKey={savingKey}
           onUpdateStatus={onUpdateStatus}
           onUpdateWaiterCallStatus={onUpdateWaiterCallStatus}
@@ -1362,6 +1401,7 @@ function KitchenBoard({
   orders,
   waiterCalls,
   highlightedOrderIds,
+  highlightedWaiterCallIds,
   savingKey,
   onUpdateStatus,
   onUpdateWaiterCallStatus
@@ -1369,6 +1409,7 @@ function KitchenBoard({
   orders: AdminOrder[];
   waiterCalls: WaiterCall[];
   highlightedOrderIds: Set<string>;
+  highlightedWaiterCallIds: Set<string>;
   savingKey: string | null;
   onUpdateStatus: (order: AdminOrder, status: OrderStatusCode) => void;
   onUpdateWaiterCallStatus: (waiterCall: WaiterCall, status: WaiterCallStatusCode) => void;
@@ -1379,19 +1420,19 @@ function KitchenBoard({
   const [historyToDate, setHistoryToDate] = useState("");
   const activeOrders = orders
     .filter((order) => !["Completed", "Cancelled"].includes(order.orderStatusCode))
-    .sort((a, b) => new Date(b.createdAtUtc).getTime() - new Date(a.createdAtUtc).getTime());
+    .sort((a, b) => utcTimestamp(b.createdAtUtc) - utcTimestamp(a.createdAtUtc));
   const closedOrders = orders
     .filter((order) => ["Completed", "Cancelled"].includes(order.orderStatusCode))
-    .sort((a, b) => new Date(b.updatedAtUtc ?? b.createdAtUtc).getTime() - new Date(a.updatedAtUtc ?? a.createdAtUtc).getTime());
+    .sort((a, b) => utcTimestamp(b.updatedAtUtc ?? b.createdAtUtc) - utcTimestamp(a.updatedAtUtc ?? a.createdAtUtc));
   const filteredClosedOrders = closedOrders.filter((order) =>
     matchesOrderHistoryFilters(order, historySearch, historyStatus, historyFromDate, historyToDate)
   );
   const activeWaiterCalls = waiterCalls
     .filter((call) => !["Resolved", "Cancelled"].includes(call.statusCode))
-    .sort((a, b) => new Date(b.createdAtUtc).getTime() - new Date(a.createdAtUtc).getTime());
+    .sort((a, b) => utcTimestamp(b.createdAtUtc) - utcTimestamp(a.createdAtUtc));
   const closedWaiterCalls = waiterCalls
     .filter((call) => ["Resolved", "Cancelled"].includes(call.statusCode))
-    .sort((a, b) => new Date(b.updatedAtUtc ?? b.createdAtUtc).getTime() - new Date(a.updatedAtUtc ?? a.createdAtUtc).getTime());
+    .sort((a, b) => utcTimestamp(b.updatedAtUtc ?? b.createdAtUtc) - utcTimestamp(a.updatedAtUtc ?? a.createdAtUtc));
   const orderCounts = KitchenLanes.reduce<Record<KitchenLane["id"], number>>(
     (counts, lane) => ({
       ...counts,
@@ -1405,6 +1446,7 @@ function KitchenBoard({
       <WaiterCallBoard
         activeCalls={activeWaiterCalls}
         closedCalls={closedWaiterCalls}
+        highlightedWaiterCallIds={highlightedWaiterCallIds}
         savingKey={savingKey}
         onUpdateStatus={onUpdateWaiterCallStatus}
       />
@@ -1419,9 +1461,7 @@ function KitchenBoard({
       </div>
 
       {activeOrders.length === 0 ? (
-        <div className="rounded-lg border border-outline-variant/30 bg-surface-container-low p-5 text-center text-sm text-on-surface-variant">
-          No active QR orders right now.
-        </div>
+        <EmptyInlineState title="No active QR orders" description="New customer orders will appear in this board automatically. Keep sound on during service hours." />
       ) : (
         <div className="grid gap-3 xl:grid-cols-4">
           {KitchenLanes.map((lane) => {
@@ -1443,9 +1483,7 @@ function KitchenBoard({
 
                 <div className="space-y-3">
                   {laneOrders.length === 0 ? (
-                    <div className="rounded-lg border border-dashed border-outline-variant/40 bg-white/60 px-3 py-8 text-center text-xs text-on-surface-variant">
-                      No orders
-                    </div>
+                    <EmptyInlineState title="No orders" description={lane.id === "Placed" ? "Fresh orders land here first." : `Orders move here after ${lane.title.toLowerCase()} status.`} compact />
                   ) : (
                     laneOrders.map((order) => (
                       <KitchenOrderCard
@@ -1520,11 +1558,13 @@ function OrderCountChip({ label, value, strong = false }: { label: string; value
 function WaiterCallBoard({
   activeCalls,
   closedCalls,
+  highlightedWaiterCallIds,
   savingKey,
   onUpdateStatus
 }: {
   activeCalls: WaiterCall[];
   closedCalls: WaiterCall[];
+  highlightedWaiterCallIds: Set<string>;
   savingKey: string | null;
   onUpdateStatus: (waiterCall: WaiterCall, status: WaiterCallStatusCode) => void;
 }) {
@@ -1542,13 +1582,17 @@ function WaiterCallBoard({
       </div>
 
       {activeCalls.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-outline-variant/40 bg-white/60 px-3 py-6 text-center text-xs text-on-surface-variant">
-          No active waiter calls.
-        </div>
+        <EmptyInlineState title="No active waiter calls" description="When a guest asks for help from the QR menu, it will appear here with sound and highlight alerts." />
       ) : (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {activeCalls.map((call) => (
-            <WaiterCallCard key={call.waiterCallId} waiterCall={call} savingKey={savingKey} onUpdateStatus={onUpdateStatus} />
+            <WaiterCallCard
+              key={call.waiterCallId}
+              waiterCall={call}
+              isHighlighted={highlightedWaiterCallIds.has(call.waiterCallId)}
+              savingKey={savingKey}
+              onUpdateStatus={onUpdateStatus}
+            />
           ))}
         </div>
       )}
@@ -1571,10 +1615,12 @@ function WaiterCallBoard({
 
 function WaiterCallCard({
   waiterCall,
+  isHighlighted,
   savingKey,
   onUpdateStatus
 }: {
   waiterCall: WaiterCall;
+  isHighlighted: boolean;
   savingKey: string | null;
   onUpdateStatus: (waiterCall: WaiterCall, status: WaiterCallStatusCode) => void;
 }) {
@@ -1584,11 +1630,11 @@ function WaiterCallCard({
   const isCancelSaving = savingKey === `waiter-call-${waiterCall.waiterCallId}-Cancelled`;
 
   return (
-    <article className="rounded-lg border border-outline-variant/30 bg-white p-3 shadow-sm">
+    <article className={`rounded-lg border p-3 shadow-sm transition ${isHighlighted ? "border-primary bg-primary/5 ring-2 ring-primary/20" : "border-outline-variant/30 bg-white"}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="font-extrabold text-on-surface">{waiterCall.tableName}</p>
-          <p className="mt-1 text-xs text-on-surface-variant">{formatRelativeAge(waiterCall.createdAtUtc)}</p>
+          <p className="mt-1 text-xs text-on-surface-variant">{formatDateTime(waiterCall.createdAtUtc)}</p>
         </div>
         <Badge variant={waiterCall.statusCode === "Open" ? "success" : "secondary"}>{waiterCall.statusCode}</Badge>
       </div>
@@ -1640,11 +1686,11 @@ function KitchenOrderCard({
             <p className="font-extrabold text-on-surface">#{shortId(order.orderId)}</p>
             <Badge variant="outline" className="gap-1 border-outline-variant/50 text-on-surface-variant">
               <Clock3 size={12} />
-              {formatRelativeAge(order.createdAtUtc)}
+              {formatDateTime(order.createdAtUtc)}
             </Badge>
           </div>
           <p className="mt-1 text-sm font-semibold text-on-surface">{order.tableName}</p>
-          <p className="mt-1 text-xs text-on-surface-variant">In status {formatRelativeAge(order.updatedAtUtc ?? order.createdAtUtc)}</p>
+          <p className="mt-1 text-xs text-on-surface-variant">Status updated {formatDateTime(order.updatedAtUtc ?? order.createdAtUtc)}</p>
           {order.customerName || order.customerWhatsApp ? (
             <p className="mt-1 truncate text-xs text-on-surface-variant">{[order.customerName, order.customerWhatsApp].filter(Boolean).join(" · ")}</p>
           ) : null}
@@ -1693,7 +1739,7 @@ function ClosedOrderRow({ order }: { order: AdminOrder }) {
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-sm font-bold text-on-surface">#{shortId(order.orderId)} · {order.tableName}</p>
-          <p className="mt-0.5 text-xs text-on-surface-variant">{formatRelativeAge(order.updatedAtUtc ?? order.createdAtUtc)}</p>
+          <p className="mt-0.5 text-xs text-on-surface-variant">{formatDateTime(order.updatedAtUtc ?? order.createdAtUtc)}</p>
         </div>
         <Badge
           variant={order.orderStatusCode === "Cancelled" ? "outline" : "secondary"}
@@ -1801,6 +1847,67 @@ function TablesPanel({
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function SetupChecklist({
+  hasProfile,
+  hasMenu,
+  hasTables,
+  isOrderingEnabled,
+  onOpenTab
+}: {
+  hasProfile: boolean;
+  hasMenu: boolean;
+  hasTables: boolean;
+  isOrderingEnabled: boolean;
+  onOpenTab: (tab: WorkspaceTab) => void;
+}) {
+  const items = [
+    { label: "Complete branch profile", done: hasProfile, tab: "settings" as WorkspaceTab },
+    { label: "Add menu categories and items", done: hasMenu, tab: "menu" as WorkspaceTab },
+    { label: "Create table QR placards", done: hasTables, tab: "tables" as WorkspaceTab },
+    { label: "Enable direct QR ordering", done: isOrderingEnabled, tab: "settings" as WorkspaceTab }
+  ];
+  const remaining = items.filter((item) => !item.done);
+
+  if (remaining.length === 0) {
+    return null;
+  }
+
+  return (
+    <Card className="border-outline-variant/30 bg-surface-container-lowest shadow-soft-saas">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-lg text-primary">Setup checklist</CardTitle>
+        <CardDescription>Finish these steps so the branch is ready for live QR ordering.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+          {items.map((item) => (
+            <button
+              key={item.label}
+              type="button"
+              onClick={() => onOpenTab(item.tab)}
+              className={`flex min-h-14 items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left text-sm font-bold transition ${
+                item.done ? "border-primary/20 bg-primary/5 text-primary" : "border-outline-variant/40 bg-white text-on-surface hover:border-primary/30"
+              }`}
+            >
+              <span>{item.label}</span>
+              {item.done ? <CheckCircle2 size={17} className="shrink-0" /> : <ChevronRight size={16} className="shrink-0 text-on-surface-variant" />}
+            </button>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function EmptyInlineState({ title, description, compact = false }: { title: string; description: string; compact?: boolean }) {
+  return (
+    <div className={`rounded-lg border border-dashed border-outline-variant/40 bg-white/70 px-3 text-center ${compact ? "py-6" : "py-8"}`}>
+      <p className="text-sm font-bold text-on-surface">{title}</p>
+      <p className="mx-auto mt-1 max-w-sm text-xs leading-5 text-on-surface-variant">{description}</p>
+    </div>
   );
 }
 
@@ -2008,7 +2115,7 @@ function matchesOrderHistoryFilters(
     return false;
   }
 
-  const closedAt = new Date(order.updatedAtUtc ?? order.createdAtUtc);
+  const closedAt = parseUtcDate(order.updatedAtUtc ?? order.createdAtUtc);
   if (fromDate && closedAt < new Date(`${fromDate}T00:00:00`)) {
     return false;
   }
@@ -2262,28 +2369,7 @@ function formatDateTime(value: string): string {
   return new Intl.DateTimeFormat("en-IN", {
     dateStyle: "medium",
     timeStyle: "short"
-  }).format(new Date(value));
-}
-
-function formatRelativeAge(value: string): string {
-  const elapsedMs = Date.now() - new Date(value).getTime();
-  const elapsedMinutes = Math.max(0, Math.floor(elapsedMs / 60_000));
-
-  if (elapsedMinutes < 1) {
-    return "just now";
-  }
-
-  if (elapsedMinutes < 60) {
-    return `${elapsedMinutes} min ago`;
-  }
-
-  const elapsedHours = Math.floor(elapsedMinutes / 60);
-  if (elapsedHours < 24) {
-    return `${elapsedHours} hr ago`;
-  }
-
-  const elapsedDays = Math.floor(elapsedHours / 24);
-  return `${elapsedDays} day${elapsedDays === 1 ? "" : "s"} ago`;
+  }).format(parseUtcDate(value));
 }
 
 function formatClockTime(value: Date): string {
@@ -2295,4 +2381,13 @@ function formatClockTime(value: Date): string {
 
 function formatMoney(value: number): string {
   return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(value);
+}
+
+function parseUtcDate(value: string): Date {
+  const hasTimeZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value);
+  return new Date(hasTimeZone ? value : `${value}Z`);
+}
+
+function utcTimestamp(value: string): number {
+  return parseUtcDate(value).getTime();
 }
