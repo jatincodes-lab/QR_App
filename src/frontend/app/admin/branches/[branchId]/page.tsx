@@ -99,6 +99,7 @@ type SettingsForm = {
 };
 
 type WorkspaceTab = "kitchen" | "menu" | "tables" | "settings";
+type KitchenFilterId = "all" | KitchenLane["id"];
 
 const EmptyCategoryForm: CategoryForm = { name: "", displayOrder: "1" };
 const EmptyItemForm: ItemForm = {
@@ -503,20 +504,23 @@ export default function AdminBranchDetailPage() {
   async function handleDownloadQr(table: BranchTable) {
     try {
       const url = getQrMenuUrl(table);
-      const dataUrl = await QRCode.toDataURL(url, {
+      const qrDataUrl = await QRCode.toDataURL(url, {
         errorCorrectionLevel: "M",
         margin: 2,
-        width: 1024
+        width: 720
       });
+      const branchName = branch?.name ?? "Qrave";
+      const contactLine = getQrContactLine(branch);
+      const dataUrl = await buildQrPlacardDataUrl(branchName, contactLine, table.name, url, qrDataUrl);
       const link = document.createElement("a");
       link.href = dataUrl;
-      link.download = `${safeFileName(branch?.name ?? "qrave")}-${safeFileName(table.name)}-qr.png`;
+      link.download = `${safeFileName(branchName)}-${safeFileName(table.name)}-table-qr.png`;
       link.click();
       setError(null);
-      setNotice("QR code downloaded.");
+      setNotice("Table QR placard downloaded.");
     } catch {
       setNotice(null);
-      setError("Could not generate the QR code. Please try again.");
+      setError("Could not generate the QR placard. Please try again.");
     }
   }
 
@@ -537,8 +541,9 @@ export default function AdminBranchDetailPage() {
       }
 
       const branchName = branch?.name ?? "Qrave";
+      const contactLine = getQrContactLine(branch);
       const title = `${branchName} - ${table.name}`;
-      printWindow.document.write(buildQrPrintHtml(title, branchName, table.name, url, dataUrl));
+      printWindow.document.write(buildQrPrintHtml(title, branchName, contactLine, table.name, url, dataUrl));
       printWindow.document.close();
       printWindow.focus();
       printWindow.print();
@@ -1126,8 +1131,13 @@ const KitchenLanes: KitchenLane[] = [
     description: "Ready to serve",
     icon: PackageCheck,
     nextStatus: "Completed",
-    actionLabel: "Complete"
+    actionLabel: "Mark Served"
   }
+];
+
+const KitchenOrderFilters: Array<{ id: KitchenFilterId; label: string }> = [
+  { id: "all", label: "All active" },
+  ...KitchenLanes.map((lane) => ({ id: lane.id, label: lane.title }))
 ];
 
 const SecondaryOrderStatuses: OrderStatusCode[] = ["Cancelled"];
@@ -1196,6 +1206,7 @@ function KitchenBoard({
   onUpdateStatus: (order: AdminOrder, status: OrderStatusCode) => void;
   onUpdateWaiterCallStatus: (waiterCall: WaiterCall, status: WaiterCallStatusCode) => void;
 }) {
+  const [activeFilter, setActiveFilter] = useState<KitchenFilterId>("all");
   const activeOrders = orders
     .filter((order) => !["Completed", "Cancelled"].includes(order.orderStatusCode))
     .sort((a, b) => new Date(b.createdAtUtc).getTime() - new Date(a.createdAtUtc).getTime());
@@ -1208,6 +1219,14 @@ function KitchenBoard({
   const closedWaiterCalls = waiterCalls
     .filter((call) => ["Resolved", "Cancelled"].includes(call.statusCode))
     .sort((a, b) => new Date(b.updatedAtUtc ?? b.createdAtUtc).getTime() - new Date(a.updatedAtUtc ?? a.createdAtUtc).getTime());
+  const filteredActiveOrders = activeFilter === "all" ? activeOrders : activeOrders.filter((order) => order.orderStatusCode === activeFilter);
+  const orderCounts = KitchenLanes.reduce<Record<KitchenFilterId, number>>(
+    (counts, lane) => ({
+      ...counts,
+      [lane.id]: activeOrders.filter((order) => order.orderStatusCode === lane.id).length
+    }),
+    { all: activeOrders.length, Placed: 0, Accepted: 0, Preparing: 0, Ready: 0 }
+  );
 
   return (
     <div className="space-y-3">
@@ -1218,14 +1237,42 @@ function KitchenBoard({
         onUpdateStatus={onUpdateWaiterCallStatus}
       />
 
+      <div className="overflow-x-auto rounded-xl border border-outline-variant/30 bg-surface-container-low p-2">
+        <div className="flex min-w-max gap-2">
+          {KitchenOrderFilters.map((filter) => {
+            const isActive = activeFilter === filter.id;
+
+            return (
+              <button
+                key={filter.id}
+                type="button"
+                onClick={() => setActiveFilter(filter.id)}
+                className={`flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-bold transition ${
+                  isActive ? "bg-primary text-on-primary shadow-sm" : "bg-white text-on-surface hover:bg-surface-container"
+                }`}
+              >
+                <span>{filter.label}</span>
+                <span className={`rounded-full px-2 py-0.5 text-xs ${isActive ? "bg-white/20 text-on-primary" : "bg-surface-container-low text-on-surface-variant"}`}>
+                  {orderCounts[filter.id]}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {activeOrders.length === 0 ? (
         <div className="rounded-lg border border-outline-variant/30 bg-surface-container-low p-5 text-center text-sm text-on-surface-variant">
           No active QR orders right now.
         </div>
+      ) : filteredActiveOrders.length === 0 ? (
+        <div className="rounded-lg border border-outline-variant/30 bg-surface-container-low p-5 text-center text-sm text-on-surface-variant">
+          No orders match this filter.
+        </div>
       ) : (
         <div className="grid gap-3 xl:grid-cols-4">
           {KitchenLanes.map((lane) => {
-            const laneOrders = activeOrders.filter((order) => order.orderStatusCode === lane.id);
+            const laneOrders = filteredActiveOrders.filter((order) => order.orderStatusCode === lane.id);
             const Icon = lane.icon;
 
             return (
@@ -1410,6 +1457,7 @@ function KitchenOrderCard({
             </Badge>
           </div>
           <p className="mt-1 text-sm font-semibold text-on-surface">{order.tableName}</p>
+          <p className="mt-1 text-xs text-on-surface-variant">In status {formatRelativeAge(order.updatedAtUtc ?? order.createdAtUtc)}</p>
           {order.customerName || order.customerWhatsApp ? (
             <p className="mt-1 truncate text-xs text-on-surface-variant">{[order.customerName, order.customerWhatsApp].filter(Boolean).join(" · ")}</p>
           ) : null}
@@ -1498,7 +1546,7 @@ function TablesPanel({
     <Card className="border-outline-variant/30 bg-surface-container-lowest shadow-soft-saas">
       <CardHeader>
         <CardTitle className="text-headline-md text-primary">Tables and QR</CardTitle>
-        <CardDescription>Create table QR codes and copy customer menu links.</CardDescription>
+        <CardDescription>Create table QR placards and copy customer menu links.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
         <form onSubmit={onCreateTable} className="grid gap-3 rounded-lg border border-outline-variant/30 bg-surface-container-low p-4 sm:grid-cols-[1fr_7rem_auto]">
@@ -1538,11 +1586,11 @@ function TablesPanel({
                   </Button>
                   <Button type="button" variant="outline" size="sm" onClick={() => onDownloadQr(table)}>
                     <Download size={15} />
-                    Download QR
+                    Download Placard
                   </Button>
                   <Button type="button" variant="outline" size="sm" onClick={() => onPrintQr(table)}>
                     <Printer size={15} />
-                    Print QR
+                    Print Placard
                   </Button>
                   <Button type="button" variant="outline" size="sm" onClick={() => onRegenerateQr(table)} disabled={savingKey === `qr-${table.tableId}`}>
                     <RefreshCw size={15} />
@@ -1655,6 +1703,27 @@ function getQrMenuUrl(table: BranchTable): string {
   return `${window.location.origin}/qr/${table.qrToken}`;
 }
 
+function getQrContactLine(branch: BranchListItem | null): string {
+  const email = getAdminEmailFromToken();
+  return email ?? branch?.phoneNumber ?? "Scan to order";
+}
+
+function getAdminEmailFromToken(): string | null {
+  const token = getAccessToken();
+
+  if (!token) {
+    return null;
+  }
+
+  try {
+    const payload = JSON.parse(window.atob(token.split(".")[1] ?? ""));
+    const email = payload.email ?? payload.Email ?? payload.unique_name ?? payload.name;
+    return typeof email === "string" && email.includes("@") ? email : null;
+  } catch {
+    return null;
+  }
+}
+
 function safeFileName(value: string): string {
   return value
     .toLowerCase()
@@ -1671,9 +1740,59 @@ function escapeHtml(value: string): string {
     .replaceAll("'", "&#039;");
 }
 
-function buildQrPrintHtml(title: string, branchName: string, tableName: string, url: string, qrDataUrl: string): string {
+async function buildQrPlacardDataUrl(branchName: string, contactLine: string, tableName: string, url: string, qrDataUrl: string): Promise<string> {
+  const qrImage = await loadImage(qrDataUrl);
+  const canvas = document.createElement("canvas");
+  canvas.width = 1200;
+  canvas.height = 1800;
+
+  const context = canvas.getContext("2d");
+  if (!context) {
+    throw new Error("Canvas is not available.");
+  }
+
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.strokeStyle = "#d9d4c8";
+  context.lineWidth = 10;
+  context.strokeRect(50, 50, canvas.width - 100, canvas.height - 100);
+
+  drawCenteredText(context, "SCAN ME", 600, 220, "bold 96px Arial", "#1f4f46", 1000);
+  drawCenteredText(context, branchName, 600, 360, "bold 58px Arial", "#151515", 980);
+  drawCenteredText(context, contactLine, 600, 445, "32px Arial", "#555555", 980);
+  drawCenteredText(context, tableName, 600, 555, "bold 46px Arial", "#151515", 980);
+
+  context.fillStyle = "#f8f5ee";
+  context.fillRect(260, 650, 680, 680);
+  context.drawImage(qrImage, 300, 690, 600, 600);
+
+  drawCenteredText(context, "Scan this QR code to view the menu and place your order.", 600, 1440, "34px Arial", "#333333", 900);
+  drawCenteredText(context, url, 600, 1530, "24px Arial", "#777777", 900);
+
+  return canvas.toDataURL("image/png");
+}
+
+function loadImage(source: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Image could not be loaded."));
+    image.src = source;
+  });
+}
+
+function drawCenteredText(context: CanvasRenderingContext2D, text: string, x: number, y: number, font: string, color: string, maxWidth: number): void {
+  context.font = font;
+  context.fillStyle = color;
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.fillText(text, x, y, maxWidth);
+}
+
+function buildQrPrintHtml(title: string, branchName: string, contactLine: string, tableName: string, url: string, qrDataUrl: string): string {
   const safeTitle = escapeHtml(title);
   const safeBranchName = escapeHtml(branchName);
+  const safeContactLine = escapeHtml(contactLine);
   const safeTableName = escapeHtml(tableName);
   const safeUrl = escapeHtml(url);
 
@@ -1692,13 +1811,33 @@ function buildQrPrintHtml(title: string, branchName: string, tableName: string, 
         display: grid;
         min-height: 100vh;
         place-items: center;
-        padding: 32px;
+        padding: 24px;
         text-align: center;
+      }
+      .placard {
+        box-sizing: border-box;
+        width: min(92vw, 520px);
+        min-height: min(92vh, 760px);
+        border: 4px solid #d9d4c8;
+        padding: 36px 28px;
+      }
+      .scan {
+        margin: 0 0 18px;
+        color: #1f4f46;
+        font-size: 48px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
       }
       .branch {
         margin: 0 0 8px;
-        font-size: 28px;
+        font-size: 32px;
         font-weight: 700;
+      }
+      .contact {
+        margin: 0 0 22px;
+        color: #555;
+        font-size: 15px;
+        overflow-wrap: anywhere;
       }
       .table {
         margin: 0 0 24px;
@@ -1706,11 +1845,18 @@ function buildQrPrintHtml(title: string, branchName: string, tableName: string, 
         font-weight: 600;
       }
       img {
-        width: min(72vw, 360px);
+        width: min(70vw, 340px);
         height: auto;
       }
-      .url {
+      .hint {
         margin: 24px auto 0;
+        max-width: 360px;
+        color: #333;
+        font-size: 16px;
+        line-height: 1.5;
+      }
+      .url {
+        margin: 16px auto 0;
         max-width: 420px;
         overflow-wrap: anywhere;
         color: #555;
@@ -1719,17 +1865,24 @@ function buildQrPrintHtml(title: string, branchName: string, tableName: string, 
       @media print {
         .sheet {
           min-height: auto;
-          padding: 20mm;
+          padding: 10mm;
+        }
+        .placard {
+          width: 100%;
+          min-height: 257mm;
         }
       }
     </style>
   </head>
   <body>
     <main class="sheet">
-      <section>
+      <section class="placard">
+        <p class="scan">SCAN ME</p>
         <h1 class="branch">${safeBranchName}</h1>
+        <p class="contact">${safeContactLine}</p>
         <p class="table">${safeTableName}</p>
         <img src="${qrDataUrl}" alt="QR code for ${safeTableName}" />
+        <p class="hint">Scan this QR code to view the menu and place your order.</p>
         <p class="url">${safeUrl}</p>
       </section>
     </main>
