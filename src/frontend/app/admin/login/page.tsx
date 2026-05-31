@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import Link from "next/link";
 import { ArrowRight, Building2, CheckCircle2, Eye, EyeOff, LockKeyhole, Mail, QrCode } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Alert, AlertDescription } from "../../../components/ui/alert";
@@ -167,6 +168,12 @@ export default function AdminLoginPage() {
             </form>
 
             <div className="mt-6 space-y-2 border-t border-outline-variant/30 pt-5">
+              <p className="pb-2 text-sm text-on-surface-variant">
+                New to Qrave?{" "}
+                <Link href="/admin/register" className="font-bold text-primary">
+                  Create an owner account
+                </Link>
+              </p>
               {["Clear branch setup", "Simple menu controls", "QR table management"].map((text) => (
                 <div key={text} className="flex items-center gap-2 text-sm text-on-surface-variant">
                   <CheckCircle2 size={16} className="text-soft-gold" />

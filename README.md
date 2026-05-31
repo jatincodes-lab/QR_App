@@ -76,10 +76,30 @@ The frontend defaults to the local API at `http://localhost:59127`. Override wit
 
 ## Demo Seed Data
 
-Run the seed after applying the foundation table/procedure/index scripts.
+Apply the database scripts with the local runner. Windows authentication is the default:
 
 ```powershell
-sqlcmd -S "(localdb)\MSSQLLocalDB" -d master -E -C -b -i database\seeds\001_Demo_Smoke_Data.sql
+powershell -ExecutionPolicy Bypass -File database\scripts\run-local-db.ps1 -Server "localhost" -Database "Qrave"
+```
+
+To also load demo data:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File database\scripts\run-local-db.ps1 -Server "localhost" -Database "Qrave" -Seed
+```
+
+For SQL authentication:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File database\scripts\run-local-db.ps1 -Server "localhost,1433" -Database "Qrave" -UseSqlAuth -User "sa" -Password "Your_password" -Seed
+```
+
+The runner applies foundation tables, procedures, indexes, migrations, and optionally the demo seed in the correct order.
+
+You can also run the demo seed directly after applying the foundation and migration scripts:
+
+```powershell
+sqlcmd -S "(localdb)\MSSQLLocalDB" -d Qrave -E -C -b -i database\seeds\001_Demo_Smoke_Data.sql
 ```
 
 The seed is idempotent and can be rerun.

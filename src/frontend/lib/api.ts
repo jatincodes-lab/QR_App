@@ -213,6 +213,14 @@ export type WaiterCall = {
   updatedAtUtc: string | null;
 };
 
+export type RegisterOwnerInput = {
+  tenantName: string;
+  tenantSlug: string;
+  ownerEmail: string;
+  ownerDisplayName: string;
+  password: string;
+};
+
 export type CreateWaiterCallInput = {
   customerName: string | null;
   note: string | null;
@@ -259,6 +267,14 @@ export async function login(email: string, password: string): Promise<LoginRespo
   return request<LoginResponse>("/api/v1/auth/login", {
     method: "POST",
     body: { email, password },
+    requireAuth: false
+  });
+}
+
+export async function registerOwner(input: RegisterOwnerInput): Promise<LoginResponse> {
+  return request<LoginResponse>("/api/v1/auth/register-owner", {
+    method: "POST",
+    body: input,
     requireAuth: false
   });
 }

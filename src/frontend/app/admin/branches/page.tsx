@@ -6,9 +6,11 @@ import {
   Building2,
   ChefHat,
   CircleAlert,
+  ClipboardList,
   MapPin,
   Plus,
   Power,
+  QrCode,
   RefreshCw,
   Search,
   Store,
@@ -120,9 +122,15 @@ export default function AdminBranchesPage() {
 
     try {
       const branch = await createBranch(toCreateInput(form));
+      const isFirstBranch = activeBranches.length === 0;
       setBranches((current) => [branch, ...current]);
       setForm(EmptyForm);
       setShowAddBranch(false);
+      if (isFirstBranch) {
+        router.push(`/admin/branches/${branch.branchId}`);
+        return;
+      }
+
       setNotice("Branch added. You can manage menu and QR setup from this branch next.");
     } catch (caught) {
       handleApiError(caught);
@@ -229,7 +237,7 @@ export default function AdminBranchesPage() {
               {isLoading ? (
                 <LoadingState />
               ) : activeBranches.length === 0 ? (
-                <EmptyState onAdd={() => setShowAddBranch(true)} />
+                <FirstBranchOnboarding onAdd={() => setShowAddBranch(true)} />
               ) : visibleBranches.length === 0 ? (
                 <div className="px-5 py-12 text-center">
                   <p className="text-sm font-semibold">No matching branch found.</p>
@@ -375,20 +383,47 @@ function LoadingState() {
   );
 }
 
-function EmptyState({ onAdd }: { onAdd: () => void }) {
+function FirstBranchOnboarding({ onAdd }: { onAdd: () => void }) {
   return (
-    <div className="px-5 py-14 text-center">
-      <div className="mx-auto grid h-14 w-14 place-items-center rounded-lg bg-primary/10 text-primary">
-        <Store size={24} />
+    <div className="grid gap-6 px-5 py-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
+      <div>
+        <div className="grid h-14 w-14 place-items-center rounded-lg bg-primary/10 text-primary">
+          <Store size={24} />
+        </div>
+        <Badge variant="secondary" className="mt-5 bg-primary/5 text-primary">First setup step</Badge>
+        <h2 className="mt-4 text-2xl font-extrabold text-primary">Create your first branch</h2>
+        <p className="mt-3 max-w-xl text-sm leading-6 text-on-surface-variant">
+          A branch is the restaurant location customers scan from. After this, you will add menu items, tables, QR links, and ordering settings.
+        </p>
+        <Button type="button" onClick={onAdd} className="mt-5 bg-primary text-on-primary">
+          <Plus size={18} />
+          Add First Branch
+        </Button>
       </div>
-      <p className="mt-4 text-base font-semibold">No branches yet</p>
-      <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-        Add your first restaurant location. After that you can create menu items, tables, and QR codes for customers.
-      </p>
-      <Button type="button" onClick={onAdd} className="mt-5">
-        <Plus size={18} />
-        Add Branch
-      </Button>
+
+      <div className="rounded-xl border border-outline-variant/30 bg-surface-container-low p-4">
+        <p className="text-sm font-extrabold text-on-surface">Setup path</p>
+        <div className="mt-4 grid gap-3">
+          <OnboardingStep icon={<Store size={18} />} title="Add branch" text="Create the physical restaurant location." active />
+          <OnboardingStep icon={<ChefHat size={18} />} title="Build menu" text="Add categories and customer-facing items." />
+          <OnboardingStep icon={<QrCode size={18} />} title="Create tables" text="Generate QR links for each table." />
+          <OnboardingStep icon={<ClipboardList size={18} />} title="Go live" text="Receive orders and waiter calls in Kitchen." />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function OnboardingStep({ active = false, icon, text, title }: { active?: boolean; icon: ReactNode; text: string; title: string }) {
+  return (
+    <div className={`flex gap-3 rounded-lg border p-3 ${active ? "border-primary/20 bg-white" : "border-outline-variant/30 bg-white/70"}`}>
+      <div className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${active ? "bg-primary text-on-primary" : "bg-primary/5 text-primary"}`}>
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <p className="text-sm font-bold text-on-surface">{title}</p>
+        <p className="mt-1 text-xs leading-5 text-on-surface-variant">{text}</p>
+      </div>
     </div>
   );
 }
