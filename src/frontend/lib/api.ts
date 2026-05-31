@@ -242,6 +242,12 @@ export type CreateMenuCategoryInput = {
   displayOrder: number;
 };
 
+export type UpdateMenuCategoryInput = {
+  name: string;
+  displayOrder: number;
+  isActive: boolean;
+};
+
 export type CreateMenuItemInput = {
   menuCategoryId: string;
   name: string;
@@ -249,6 +255,10 @@ export type CreateMenuItemInput = {
   price: number;
   isAvailable: boolean;
   displayOrder: number;
+};
+
+export type UpdateMenuItemInput = CreateMenuItemInput & {
+  isActive: boolean;
 };
 
 export type CreateBranchTableInput = {
@@ -353,6 +363,14 @@ export async function createMenuCategory(branchId: string, input: CreateMenuCate
   });
 }
 
+export async function updateMenuCategory(branchId: string, menuCategoryId: string, input: UpdateMenuCategoryInput): Promise<MenuCategory> {
+  return request<MenuCategory>(`/api/v1/admin/branches/${branchId}/menu-categories/${menuCategoryId}`, {
+    method: "PUT",
+    body: input,
+    requireAuth: true
+  });
+}
+
 export async function deactivateMenuCategory(branchId: string, menuCategoryId: string): Promise<void> {
   await request<void>(`/api/v1/admin/branches/${branchId}/menu-categories/${menuCategoryId}`, {
     method: "DELETE",
@@ -370,6 +388,14 @@ export async function getMenuItems(branchId: string): Promise<MenuItem[]> {
 export async function createMenuItem(branchId: string, input: CreateMenuItemInput): Promise<MenuItem> {
   return request<MenuItem>(`/api/v1/admin/branches/${branchId}/menu-items`, {
     method: "POST",
+    body: input,
+    requireAuth: true
+  });
+}
+
+export async function updateMenuItem(branchId: string, menuItemId: string, input: UpdateMenuItemInput): Promise<MenuItem> {
+  return request<MenuItem>(`/api/v1/admin/branches/${branchId}/menu-items/${menuItemId}`, {
+    method: "PUT",
     body: input,
     requireAuth: true
   });
