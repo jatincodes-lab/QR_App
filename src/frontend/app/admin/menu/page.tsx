@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, ChefHat, IndianRupee, Layers3, Plus } from "lucide-react";
+import { ChefHat, IndianRupee, Layers3 } from "lucide-react";
 import { AdminShell } from "../../../components/admin-shell";
 import { EmptyBranchState, MetricCard, PageError, PageLoading } from "../../../components/admin-page-common";
 import { Badge } from "../../../components/ui/badge";
@@ -52,7 +51,6 @@ export default function AdminMenuPage() {
   }
 
   const branchName = workspace.selectedBranch?.name ?? "Menu";
-  const editorHref = workspace.selectedBranch ? `/admin/branches/${workspace.selectedBranch.branchId}?tab=menu` : "/admin/branches";
 
   return (
     <AdminShell
@@ -72,14 +70,8 @@ export default function AdminMenuPage() {
             </Badge>
             <h1 className="mt-4 text-headline-lg text-primary">Menu workspace</h1>
             <p className="mt-2 max-w-2xl text-body-md text-on-surface-variant">
-              Review categories and items for a branch. Use the full editor when you need add/edit controls.
+              Review categories, item images, and availability for the branch selected in the top nav.
             </p>
-          </div>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <Button type="button" onClick={() => (window.location.href = editorHref)}>
-              <Plus size={18} />
-              Open editor
-            </Button>
           </div>
         </header>
 
@@ -98,15 +90,11 @@ export default function AdminMenuPage() {
             </section>
 
             <Card>
-              <CardHeader className="gap-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+              <CardHeader>
                 <div>
                   <CardTitle>Items</CardTitle>
                   <CardDescription>Current active menu items for {workspace.selectedBranch.name}.</CardDescription>
                 </div>
-                <Link href={editorHref} className="inline-flex items-center gap-2 text-sm font-bold text-primary">
-                  Manage menu
-                  <ArrowRight size={16} />
-                </Link>
               </CardHeader>
               <CardContent>
                 {isLoadingMenu ? (
@@ -114,7 +102,7 @@ export default function AdminMenuPage() {
                 ) : items.length === 0 ? (
                   <div className="rounded-xl border border-dashed border-outline-variant/70 bg-surface-container-low p-8 text-center">
                     <p className="text-sm font-bold text-on-surface">No menu items yet.</p>
-                    <p className="mt-1 text-sm text-on-surface-variant">Open the branch editor to create categories and items.</p>
+                    <p className="mt-1 text-sm text-on-surface-variant">Menu editing controls will live here, instead of inside branch setup.</p>
                   </div>
                 ) : (
                   <Table>

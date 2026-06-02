@@ -132,7 +132,7 @@ type FeedbackState = {
   message: string;
 };
 
-type WorkspaceTab = "kitchen" | "menu" | "tables" | "settings";
+type WorkspaceTab = "profile" | "tables";
 
 const EmptyCategoryForm: CategoryForm = { name: "", displayOrder: "1" };
 const EmptyItemForm: ItemForm = {
@@ -172,10 +172,8 @@ const DefaultSettingsForm: SettingsForm = {
 };
 const OrderPollIntervalMs = 10_000;
 const WorkspaceTabs: Array<{ id: WorkspaceTab; label: string; icon: LucideIcon }> = [
-  { id: "kitchen", label: "Kitchen", icon: ClipboardList },
-  { id: "menu", label: "Menu", icon: Utensils },
-  { id: "tables", label: "Tables", icon: QrCode },
-  { id: "settings", label: "Settings", icon: Settings }
+  { id: "profile", label: "Profile", icon: Store },
+  { id: "tables", label: "Tables / QR", icon: QrCode }
 ];
 const WorkspaceTabIds = new Set<WorkspaceTab>(WorkspaceTabs.map((tab) => tab.id));
 
@@ -209,7 +207,7 @@ export default function AdminBranchDetailPage() {
   const [isRefreshingOrders, setIsRefreshingOrders] = useState(false);
   const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
   const [lastOrdersRefreshAt, setLastOrdersRefreshAt] = useState<Date | null>(null);
-  const [activeTab, setActiveTab] = useState<WorkspaceTab>("kitchen");
+  const [activeTab, setActiveTab] = useState<WorkspaceTab>("profile");
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -270,10 +268,25 @@ export default function AdminBranchDetailPage() {
 
   useEffect(() => {
     const tab = searchParams.get("tab");
+    if (tab === "menu") {
+      router.replace("/admin/menu");
+      return;
+    }
+
+    if (tab === "kitchen") {
+      router.replace("/admin/orders");
+      return;
+    }
+
+    if (tab === "settings") {
+      router.replace("/admin/settings");
+      return;
+    }
+
     if (isWorkspaceTab(tab)) {
       setActiveTab(tab);
     }
-  }, [searchParams]);
+  }, [router, searchParams]);
 
   useEffect(() => {
     if (!getAccessToken()) {
@@ -813,7 +826,7 @@ export default function AdminBranchDetailPage() {
             </Badge>
             <h1 className="mt-4 text-headline-lg text-primary">{branch?.name ?? "Branch setup"}</h1>
             <p className="mt-2 max-w-2xl text-body-md text-on-surface-variant">
-              Configure the menu, table QR codes, and customer ordering behavior for this location.
+              Manage this location's profile and table QR codes. Menu, orders, analytics, and ordering settings live in their sidebar workspaces.
             </p>
           </div>
 
@@ -831,77 +844,30 @@ export default function AdminBranchDetailPage() {
         ) : (
           <>
             <section className="grid gap-4 md:grid-cols-4">
-              <Metric icon={<ClipboardList size={20} />} label="Open orders" value={openOrders.length.toString()} />
-              <Metric icon={<Store size={20} />} label="Waiter calls" value={openWaiterCalls.length.toString()} />
+              <Metric icon={<Store size={20} />} label="Branch profile" value={branch?.city || branch?.phoneNumber ? "Ready" : "Needs info"} />
+              <Metric icon={<QrCode size={20} />} label="QR tables" value={activeTables.length.toString()} />
               <Metric icon={<Utensils size={20} />} label="Menu items" value={activeItems.length.toString()} />
-              <Metric icon={<Settings size={20} />} label="Direct ordering" value={settingsForm.enableDirectQrOrdering ? "On" : "Off"} />
+              <Metric icon={<Settings size={20} />} label="QR ordering" value={settingsForm.enableDirectQrOrdering ? "On" : "Off"} />
             </section>
 
-            <SetupChecklist
+            <SetupShortcuts
               hasProfile={Boolean(branch?.name && (branch.phoneNumber || branch.city))}
               hasMenu={activeCategories.length > 0 && activeItems.length > 0}
               hasTables={activeTables.length > 0}
               isOrderingEnabled={settingsForm.enableDirectQrOrdering}
-              onOpenTab={setActiveTab}
+              onOpenProfile={() => setActiveTab("profile")}
+              onOpenTables={() => setActiveTab("tables")}
             />
 
             <section className="space-y-gutter">
               <WorkspaceTabNav activeTab={activeTab} onChange={setActiveTab} />
 
-              {activeTab === "kitchen" ? (
-                <OrdersPanel
-                  isRefreshing={isRefreshingOrders}
-                  isRealtimeConnected={isRealtimeConnected}
-                  soundAlertsEnabled={soundAlertsEnabled}
-                  highlightedOrderIds={highlightedOrderIds}
-                  highlightedWaiterCallIds={highlightedWaiterCallIds}
-                  lastRefreshedAt={lastOrdersRefreshAt}
-                  orders={orders}
-                  waiterCalls={waiterCalls}
-                  savingKey={savingKey}
-                  onToggleSoundAlerts={() => setSoundAlertsEnabled((current) => !current)}
-                  onRefresh={() => void loadKitchenActivity()}
-                  onUpdateStatus={handleUpdateOrderStatus}
-                  onUpdateWaiterCallStatus={handleUpdateWaiterCallStatus}
-                />
-              ) : null}
-
-              {activeTab === "menu" ? (
-                <MenuPanel
-                  categories={activeCategories}
-                  items={activeItems}
-                  offers={activeOffers}
-                  categoryForm={categoryForm}
-                  itemForm={itemForm}
-                  offerForm={offerForm}
-                  editingCategoryId={editingCategoryId}
-                  editingCategoryForm={editingCategoryForm}
-                  editingItemId={editingItemId}
-                  editingItemForm={editingItemForm}
-                  editingOfferId={editingOfferId}
-                  editingOfferForm={editingOfferForm}
-                  savingKey={savingKey}
-                  onCategoryFormChange={setCategoryForm}
-                  onItemFormChange={setItemForm}
-                  onOfferFormChange={setOfferForm}
-                  onEditingCategoryFormChange={setEditingCategoryForm}
-                  onEditingItemFormChange={setEditingItemForm}
-                  onEditingOfferFormChange={setEditingOfferForm}
-                  onCreateCategory={handleCreateCategory}
-                  onCreateItem={handleCreateItem}
-                  onCreateOffer={handleCreateOffer}
-                  onCancelEditCategory={() => setEditingCategoryId(null)}
-                  onCancelEditItem={() => setEditingItemId(null)}
-                  onCancelEditOffer={() => setEditingOfferId(null)}
-                  onDeactivateCategory={handleDeactivateCategory}
-                  onDeactivateItem={handleDeactivateItem}
-                  onDeactivateOffer={handleDeactivateOffer}
-                  onSaveCategory={handleSaveCategory}
-                  onSaveItem={handleSaveItem}
-                  onSaveOffer={handleSaveOffer}
-                  onStartEditCategory={handleStartEditCategory}
-                  onStartEditItem={handleStartEditItem}
-                  onStartEditOffer={handleStartEditOffer}
+              {activeTab === "profile" ? (
+                <BranchProfilePanel
+                  branchProfileForm={branchProfileForm}
+                  isSavingProfile={savingKey === "branch-profile"}
+                  onBranchProfileChange={setBranchProfileForm}
+                  onBranchProfileSubmit={handleSaveBranchProfile}
                 />
               ) : null}
 
@@ -920,18 +886,6 @@ export default function AdminBranchDetailPage() {
                 />
               ) : null}
 
-              {activeTab === "settings" ? (
-                <SettingsPanel
-                  branchProfileForm={branchProfileForm}
-                  form={settingsForm}
-                  isSavingProfile={savingKey === "branch-profile"}
-                  isSaving={savingKey === "settings"}
-                  onBranchProfileChange={setBranchProfileForm}
-                  onBranchProfileSubmit={handleSaveBranchProfile}
-                  onChange={setSettingsForm}
-                  onSubmit={handleSaveSettings}
-                />
-              ) : null}
             </section>
           </>
         )}
@@ -944,7 +898,7 @@ export default function AdminBranchDetailPage() {
 function WorkspaceTabNav({ activeTab, onChange }: { activeTab: WorkspaceTab; onChange: (tab: WorkspaceTab) => void }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-outline-variant/30 bg-surface-container-lowest p-1 shadow-soft-saas">
-      <div className="grid min-w-max grid-cols-4 gap-1">
+      <div className="grid min-w-max grid-cols-2 gap-1">
         {WorkspaceTabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = tab.id === activeTab;
@@ -1434,6 +1388,59 @@ function MenuPanel({
             ))}
           </div>
         ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
+function BranchProfilePanel({
+  branchProfileForm,
+  isSavingProfile,
+  onBranchProfileChange,
+  onBranchProfileSubmit
+}: {
+  branchProfileForm: BranchProfileForm;
+  isSavingProfile: boolean;
+  onBranchProfileChange: (form: BranchProfileForm) => void;
+  onBranchProfileSubmit: (event: FormEvent<HTMLFormElement>) => void;
+}) {
+  return (
+    <Card className="border-outline-variant/30 bg-surface-container-lowest shadow-soft-saas">
+      <CardHeader>
+        <CardTitle className="text-headline-md text-primary">Branch profile</CardTitle>
+        <CardDescription>Use this page only for location identity and QR-table setup. Ordering rules are managed from Settings.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={onBranchProfileSubmit} className="grid gap-4 md:grid-cols-2">
+          <Field label="Branch name">
+            <Input value={branchProfileForm.name} onChange={(event) => onBranchProfileChange({ ...branchProfileForm, name: event.target.value })} required />
+          </Field>
+          <Field label="Phone">
+            <Input value={branchProfileForm.phoneNumber} onChange={(event) => onBranchProfileChange({ ...branchProfileForm, phoneNumber: event.target.value })} />
+          </Field>
+          <Field label="Address line 1">
+            <Input value={branchProfileForm.addressLine1} onChange={(event) => onBranchProfileChange({ ...branchProfileForm, addressLine1: event.target.value })} />
+          </Field>
+          <Field label="Address line 2">
+            <Input value={branchProfileForm.addressLine2} onChange={(event) => onBranchProfileChange({ ...branchProfileForm, addressLine2: event.target.value })} />
+          </Field>
+          <Field label="City">
+            <Input value={branchProfileForm.city} onChange={(event) => onBranchProfileChange({ ...branchProfileForm, city: event.target.value })} />
+          </Field>
+          <Field label="State">
+            <Input value={branchProfileForm.state} onChange={(event) => onBranchProfileChange({ ...branchProfileForm, state: event.target.value })} />
+          </Field>
+          <Field label="Postal code">
+            <Input value={branchProfileForm.postalCode} onChange={(event) => onBranchProfileChange({ ...branchProfileForm, postalCode: event.target.value })} />
+          </Field>
+          <Field label="Country code">
+            <Input value={branchProfileForm.countryCode} maxLength={2} onChange={(event) => onBranchProfileChange({ ...branchProfileForm, countryCode: event.target.value.toUpperCase() })} required />
+          </Field>
+          <Button type="submit" disabled={isSavingProfile} className="md:col-span-2">
+            {isSavingProfile ? <Loader2 size={17} className="animate-spin" /> : <Save size={17} />}
+            Save Branch Profile
+          </Button>
+        </form>
       </CardContent>
     </Card>
   );
@@ -2086,24 +2093,26 @@ function TablesPanel({
   );
 }
 
-function SetupChecklist({
+function SetupShortcuts({
   hasProfile,
   hasMenu,
   hasTables,
   isOrderingEnabled,
-  onOpenTab
+  onOpenProfile,
+  onOpenTables
 }: {
   hasProfile: boolean;
   hasMenu: boolean;
   hasTables: boolean;
   isOrderingEnabled: boolean;
-  onOpenTab: (tab: WorkspaceTab) => void;
+  onOpenProfile: () => void;
+  onOpenTables: () => void;
 }) {
   const items = [
-    { label: "Complete branch profile", done: hasProfile, tab: "settings" as WorkspaceTab },
-    { label: "Add menu categories and items", done: hasMenu, tab: "menu" as WorkspaceTab },
-    { label: "Create table QR placards", done: hasTables, tab: "tables" as WorkspaceTab },
-    { label: "Enable direct QR ordering", done: isOrderingEnabled, tab: "settings" as WorkspaceTab }
+    { label: "Complete branch profile", done: hasProfile, action: onOpenProfile },
+    { label: "Add menu categories and items", done: hasMenu, action: () => (window.location.href = "/admin/menu") },
+    { label: "Create table QR placards", done: hasTables, action: onOpenTables },
+    { label: "Enable direct QR ordering", done: isOrderingEnabled, action: () => (window.location.href = "/admin/settings") }
   ];
   const remaining = items.filter((item) => !item.done);
 
@@ -2114,8 +2123,8 @@ function SetupChecklist({
   return (
     <Card className="border-outline-variant/30 bg-surface-container-lowest shadow-soft-saas">
       <CardHeader className="pb-3">
-        <CardTitle className="text-lg text-primary">Setup checklist</CardTitle>
-        <CardDescription>Finish these steps so the branch is ready for live QR ordering.</CardDescription>
+        <CardTitle className="text-lg text-primary">Branch setup shortcuts</CardTitle>
+        <CardDescription>Each workflow has one home: branch profile and QR tables here, menu and settings in the sidebar pages.</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
@@ -2123,7 +2132,7 @@ function SetupChecklist({
             <button
               key={item.label}
               type="button"
-              onClick={() => onOpenTab(item.tab)}
+              onClick={item.action}
               className={`flex min-h-14 items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left text-sm font-bold transition ${
                 item.done ? "border-primary/20 bg-primary/5 text-primary" : "border-outline-variant/40 bg-white text-on-surface hover:border-primary/30"
               }`}
