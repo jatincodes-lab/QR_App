@@ -12,26 +12,30 @@ const config: Config = {
     extend: {
       colors: {
         surface: "hsl(var(--background))",
-        "surface-dim": "#d9dadb",
-        "surface-bright": "#f8f9fa",
+        "surface-dim": "#dfe6dc",
+        "surface-bright": "#fbfcf8",
         "surface-container-lowest": "#ffffff",
-        "surface-container-low": "#f3f4f5",
-        "surface-container": "#edeeef",
-        "surface-container-high": "#e7e8e9",
-        "surface-container-highest": "#e1e3e4",
-        "surface-variant": "#e1e3e4",
+        "surface-container-low": "#f5f7f1",
+        "surface-container": "#eef3ea",
+        "surface-container-high": "#e7eee2",
+        "surface-container-highest": "#dfe8da",
+        "surface-variant": "#e3eadf",
         ink: "hsl(var(--foreground))",
         line: "hsl(var(--border))",
-        "on-surface": "#191c1d",
-        "on-surface-variant": "#45474d",
-        "on-background": "#191c1d",
-        "inverse-surface": "#2e3132",
-        "inverse-on-surface": "#f0f1f2",
-        outline: "#75777d",
-        "outline-variant": "#c5c6cd",
-        "surface-tint": "#545e76",
-        "soft-gold": "#c5a059",
-        gold: "#c5a059",
+        "on-surface": "#1f2933",
+        "on-surface-variant": "#586474",
+        "on-background": "#1f2933",
+        "inverse-surface": "#06281c",
+        "inverse-on-surface": "#f7fbf4",
+        outline: "#7a8578",
+        "outline-variant": "#d6dfd1",
+        "surface-tint": "#0f8f57",
+        "soft-gold": "#f4c542",
+        gold: "#f4c542",
+        "brand-green": "#06281c",
+        "brand-mint": "#20c77a",
+        "brand-lime": "#c8ef68",
+        "sidebar-active": "#eaf8f0",
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -40,25 +44,25 @@ const config: Config = {
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
-          container: "#1b263b",
-          fixed: "#d7e2ff",
-          "fixed-dim": "#bbc6e2"
+          container: "#0b3b2a",
+          fixed: "#dff7e9",
+          "fixed-dim": "#bff0d3"
         },
         "on-primary": "#ffffff",
-        "primary-container": "#1b263b",
-        "on-primary-container": "#828da7",
-        "inverse-primary": "#bbc6e2",
+        "primary-container": "#0b3b2a",
+        "on-primary-container": "#c8ef68",
+        "inverse-primary": "#88e2ad",
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
           foreground: "hsl(var(--secondary-foreground))",
-          container: "#fed488",
-          fixed: "#ffdea5",
-          "fixed-dim": "#e9c176"
+          container: "#e5f8ed",
+          fixed: "#dff7e9",
+          "fixed-dim": "#bceccc"
         },
-        "on-secondary": "#ffffff",
-        "secondary-container": "#fed488",
-        "on-secondary-container": "#785a1a",
-        "secondary-container-on-secondary-container": "#785a1a",
+        "on-secondary": "#06281c",
+        "secondary-container": "#e5f8ed",
+        "on-secondary-container": "#0f6843",
+        "secondary-container-on-secondary-container": "#0f6843",
         destructive: {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))"
@@ -92,8 +96,8 @@ const config: Config = {
         caption: ["Public Sans", "ui-sans-serif", "system-ui", "sans-serif"]
       },
       fontSize: {
-        "display-lg": ["48px", { lineHeight: "56px", fontWeight: "700", letterSpacing: "-0.02em" }],
-        "display-lg-mobile": ["32px", { lineHeight: "40px", fontWeight: "700", letterSpacing: "-0.01em" }],
+        "display-lg": ["48px", { lineHeight: "56px", fontWeight: "700", letterSpacing: "0" }],
+        "display-lg-mobile": ["32px", { lineHeight: "40px", fontWeight: "700", letterSpacing: "0" }],
         "headline-lg": ["32px", { lineHeight: "40px", fontWeight: "600" }],
         "headline-md": ["24px", { lineHeight: "32px", fontWeight: "600" }],
         "body-lg": ["18px", { lineHeight: "28px", fontWeight: "400" }],
@@ -114,15 +118,15 @@ const config: Config = {
         "margin-mobile": "16px"
       },
       borderRadius: {
-        sm: "0.125rem",
-        DEFAULT: "0.25rem",
-        md: "0.375rem",
-        lg: "0.5rem",
-        xl: "0.75rem"
+        sm: "0.25rem",
+        DEFAULT: "0.375rem",
+        md: "0.5rem",
+        lg: "0.625rem",
+        xl: "0.875rem"
       },
       boxShadow: {
-        "soft-saas": "0 4px 12px rgba(27, 38, 59, 0.08)",
-        modal: "0 12px 32px rgba(27, 38, 59, 0.12)"
+        "soft-saas": "0 1px 2px rgba(15, 35, 26, 0.05), 0 10px 24px rgba(15, 35, 26, 0.06)",
+        modal: "0 18px 48px rgba(15, 35, 26, 0.18)"
       }
     }
   },

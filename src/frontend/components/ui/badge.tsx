@@ -5,8 +5,8 @@ type BadgeVariant = "default" | "secondary" | "outline" | "success";
 
 const variantClasses: Record<BadgeVariant, string> = {
   default: "border-transparent bg-primary text-primary-foreground",
-  secondary: "border-transparent bg-secondary text-secondary-foreground",
-  outline: "text-foreground",
+  secondary: "border-transparent bg-secondary-container text-on-secondary-container",
+  outline: "border-outline-variant bg-white text-on-surface",
   success: "border-transparent bg-emerald-100 text-emerald-800",
 };
 

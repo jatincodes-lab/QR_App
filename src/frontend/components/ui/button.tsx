@@ -5,11 +5,11 @@ type ButtonVariant = "default" | "destructive" | "outline" | "secondary" | "ghos
 type ButtonSize = "default" | "sm" | "icon";
 
 const variantClasses: Record<ButtonVariant, string> = {
-  default: "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90",
+  default: "bg-primary text-primary-foreground shadow-sm hover:bg-primary-container",
   destructive: "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
-  outline: "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground",
-  secondary: "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
-  ghost: "hover:bg-accent hover:text-accent-foreground",
+  outline: "border border-input bg-white text-on-surface shadow-sm hover:border-primary/25 hover:bg-secondary-container hover:text-primary",
+  secondary: "bg-secondary-container text-on-secondary-container hover:bg-primary-fixed-dim",
+  ghost: "text-on-surface-variant hover:bg-secondary-container hover:text-primary",
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
@@ -28,7 +28,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     <button
       ref={ref}
       className={cn(
-        "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
+        "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
         variantClasses[variant],
         sizeClasses[size],
         className

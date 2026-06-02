@@ -32,7 +32,7 @@ function AdminLoginContent() {
 
   useEffect(() => {
     if (getAccessToken()) {
-      router.replace("/admin/branches");
+      router.replace("/admin/dashboard");
     }
   }, [router]);
 
@@ -56,7 +56,7 @@ function AdminLoginContent() {
     try {
       const response = await login(email, password);
       setAccessToken(response.accessToken);
-      router.replace("/admin/branches");
+      router.replace("/admin/dashboard");
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : "Login failed. Please try again.");
     } finally {

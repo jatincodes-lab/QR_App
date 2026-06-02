@@ -28,7 +28,7 @@ export default function AdminRegisterPage() {
 
   useEffect(() => {
     if (getAccessToken()) {
-      router.replace("/admin/branches");
+      router.replace("/admin/dashboard");
     }
   }, [router]);
 
@@ -53,7 +53,7 @@ export default function AdminRegisterPage() {
         password
       });
       setAccessToken(response.accessToken);
-      router.replace("/admin/branches");
+      router.replace("/admin/dashboard");
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : "Account could not be created. Please try again.");
     } finally {

@@ -6,23 +6,23 @@
 
 :root {
   color-scheme: light;
-  --background: 210 17% 98%;
-  --foreground: 200 7% 11%;
+  --background: 100 23% 97%;
+  --foreground: 210 24% 14%;
   --card: 0 0% 100%;
-  --card-foreground: 200 7% 11%;
-  --primary: 219 76% 8%;
+  --card-foreground: 210 24% 14%;
+  --primary: 154 73% 10%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 42 65% 28%;
-  --secondary-foreground: 0 0% 100%;
-  --muted: 210 4% 93%;
-  --muted-foreground: 225 5% 29%;
-  --accent: 39 98% 76%;
-  --accent-foreground: 219 76% 8%;
+  --secondary: 153 58% 46%;
+  --secondary-foreground: 154 73% 10%;
+  --muted: 100 16% 92%;
+  --muted-foreground: 214 12% 45%;
+  --accent: 46 92% 61%;
+  --accent-foreground: 154 73% 10%;
   --destructive: 0 72% 51%;
   --destructive-foreground: 0 0% 100%;
-  --border: 214 24% 90%;
-  --input: 214 24% 90%;
-  --ring: 219 76% 8%;
+  --border: 105 17% 87%;
+  --input: 105 17% 87%;
+  --ring: 153 58% 46%;
 }
 
 body {
@@ -47,14 +47,14 @@ input {
 @layer components {
   .glass-panel,
   .glass-card {
-    background: rgba(255, 255, 255, 0.88);
-    border: 1px solid rgba(197, 198, 205, 0.45);
-    box-shadow: 0 4px 12px rgba(27, 38, 59, 0.08);
-    backdrop-filter: blur(16px);
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid rgba(219, 226, 214, 0.9);
+    box-shadow: 0 1px 2px rgba(15, 35, 26, 0.05);
+    backdrop-filter: blur(10px);
   }
 
   .soft-saas-shadow {
-    box-shadow: 0 4px 12px rgba(27, 38, 59, 0.08);
+    box-shadow: 0 1px 2px rgba(15, 35, 26, 0.05), 0 10px 24px rgba(15, 35, 26, 0.06);
   }
 
   .table-cell-hover {
