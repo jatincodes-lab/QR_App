@@ -64,4 +64,23 @@ input {
   .table-cell-hover:hover {
     background: rgba(243, 244, 245, 0.72);
   }
+
+  .qr-fly-to-cart {
+    animation: qr-fly-to-cart 1250ms cubic-bezier(0.2, 0.82, 0.28, 1) forwards;
+  }
+}
+
+@keyframes qr-fly-to-cart {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) scale(0.82);
+  }
+  18% {
+    opacity: 1;
+    transform: translate3d(-18px, -34px, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(138px, calc(-100vh + 132px), 0) scale(0.18);
+  }
 }

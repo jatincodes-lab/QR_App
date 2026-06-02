@@ -20,6 +20,7 @@ import {
   ApiError,
   createWaiterCall,
   createPublicQrOrder,
+  getPublicQrMenu,
   getPublicQrOrder,
   type CreatePublicQrOrderInput,
   type PublicQrMenu,
@@ -68,9 +69,11 @@ type WaiterCallState =
     };
 
 export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
+  const [currentMenu, setCurrentMenu] = useState(menu);
+  const [search, setSearch] = useState("");
   const categories = useMemo(
-    () => [...menu.categories].sort((left, right) => left.displayOrder - right.displayOrder),
-    [menu.categories]
+    () => filterCategories(currentMenu.categories, search),
+    [currentMenu.categories, search]
   );
   const [cart, setCart] = useState<Record<string, CartLine>>({});
   const [customerName, setCustomerName] = useState("");
@@ -84,17 +87,35 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
   const [submitState, setSubmitState] = useState<SubmitState>({ kind: "idle" });
   const [waiterCallNote, setWaiterCallNote] = useState("");
   const [waiterCallState, setWaiterCallState] = useState<WaiterCallState>({ kind: "idle" });
+  const [flyingItem, setFlyingItem] = useState<{ key: number; name: string } | null>(null);
 
   const cartLines = Object.values(cart);
   const cartCount = cartLines.reduce((total, line) => total + line.quantity, 0);
   const cartTotal = cartLines.reduce((total, line) => total + line.item.price * line.quantity, 0);
-  const canOrder = menu.orderSettings.enableDirectQrOrdering;
-  const canCallWaiter = menu.orderSettings.waiterCallEnabled;
+  const canOrder = currentMenu.orderSettings.enableDirectQrOrdering;
+  const canCallWaiter = currentMenu.orderSettings.waiterCallEnabled;
   const itemCount = categories.reduce((total, category) => total + category.items.length, 0);
 
   useEffect(() => {
-    setPreviousOrders(loadStoredOrders(menu.qrToken));
-  }, [menu.qrToken]);
+    setPreviousOrders(loadStoredOrders(currentMenu.qrToken));
+  }, [currentMenu.qrToken]);
+
+  useEffect(() => {
+    const timer = window.setInterval(async () => {
+      if (document.hidden) {
+        return;
+      }
+
+      try {
+        const refreshed = await getPublicQrMenu(currentMenu.qrToken);
+        setCurrentMenu(refreshed);
+      } catch {
+        // Keep the last known menu visible if the API is temporarily unavailable.
+      }
+    }, 6_000);
+
+    return () => window.clearInterval(timer);
+  }, [currentMenu.qrToken]);
 
   useEffect(() => {
     if (previousOrders.length === 0) {
@@ -110,7 +131,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
     }, 15_000);
 
     return () => window.clearInterval(timer);
-  }, [menu.qrToken, previousOrders.length]);
+  }, [currentMenu.qrToken, previousOrders.length]);
 
   function addItem(item: PublicQrMenuItem, categoryName: string) {
     if (!canOrder) {
@@ -118,6 +139,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
     }
 
     setSubmitState({ kind: "idle" });
+    setFlyingItem({ key: Date.now(), name: item.name });
     setCart((current) => {
       const existing = current[item.menuItemId];
       return {
@@ -129,6 +151,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
         }
       };
     });
+    window.setTimeout(() => setFlyingItem(null), 760);
   }
 
   function decrementItem(menuItemId: string) {
@@ -183,10 +206,10 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
     setSubmitState({ kind: "submitting" });
 
     try {
-      const order = await createPublicQrOrder(menu.qrToken, input);
+      const order = await createPublicQrOrder(currentMenu.qrToken, input);
       setCart({});
       setNotes("");
-      setPreviousOrders(saveStoredOrder(menu.qrToken, order));
+      setPreviousOrders(saveStoredOrder(currentMenu.qrToken, order));
       setActiveView("cart");
       setSubmitState({ kind: "success", order });
     } catch (caught) {
@@ -211,7 +234,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
   }
 
   async function refreshPreviousOrders(options: { silent?: boolean } = {}) {
-    const storedOrders = loadStoredOrders(menu.qrToken);
+    const storedOrders = loadStoredOrders(currentMenu.qrToken);
     if (storedOrders.length === 0) {
       setPreviousOrders([]);
       setOrdersRefreshError(null);
@@ -227,7 +250,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
       const refreshed = await Promise.all(
         storedOrders.map(async (order) => {
           try {
-            return await getPublicQrOrder(menu.qrToken, order.orderId);
+            return await getPublicQrOrder(currentMenu.qrToken, order.orderId);
           } catch {
             hasRefreshFailure = true;
             return order;
@@ -235,7 +258,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
         })
       );
 
-      setPreviousOrders(saveStoredOrders(menu.qrToken, refreshed));
+      setPreviousOrders(saveStoredOrders(currentMenu.qrToken, refreshed));
       setOrdersRefreshError(hasRefreshFailure ? "Some order statuses could not be refreshed. Check that the backend database is up to date." : null);
     } finally {
       if (!options.silent) {
@@ -252,7 +275,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
     setWaiterCallState({ kind: "submitting" });
 
     try {
-      await createWaiterCall(menu.qrToken, {
+      await createWaiterCall(currentMenu.qrToken, {
         customerName: valueOrNull(customerName),
         note: valueOrNull(waiterCallNote)
       });
@@ -287,7 +310,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
           customerName={customerName}
           customerWhatsApp={customerWhatsApp}
           notes={notes}
-          orderSettings={menu.orderSettings}
+          orderSettings={currentMenu.orderSettings}
           submitState={submitState}
           onCustomerNameChange={setCustomerName}
           onCustomerWhatsAppChange={setCustomerWhatsApp}
@@ -298,6 +321,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
         />
       ) : (
         <>
+          {flyingItem ? <FlyingCartItem key={flyingItem.key} name={flyingItem.name} /> : null}
           {!canOrder ? <OrderingUnavailableNotice /> : null}
           {canCallWaiter ? (
             <WaiterCallAction
@@ -313,21 +337,9 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
             />
           ) : null}
 
-          <nav className="sticky top-[65px] z-10 border-b border-line bg-white/95 px-4 py-2 backdrop-blur">
-            <div className="flex gap-2 overflow-x-auto">
-              {categories.map((category) => (
-                <a
-                  key={category.menuCategoryId}
-                  href={`#category-${category.menuCategoryId}`}
-                  className="shrink-0 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-extrabold uppercase text-on-surface-variant"
-                >
-                  {category.name}
-                </a>
-              ))}
-            </div>
-          </nav>
+          <MenuHero menu={currentMenu} categories={categories} itemCount={itemCount} search={search} onSearchChange={setSearch} />
 
-          <div className="flex-1 pb-28">
+          <div className="flex-1 space-y-5 bg-[#f5faf8] px-4 pb-28">
             {itemCount > 0 ? (
               categories.map((category) => (
                 <MenuCategorySection
@@ -340,7 +352,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
                 />
               ))
             ) : (
-              <MenuEmptyState canOrder={canOrder} />
+              <MenuEmptyState canOrder={canOrder} search={search} />
             )}
           </div>
 
@@ -412,15 +424,111 @@ function WaiterCallAction({
   );
 }
 
-function MenuEmptyState({ canOrder }: { canOrder: boolean }) {
+function MenuEmptyState({ canOrder, search }: { canOrder: boolean; search?: string }) {
+  const hasSearch = Boolean(search?.trim());
+
   return (
     <div className="flex min-h-[320px] flex-col items-center justify-center px-5 text-center">
       <ReceiptText className="h-9 w-9 text-gold" aria-hidden="true" />
-      <h2 className="mt-4 text-lg font-extrabold text-ink">No items available</h2>
+      <h2 className="mt-4 text-lg font-extrabold text-ink">{hasSearch ? "No matching items" : "No items available"}</h2>
       <p className="mt-2 max-w-xs text-sm leading-6 text-on-surface-variant">
-        {canOrder ? "Please check back in a few minutes." : "Ordering is currently paused by the restaurant."}
+        {hasSearch
+          ? "Try another dish name or category."
+          : canOrder
+            ? "Please check back in a few minutes."
+            : "Ordering is currently paused by the restaurant."}
       </p>
     </div>
+  );
+}
+
+function MenuHero({
+  categories,
+  itemCount,
+  menu,
+  onSearchChange,
+  search
+}: {
+  categories: PublicQrMenuCategory[];
+  itemCount: number;
+  menu: PublicQrMenu;
+  onSearchChange: (value: string) => void;
+  search: string;
+}) {
+  const featured = categories.flatMap((category) => category.items.map((item) => ({ categoryName: category.name, item }))).slice(0, 4);
+
+  return (
+    <section className="bg-[#f5faf8] px-4 pb-5 pt-3">
+      <div className="overflow-hidden rounded-[28px] bg-gradient-to-br from-[#98efe2] via-[#62d8cd] to-[#28b7b1] p-5 text-[#102536] shadow-soft-saas">
+        <div className="flex items-start justify-between gap-4">
+          <div className="max-w-[62%]">
+            <p className="text-xs font-extrabold uppercase tracking-wide text-[#102536]/60">{menu.tableName}</p>
+            <h2 className="mt-3 text-[26px] font-black leading-[1.05]">Order fresh food today</h2>
+            <p className="mt-3 text-sm font-semibold text-[#102536]/70">{itemCount} dishes available</p>
+            <div className="mt-4 inline-flex rounded-2xl bg-white/40 px-3 py-2 text-3xl font-black text-[#f5c84c]">35%</div>
+          </div>
+          <div className="relative h-32 flex-1">
+            <div className="absolute right-0 top-0 grid h-28 w-28 place-items-center rounded-full bg-white/65 shadow-soft-saas">
+              <div className="grid h-24 w-24 place-items-center rounded-full bg-gradient-to-br from-orange-100 via-white to-emerald-100">
+                <Utensils className="h-11 w-11 text-primary" aria-hidden="true" />
+              </div>
+            </div>
+            <span className="absolute bottom-3 left-1 h-5 w-5 rounded-full bg-red-400" />
+            <span className="absolute bottom-8 right-24 h-4 w-4 rounded-full bg-emerald-500" />
+            <span className="absolute right-4 top-24 h-3 w-3 rounded-full bg-yellow-300" />
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-[1fr_48px] gap-3">
+        <div className="flex h-12 items-center gap-3 rounded-2xl bg-white px-4 shadow-sm">
+          <span className="grid h-8 w-8 place-items-center rounded-xl bg-[#1bb7b5] text-white">
+            <ReceiptText className="h-4 w-4" aria-hidden="true" />
+          </span>
+          <input
+            value={search}
+            onChange={(event) => onSearchChange(event.target.value)}
+            className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-on-surface outline-none placeholder:text-on-surface-variant"
+            placeholder="Search menu..."
+            type="search"
+          />
+        </div>
+        <button type="button" className="grid h-12 w-12 place-items-center rounded-2xl bg-white text-on-surface-variant shadow-sm" aria-label="Filter">
+          <Menu className="h-5 w-5" aria-hidden="true" />
+        </button>
+      </div>
+
+      <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+        {categories.map((category, index) => (
+          <a
+            key={category.menuCategoryId}
+            href={`#category-${category.menuCategoryId}`}
+            className={`shrink-0 rounded-2xl border px-4 py-2 text-sm font-extrabold ${
+              index === 0 ? "border-[#21bdb8] bg-white text-[#159f9b]" : "border-transparent bg-white text-on-surface"
+            }`}
+          >
+            {category.name}
+          </a>
+        ))}
+      </div>
+
+      {featured.length > 0 ? (
+        <div className="mt-5">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-base font-black text-on-surface">We Offer</h3>
+            <p className="text-sm font-extrabold text-[#1bb7b5]">View all</p>
+          </div>
+          <div className="grid grid-cols-4 gap-3">
+            {featured.map(({ categoryName, item }) => (
+              <a key={item.menuItemId} href={`#category-${categories.find((category) => category.name === categoryName)?.menuCategoryId ?? ""}`} className="rounded-2xl bg-white p-2 text-center shadow-sm">
+                <FoodThumb name={item.name} compact />
+                <p className="mt-2 truncate text-[11px] font-bold text-on-surface">{categoryName}</p>
+              </a>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </section>
   );
 }
 
@@ -440,46 +548,47 @@ function MenuCategorySection({
   const items = [...category.items].sort((left, right) => left.displayOrder - right.displayOrder);
 
   return (
-    <section id={`category-${category.menuCategoryId}`} className="scroll-mt-28 bg-white">
-      <div className="border-b border-line px-4 py-4">
-        <h2 className="text-center text-[15px] font-extrabold uppercase tracking-normal text-ink">{category.name}</h2>
+    <section id={`category-${category.menuCategoryId}`} className="scroll-mt-28">
+      <div className="flex items-center justify-between pt-1">
+        <h2 className="text-lg font-black text-ink">{category.name}</h2>
+        <p className="text-sm font-bold text-[#1bb7b5]">{items.length} items</p>
       </div>
 
-      <div className="divide-y divide-line">
+      <div className="mt-3 grid grid-cols-2 gap-3">
         {items.map((item) => {
           const quantity = cart[item.menuItemId]?.quantity ?? 0;
 
           return (
-            <article key={item.menuItemId} className="grid grid-cols-[76px_1fr_auto] gap-3 px-4 py-3">
-              <ItemImage name={item.name} />
+            <article key={item.menuItemId} className="relative overflow-hidden rounded-[22px] bg-white p-3 shadow-sm">
+              <FoodThumb name={item.name} />
 
-              <div className="min-w-0 py-0.5">
-                <h3 className="break-words text-[13px] font-extrabold uppercase leading-5 text-ink">{item.name}</h3>
+              <div className="mt-3 min-w-0">
+                <h3 className="line-clamp-2 min-h-10 break-words text-sm font-black leading-5 text-ink">{item.name}</h3>
                 {item.description ? (
-                  <p className="mt-0.5 line-clamp-2 break-words text-[11px] font-medium leading-4 text-on-surface-variant">
+                  <p className="mt-1 line-clamp-1 break-words text-[11px] font-medium leading-4 text-on-surface-variant">
                     {item.description}
                   </p>
                 ) : null}
-                <p className="mt-1 whitespace-nowrap text-[12px] font-extrabold text-gold">{formatPrice(item.price)}</p>
+                <p className="mt-2 whitespace-nowrap text-sm font-black text-ink">{formatPrice(item.price)}</p>
               </div>
 
               {canOrder ? (
                 quantity > 0 ? (
-                  <div className="self-center flex h-9 items-center overflow-hidden rounded-full border border-line">
+                  <div className="mt-3 flex h-9 items-center justify-between overflow-hidden rounded-full border border-[#dcece8] bg-[#f5faf8]">
                     <button
                       type="button"
-                      className="grid h-9 w-9 place-items-center text-primary"
+                      className="grid h-9 w-9 place-items-center text-[#159f9b]"
                       onClick={() => onDecrement(item.menuItemId)}
                       aria-label={`Remove one ${item.name}`}
                     >
                       <Minus className="h-4 w-4" aria-hidden="true" />
                     </button>
-                    <span className="grid h-9 w-7 place-items-center border-x border-line text-xs font-extrabold">
+                    <span className="grid h-9 w-7 place-items-center text-xs font-extrabold">
                       {quantity}
                     </span>
                     <button
                       type="button"
-                      className="grid h-9 w-9 place-items-center text-primary"
+                      className="grid h-9 w-9 place-items-center text-[#159f9b]"
                       onClick={() => onAdd(item, category.name)}
                       aria-label={`Add one ${item.name}`}
                     >
@@ -489,7 +598,7 @@ function MenuCategorySection({
                 ) : (
                   <button
                     type="button"
-                    className="self-center grid h-9 w-9 place-items-center rounded-full border border-line text-primary"
+                    className="absolute bottom-3 right-3 grid h-9 w-9 place-items-center rounded-full bg-[#e9fbf8] text-[#159f9b]"
                     onClick={() => onAdd(item, category.name)}
                     aria-label={`Add ${item.name}`}
                   >
@@ -504,6 +613,16 @@ function MenuCategorySection({
         })}
       </div>
     </section>
+  );
+}
+
+function FlyingCartItem({ name }: { name: string }) {
+  return (
+    <div className="pointer-events-none fixed bottom-24 left-1/2 z-50 -ml-9">
+      <div className="qr-fly-to-cart grid h-16 w-16 place-items-center rounded-full bg-white shadow-modal ring-4 ring-[#e9fbf8]">
+        <FoodThumb name={name} compact />
+      </div>
+    </div>
   );
 }
 
@@ -965,13 +1084,21 @@ function CategorySheet({
   );
 }
 
-function ItemImage({ name }: { name: string }) {
+function FoodThumb({ compact = false, name }: { compact?: boolean; name: string }) {
+  const initials = name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
+
   return (
-    <div className="relative h-[64px] w-[76px] overflow-hidden rounded bg-surface-container-low">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_25%,rgba(255,201,40,0.24),transparent_35%),linear-gradient(135deg,#f8fafb,#e8edf0)]" />
-      <div className="absolute inset-0 grid place-items-center">
-        <div className="grid h-10 w-10 place-items-center rounded-full bg-white text-primary shadow-sm">
-          <Utensils className="h-5 w-5" aria-hidden="true" />
+    <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-100 via-white to-emerald-100 ${compact ? "mx-auto h-12 w-12" : "h-28 w-full"}`}>
+      <div className="absolute -right-4 -top-4 h-16 w-16 rounded-full bg-[#1bb7b5]/20" />
+      <div className="absolute -bottom-3 left-2 h-10 w-10 rounded-full bg-[#f4c542]/30" />
+      <div className="absolute inset-0 grid place-items-center p-3">
+        <div className={`grid place-items-center rounded-full bg-white text-primary shadow-soft-saas ${compact ? "h-9 w-9 text-[11px]" : "h-20 w-20 text-lg"}`}>
+          <span className="font-black">{initials || <Utensils className="h-5 w-5" aria-hidden="true" />}</span>
         </div>
       </div>
       <span className="sr-only">{name}</span>
@@ -982,6 +1109,31 @@ function ItemImage({ name }: { name: string }) {
 function valueOrNull(value: string): string | null {
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function filterCategories(categories: PublicQrMenuCategory[], search: string): PublicQrMenuCategory[] {
+  const sorted = [...categories].sort((left, right) => left.displayOrder - right.displayOrder);
+  const query = search.trim().toLowerCase();
+
+  if (!query) {
+    return sorted.map((category) => ({
+      ...category,
+      items: [...category.items].sort((left, right) => left.displayOrder - right.displayOrder)
+    }));
+  }
+
+  return sorted
+    .map((category) => ({
+      ...category,
+      items: [...category.items]
+        .filter((item) =>
+          [item.name, item.description, category.name]
+            .filter(Boolean)
+            .some((value) => value!.toLowerCase().includes(query))
+        )
+        .sort((left, right) => left.displayOrder - right.displayOrder)
+    }))
+    .filter((category) => category.items.length > 0);
 }
 
 function shortOrderCode(orderId: string): string {
