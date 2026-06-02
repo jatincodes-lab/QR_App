@@ -65,10 +65,34 @@ public sealed class BranchTableServiceTests
         Assert.Equal(2, category.Items.Count);
     }
 
+    [Fact]
+    public async Task GetPublicMenuByQrTokenAsync_WhenDemoTokenExists_NormalizesAndReadsMenu()
+    {
+        var branchId = Guid.NewGuid();
+        var tableId = Guid.NewGuid();
+        var categoryId = Guid.NewGuid();
+        var itemId = Guid.NewGuid();
+        var repository = new FakeBranchTableRepository
+        {
+            PublicRows =
+            [
+                new PublicQrMenuRecord(branchId, "Cafe", tableId, "Table 1", "demo-table-1", true, true, false, true, categoryId, "Beverages", 1, itemId, "Masala Tea", null, 25m, 1)
+            ]
+        };
+        var service = new BranchTableService(repository);
+
+        var menu = await service.GetPublicMenuByQrTokenAsync(" demo-table-1 ", CancellationToken.None);
+
+        Assert.NotNull(menu);
+        Assert.Equal("demo-table-1", repository.PublicQrToken);
+        Assert.Equal("demo-table-1", menu.QrToken);
+    }
+
     private sealed class FakeBranchTableRepository : IBranchTableRepository
     {
         public CreateBranchTableRequest? CreatedRequest { get; private set; }
         public string? CreatedQrToken { get; private set; }
+        public string? PublicQrToken { get; private set; }
         public IReadOnlyCollection<PublicQrMenuRecord> PublicRows { get; init; } = Array.Empty<PublicQrMenuRecord>();
 
         public Task<BranchTableResponse> CreateAsync(
@@ -122,6 +146,7 @@ public sealed class BranchTableServiceTests
             string qrToken,
             CancellationToken cancellationToken)
         {
+            PublicQrToken = qrToken;
             return Task.FromResult(PublicRows);
         }
     }

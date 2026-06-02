@@ -7,6 +7,9 @@ namespace QRApp.Application.Tables;
 
 public sealed class BranchTableService(IBranchTableRepository repository) : IBranchTableService
 {
+    private const int MinQrTokenLength = 8;
+    private const int MaxQrTokenLength = 80;
+
     public async Task<OperationResult<BranchTableResponse>> CreateAsync(
         Guid tenantId,
         Guid branchId,
@@ -82,7 +85,7 @@ public sealed class BranchTableService(IBranchTableRepository repository) : IBra
     public async Task<PublicQrMenuResponse?> GetPublicMenuByQrTokenAsync(string qrToken, CancellationToken cancellationToken)
     {
         var cleanToken = TextRules.CleanRequired(qrToken);
-        if (cleanToken.Length is < 16 or > 80)
+        if (cleanToken.Length is < MinQrTokenLength or > MaxQrTokenLength)
         {
             return null;
         }

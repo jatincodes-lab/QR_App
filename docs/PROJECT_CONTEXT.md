@@ -18,7 +18,7 @@ Core flow:
 
 ## Current State
 
-Base project structure has been created. The first backend foundation slice now supports tenants, branches, branch order settings, owner registration, login, JWT authentication, tenant context resolution, authenticated admin branch/settings APIs, menu category/item foundations, branch table management, QR token public menu resolution, customer QR order creation through SQL Server stored procedures and minimal v1 APIs, a mobile-first public QR menu frontend with customer cart/order submission, and an admin kitchen order dashboard.
+Base project structure has been created. The first backend foundation slice now supports tenants, branches, branch order settings, owner registration, login, JWT authentication, tenant context resolution, authenticated admin branch/settings APIs, menu category/item foundations, branch table management, QR token public menu resolution, customer QR order creation and tracking through SQL Server stored procedures and minimal v1 APIs, a mobile-first public QR menu frontend with customer cart/order submission, an admin kitchen order dashboard, SignalR realtime staff updates, and waiter-call workflows.
 
 ## What Changed
 
@@ -83,6 +83,13 @@ Base project structure has been created. The first backend foundation slice now 
 - Added the admin branch detail kitchen orders panel with incoming order cards, item details, totals, customer/table context, refresh, and status transition buttons.
 - Added `database/migrations/002_Public_Order_Runtime_Fix.sql` as an idempotent runtime migration for the public order tables, indexes, and `PublicOrder_CreateFromQrToken` procedure when deployed databases have not yet been brought up to the order slice.
 - Mapped missing SQL object/procedure errors to a clear `503` database schema response instead of a generic server error.
+- Added public order status tracking at `GET /api/v1/public/qr/{qrToken}/orders/{orderId}`.
+- Added SignalR admin order realtime updates so branch staff dashboards refresh on new QR orders and order status changes.
+- Added waiter-call workflow when `BranchOrderSettings.WaiterCallEnabled` is enabled, including SQL migration, public create API, admin list/status APIs, realtime staff events, public QR UI action, and admin waiter-call board.
+- Added a local database runner at `database/scripts/run-local-db.ps1` that applies foundation tables, procedures, indexes, migrations, and optional demo seed data in order.
+- Added demo smoke seed data for `Qrave`, including `owner.demo@example.com`, `Main Branch`, `Table 1`, QR token `demo-table-1`, menu items, direct ordering, and waiter calls enabled.
+- Aligned the development API connection string with the local runner database `Qrave` instead of the legacy `master` database.
+- Fixed public QR menu token validation so the documented demo token `demo-table-1` is accepted consistently with public order and waiter-call validation.
 
 ## Files Changed
 
@@ -233,6 +240,7 @@ Base project structure has been created. The first backend foundation slice now 
   - `BranchTables`
   - `Orders`
   - `OrderItems`
+  - `WaiterCalls`
 - `Branches` and `BranchOrderSettings` include `TenantId`.
 - `TenantUsers` links authenticated users to tenants and stores role codes.
 - `MenuCategories` and `MenuItems` are branch-scoped and include `TenantId`.
@@ -274,9 +282,15 @@ Base project structure has been created. The first backend foundation slice now 
   - `PublicMenu_GetByQrToken`
 - Order stored procedures:
   - `PublicOrder_CreateFromQrToken`
+  - `PublicOrder_GetByQrToken`
   - `AdminOrder_GetListByBranch`
   - `AdminOrder_GetItemsByBranch`
   - `AdminOrder_UpdateStatus`
+- Waiter-call stored procedures:
+  - `WaiterCall_CreateFromQrToken`
+  - `WaiterCall_GetListByBranch`
+  - `WaiterCall_UpdateStatus`
+- `database/scripts/run-local-db.ps1` applies foundation scripts, all `database/migrations/*.sql`, and optional seed data for local development.
 
 ## API Changes
 
@@ -309,8 +323,13 @@ Base project structure has been created. The first backend foundation slice now 
 - Added `GET /api/v1/public/branches/{branchId}/menu`.
 - Added `GET /api/v1/public/qr/{qrToken}`.
 - Added `POST /api/v1/public/qr/{qrToken}/orders`.
+- Added `GET /api/v1/public/qr/{qrToken}/orders/{orderId}`.
 - Added `GET /api/v1/admin/branches/{branchId}/orders`.
 - Added `PUT /api/v1/admin/branches/{branchId}/orders/{orderId}/status`.
+- Added `POST /api/v1/public/qr/{qrToken}/waiter-calls`.
+- Added `GET /api/v1/admin/branches/{branchId}/waiter-calls`.
+- Added `PUT /api/v1/admin/branches/{branchId}/waiter-calls/{waiterCallId}/status`.
+- Added SignalR hub `/hubs/admin/orders` for authenticated branch dashboard realtime events.
 - Added `POST /api/v1/tenants`.
 - Added `GET /api/v1/tenants/{tenantId}`.
 - Added `POST /api/v1/tenants/{tenantId}/branches`.
@@ -381,26 +400,28 @@ Base project structure has been created. The first backend foundation slice now 
 - `cmd /c "set NODE_OPTIONS=--max-old-space-size=4096&& npm run build"` passed after adding the admin kitchen orders panel.
 - `npm run lint` is currently blocked by the local Next.js 16 CLI behavior resolving `lint` as an invalid project directory (`Q:\lint`); production build and TypeScript checks pass through `npm run build`.
 - Added a targeted public order runtime migration after a production-style order submission returned a generic database 500, consistent with the deployed database missing the latest order tables/procedure.
+- After syncing latest GitHub code on June 1, 2026, `dotnet build QRApp.sln --no-restore` passed with 0 warnings and 0 errors.
+- After syncing latest GitHub code on June 1, 2026, `dotnet test QRApp.sln --no-build` passed: 26 tests.
+- After restoring frontend dependencies with `npm install`, `cmd /c "set NODE_OPTIONS=--max-old-space-size=4096&& npm --prefix E:\ETPL-04\Jatin\Transferdata\QR-App\src\frontend run build"` passed.
+- `database/scripts/run-local-db.ps1 -Server "(localdb)\MSSQLLocalDB" -Database "Qrave" -Seed` completed and applied foundation scripts, migrations `002` through `006`, and demo smoke seed data.
+- Runtime API smoke test against `http://localhost:59127` passed for health, demo owner login, public QR menu lookup for `demo-table-1`, public order creation, admin order listing, public waiter-call creation, and admin waiter-call listing.
+- Frontend production runtime check against `http://localhost:3000/qr/demo-table-1` returned HTTP 200 and included seeded menu content.
 
 ## Pending Work
 
-- Add a migration/deployment runner or documented SQL script execution order.
 - Add integration tests against SQL Server for stored procedures.
-- LocalDB is currently configured to use the `master` database because that is where the existing local objects were created.
-- Apply the new auth SQL scripts to LocalDB before runtime auth testing.
+- Add a production/deployment migration runner; the current runner is local-development oriented.
 - Existing tenant/branch endpoints still accept `tenantId` in route for foundation testing only.
-- Apply the new menu SQL scripts to LocalDB before runtime menu testing.
-- Apply the new table/QR/order SQL scripts to LocalDB before runtime table, QR token, and customer order testing.
 - Apply `database/migrations/002_Public_Order_Runtime_Fix.sql` to any deployed database that returns a schema-related error from `POST /api/v1/public/qr/{qrToken}/orders`.
 - Apply `database/migrations/003_Admin_Order_Workflow.sql` to deployed databases before using the admin kitchen order dashboard.
+- Apply `database/migrations/006_Waiter_Call_Workflow.sql` to deployed databases before using public/admin waiter-call flows.
 - Public QR menu lookup by `branchId` still exists for foundation testing, but `/api/v1/public/qr/{qrToken}` is now the production-oriented lookup path.
-- Add waiter-call workflow when `BranchOrderSettings.WaiterCallEnabled` is enabled.
 - Investigate the Next.js 16 local `dev` server empty HTTP 500 behavior on this Windows workspace; production build/start works.
 - Investigate the Next.js 16 `next lint`/lint script behavior on this Windows workspace; `npm run lint` currently resolves `lint` as an invalid project directory.
 
 ## Next Recommended Task
 
-Add realtime order updates with SignalR so staff dashboards receive new QR orders without manual refresh.
+Add SQL Server integration tests for the stored procedures and critical API/database workflows, starting with demo seed setup, public QR menu lookup, public order creation/tracking, admin order status updates, public waiter-call creation, and admin waiter-call status updates.
 
 ## Frontend CSS/Tailwind Setup
 
