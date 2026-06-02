@@ -52,7 +52,7 @@ export default function AdminMenuPage() {
   }
 
   const branchName = workspace.selectedBranch?.name ?? "Menu";
-  const editorHref = workspace.selectedBranch ? `/admin/branches/${workspace.selectedBranch.branchId}` : "/admin/branches";
+  const editorHref = workspace.selectedBranch ? `/admin/branches/${workspace.selectedBranch.branchId}?tab=menu` : "/admin/branches";
 
   return (
     <AdminShell active="menu" onLogout={workspace.logout} branchName={branchName}>

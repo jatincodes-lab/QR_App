@@ -13,17 +13,17 @@ import {
   getAdminOrders,
   getBranchOrderSettings,
   getBranchTables,
-  getMenuCategories,
   getMenuItems,
   getWaiterCalls
 } from "../../../lib/api";
-import { useAdminWorkspace } from "../../../lib/admin-workspace";
+import { formatMoney, useAdminWorkspace } from "../../../lib/admin-workspace";
 
 type DashboardStats = {
   menuItems: number;
   tables: number;
   openOrders: number;
   waiterCalls: number;
+  openOrderValue: number;
   directOrdering: boolean;
   waiterCallEnabled: boolean;
 };
@@ -46,8 +46,7 @@ export default function AdminDashboardPage() {
     setIsLoadingStats(true);
 
     try {
-      const [categories, items, tables, orders, calls, settings] = await Promise.all([
-        getMenuCategories(branchId),
+      const [items, tables, orders, calls, settings] = await Promise.all([
         getMenuItems(branchId),
         getBranchTables(branchId),
         getAdminOrders(branchId, false),
@@ -60,6 +59,9 @@ export default function AdminDashboardPage() {
         tables: tables.length,
         openOrders: orders.filter((order) => !["Completed", "Cancelled"].includes(order.orderStatusCode)).length,
         waiterCalls: calls.filter((call) => !["Resolved", "Cancelled"].includes(call.statusCode)).length,
+        openOrderValue: orders
+          .filter((order) => !["Completed", "Cancelled"].includes(order.orderStatusCode))
+          .reduce((total, order) => total + order.totalAmount, 0),
         directOrdering: Boolean(settings?.enableDirectQrOrdering),
         waiterCallEnabled: Boolean(settings?.waiterCallEnabled)
       });
@@ -71,6 +73,13 @@ export default function AdminDashboardPage() {
   }
 
   const branchName = workspace.selectedBranch?.name ?? "Restaurant workspace";
+  const isSetupComplete = Boolean(
+    workspace.selectedBranch &&
+      (stats?.menuItems ?? 0) > 0 &&
+      (stats?.tables ?? 0) > 0 &&
+      stats?.directOrdering &&
+      stats?.waiterCallEnabled
+  );
 
   return (
     <AdminShell active="dashboard" onLogout={workspace.logout} branchName={branchName}>
@@ -105,19 +114,28 @@ export default function AdminDashboardPage() {
             </section>
 
             <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Setup checklist</CardTitle>
-                  <CardDescription>Complete these before sharing table QR codes with customers.</CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-3">
-                  <ChecklistItem done={Boolean(workspace.selectedBranch)} label="Create branch profile" href="/admin/branches" />
-                  <ChecklistItem done={(stats?.menuItems ?? 0) > 0} label="Add menu items" href="/admin/menu" />
-                  <ChecklistItem done={(stats?.tables ?? 0) > 0} label="Create table QR codes" href={`/admin/branches/${workspace.selectedBranch.branchId}`} />
-                  <ChecklistItem done={Boolean(stats?.directOrdering)} label="Enable QR ordering" href="/admin/settings" />
-                  <ChecklistItem done={Boolean(stats?.waiterCallEnabled)} label="Enable waiter calls" href="/admin/settings" />
-                </CardContent>
-              </Card>
+              {isSetupComplete ? (
+                <LiveOperationsPanel
+                  openOrders={stats?.openOrders ?? 0}
+                  openOrderValue={stats?.openOrderValue ?? 0}
+                  waiterCalls={stats?.waiterCalls ?? 0}
+                  branchId={workspace.selectedBranch.branchId}
+                />
+              ) : (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Setup checklist</CardTitle>
+                    <CardDescription>Complete these before sharing table QR codes with customers.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="grid gap-3">
+                    <ChecklistItem done={Boolean(workspace.selectedBranch)} label="Create branch profile" href="/admin/branches" />
+                    <ChecklistItem done={(stats?.menuItems ?? 0) > 0} label="Add menu items" href="/admin/menu" />
+                    <ChecklistItem done={(stats?.tables ?? 0) > 0} label="Create table QR codes" href={`/admin/branches/${workspace.selectedBranch.branchId}?tab=tables`} />
+                    <ChecklistItem done={Boolean(stats?.directOrdering)} label="Enable QR ordering" href="/admin/settings" />
+                    <ChecklistItem done={Boolean(stats?.waiterCallEnabled)} label="Enable waiter calls" href="/admin/settings" />
+                  </CardContent>
+                </Card>
+              )}
 
               <Card>
                 <CardHeader>
@@ -127,7 +145,7 @@ export default function AdminDashboardPage() {
                 <CardContent className="grid gap-3">
                   <QuickAction icon={<ChefHat size={18} />} label="Manage menu" href="/admin/menu" />
                   <QuickAction icon={<ClipboardList size={18} />} label="Open kitchen board" href="/admin/orders" />
-                  <QuickAction icon={<QrCode size={18} />} label="Manage table QR" href={`/admin/branches/${workspace.selectedBranch.branchId}`} />
+                  <QuickAction icon={<QrCode size={18} />} label="Manage table QR" href={`/admin/branches/${workspace.selectedBranch.branchId}?tab=tables`} />
                   <QuickAction icon={<Settings size={18} />} label="Ordering settings" href="/admin/settings" />
                 </CardContent>
               </Card>
@@ -147,6 +165,47 @@ function ChecklistItem({ done, href, label }: { done: boolean; href: string; lab
         <p className="mt-1 text-xs text-on-surface-variant">{done ? "Completed" : "Needs setup"}</p>
       </div>
       <BadgeState done={done} />
+    </Link>
+  );
+}
+
+function LiveOperationsPanel({
+  branchId,
+  openOrders,
+  openOrderValue,
+  waiterCalls
+}: {
+  branchId: string;
+  openOrders: number;
+  openOrderValue: number;
+  waiterCalls: number;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Live operations</CardTitle>
+        <CardDescription>Your setup is complete. Use this panel during service hours.</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-3">
+        <OperationRow label="Kitchen queue" value={`${openOrders} active orders`} tone={openOrders > 0 ? "busy" : "quiet"} href="/admin/orders" />
+        <OperationRow label="Open order value" value={formatMoney(openOrderValue)} tone={openOrderValue > 0 ? "busy" : "quiet"} href="/admin/orders" />
+        <OperationRow label="Waiter calls" value={`${waiterCalls} active requests`} tone={waiterCalls > 0 ? "busy" : "quiet"} href="/admin/orders" />
+        <OperationRow label="QR table placards" value="Ready to manage" tone="ready" href={`/admin/branches/${branchId}?tab=tables`} />
+      </CardContent>
+    </Card>
+  );
+}
+
+function OperationRow({ href, label, tone, value }: { href: string; label: string; tone: "busy" | "quiet" | "ready"; value: string }) {
+  const toneClass = tone === "busy" ? "bg-soft-gold/20 text-primary" : tone === "ready" ? "bg-secondary-container text-on-secondary-container" : "bg-surface-container text-on-surface-variant";
+
+  return (
+    <Link href={href} className="flex items-center justify-between gap-3 rounded-xl border border-outline-variant/70 bg-white p-4 hover:border-primary/25">
+      <div>
+        <p className="text-sm font-bold text-on-surface">{label}</p>
+        <p className="mt-1 text-xs text-on-surface-variant">{value}</p>
+      </div>
+      <span className={`rounded-full px-3 py-1 text-xs font-bold ${toneClass}`}>{tone === "busy" ? "Needs attention" : "Stable"}</span>
     </Link>
   );
 }

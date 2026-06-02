@@ -26,6 +26,9 @@ export default function AdminAnalyticsPage() {
   const openOrders = useMemo(() => stats?.orders.filter((order) => !["Completed", "Cancelled"].includes(order.orderStatusCode)) ?? [], [stats]);
   const completedValue = useMemo(() => completedOrders.reduce((total, order) => total + order.totalAmount, 0), [completedOrders]);
   const activeCalls = useMemo(() => stats?.waiterCalls.filter((call) => !["Resolved", "Cancelled"].includes(call.statusCode)) ?? [], [stats]);
+  const orderStatusData = useMemo(() => buildCountData(stats?.orders ?? [], (order) => order.orderStatusCode, OrderStatusLabels), [stats]);
+  const waiterStatusData = useMemo(() => buildCountData(stats?.waiterCalls ?? [], (call) => call.statusCode, WaiterStatusLabels), [stats]);
+  const orderValueData = useMemo(() => buildRecentOrderValueData(stats?.orders ?? []), [stats]);
 
   useEffect(() => {
     if (!workspace.selectedBranch) {
@@ -95,17 +98,25 @@ export default function AdminAnalyticsPage() {
               <InsightCard title="Setup coverage" value={`${stats?.tables ?? 0} tables`} text="Tables currently available for QR menu links." />
             </section>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Reporting roadmap</CardTitle>
-                <CardDescription>These analytics are live MVP metrics. Revenue charts and time-series reports need backend aggregate APIs next.</CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-3 md:grid-cols-3">
-                <RoadmapItem icon={<BarChart3 size={18} />} title="Daily sales chart" />
-                <RoadmapItem icon={<ChefHat size={18} />} title="Top menu items" />
-                <RoadmapItem icon={<Users size={18} />} title="Service response time" />
-              </CardContent>
-            </Card>
+            <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+              <BarChartCard title="Order value trend" description="Last 7 days from completed and active order records." data={orderValueData} valueFormatter={formatMoney} />
+              <DonutChartCard title="Order status mix" description="Current distribution by order status." data={orderStatusData} />
+            </section>
+
+            <section className="grid gap-4 xl:grid-cols-[0.8fr_1.2fr]">
+              <DonutChartCard title="Waiter-call status" description="Service request distribution." data={waiterStatusData} />
+              <Card>
+                <CardHeader>
+                  <CardTitle>Reporting roadmap</CardTitle>
+                  <CardDescription>These charts use existing order data. Daily aggregates, top items, and response-time reports should become backend analytics APIs next.</CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-3 md:grid-cols-3">
+                  <RoadmapItem icon={<BarChart3 size={18} />} title="Daily sales API" />
+                  <RoadmapItem icon={<ChefHat size={18} />} title="Top menu items" />
+                  <RoadmapItem icon={<Users size={18} />} title="Service response time" />
+                </CardContent>
+              </Card>
+            </section>
           </>
         )}
       </div>
@@ -125,6 +136,112 @@ function InsightCard({ text, title, value }: { text: string; title: string; valu
   );
 }
 
+const OrderStatusLabels = ["Placed", "Accepted", "Preparing", "Ready", "Completed", "Cancelled"];
+const WaiterStatusLabels = ["Open", "Acknowledged", "Resolved", "Cancelled"];
+const ChartColors = ["#20c77a", "#c8ef68", "#f4c542", "#0b3b2a", "#7a8578", "#d6dfd1"];
+
+type ChartDatum = {
+  label: string;
+  value: number;
+};
+
+function BarChartCard({
+  data,
+  description,
+  title,
+  valueFormatter
+}: {
+  data: ChartDatum[];
+  description: string;
+  title: string;
+  valueFormatter: (value: number) => string;
+}) {
+  const maxValue = Math.max(...data.map((item) => item.value), 1);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="flex h-72 items-end gap-3 rounded-xl border border-outline-variant/70 bg-surface-container-low p-4">
+          {data.map((item, index) => {
+            const height = Math.max((item.value / maxValue) * 100, item.value > 0 ? 10 : 3);
+
+            return (
+              <div key={item.label} className="flex min-w-0 flex-1 flex-col items-center justify-end gap-2">
+                <div className="text-center text-[11px] font-bold text-on-surface">{item.value > 0 ? valueFormatter(item.value) : "-"}</div>
+                <div className="flex h-48 w-full items-end">
+                  <div
+                    className="w-full rounded-t-xl transition-all"
+                    style={{
+                      background: `linear-gradient(180deg, ${ChartColors[index % ChartColors.length]}, rgba(32, 199, 122, 0.2))`,
+                      height: `${height}%`
+                    }}
+                  />
+                </div>
+                <p className="truncate text-xs font-semibold text-on-surface-variant">{item.label}</p>
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function DonutChartCard({ data, description, title }: { data: ChartDatum[]; description: string; title: string }) {
+  const total = data.reduce((sum, item) => sum + item.value, 0);
+  const segments = buildDonutSegments(data, total);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-5 md:grid-cols-[13rem_1fr] md:items-center">
+        <div className="relative mx-auto grid h-48 w-48 place-items-center rounded-full bg-surface-container-low">
+          <svg viewBox="0 0 120 120" className="h-44 w-44 -rotate-90">
+            <circle cx="60" cy="60" r="42" fill="none" stroke="#e3eadf" strokeWidth="18" />
+            {segments.map((segment) => (
+              <circle
+                key={segment.label}
+                cx="60"
+                cy="60"
+                r="42"
+                fill="none"
+                stroke={segment.color}
+                strokeDasharray={`${segment.length} ${segment.gap}`}
+                strokeDashoffset={segment.offset}
+                strokeLinecap="round"
+                strokeWidth="18"
+              />
+            ))}
+          </svg>
+          <div className="absolute text-center">
+            <p className="text-3xl font-extrabold text-primary">{total}</p>
+            <p className="text-xs font-bold uppercase tracking-wide text-on-surface-variant">total</p>
+          </div>
+        </div>
+
+        <div className="grid gap-2">
+          {data.map((item, index) => (
+            <div key={item.label} className="flex items-center justify-between gap-3 rounded-xl border border-outline-variant/70 bg-white px-3 py-2">
+              <span className="flex min-w-0 items-center gap-2">
+                <span className="h-3 w-3 rounded-full" style={{ backgroundColor: ChartColors[index % ChartColors.length] }} />
+                <span className="truncate text-sm font-semibold text-on-surface">{item.label}</span>
+              </span>
+              <span className="text-sm font-extrabold text-primary">{item.value}</span>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function RoadmapItem({ icon, title }: { icon: ReactNode; title: string }) {
   return (
     <div className="flex items-center gap-3 rounded-xl border border-outline-variant/70 bg-surface-container-low p-4">
@@ -132,4 +249,64 @@ function RoadmapItem({ icon, title }: { icon: ReactNode; title: string }) {
       <p className="text-sm font-bold text-on-surface">{title}</p>
     </div>
   );
+}
+
+function buildCountData<T>(items: T[], getLabel: (item: T) => string, labels: string[]): ChartDatum[] {
+  return labels.map((label) => ({
+    label,
+    value: items.filter((item) => getLabel(item) === label).length
+  }));
+}
+
+function buildRecentOrderValueData(orders: AdminOrder[]): ChartDatum[] {
+  const days = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date();
+    date.setDate(date.getDate() - (6 - index));
+    return date;
+  });
+
+  return days.map((date) => {
+    const key = toDateKey(date);
+    const value = orders
+      .filter((order) => toDateKey(parseDate(order.createdAtUtc)) === key)
+      .reduce((total, order) => total + order.totalAmount, 0);
+
+    return {
+      label: new Intl.DateTimeFormat("en-IN", { day: "2-digit", month: "short" }).format(date),
+      value
+    };
+  });
+}
+
+function buildDonutSegments(data: ChartDatum[], total: number) {
+  const circumference = 2 * Math.PI * 42;
+  let offset = 0;
+
+  if (total === 0) {
+    return [];
+  }
+
+  return data
+    .filter((item) => item.value > 0)
+    .map((item, index) => {
+      const length = (item.value / total) * circumference;
+      const segment = {
+        color: ChartColors[index % ChartColors.length],
+        gap: circumference - length,
+        label: item.label,
+        length,
+        offset: -offset
+      };
+      offset += length;
+      return segment;
+    });
+}
+
+function parseDate(value: string): Date {
+  const hasTimeZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value);
+  return new Date(hasTimeZone ? value : `${value}Z`);
+}
+
+function toDateKey(value: Date): string {
+  return `${value.getFullYear()}-${value.getMonth()}-${value.getDate()}`;
 }

@@ -27,7 +27,7 @@ import {
   PackageCheck
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import QRCode from "qrcode";
 import { AdminShell } from "../../../../components/admin-shell";
 import { Alert, AlertDescription } from "../../../../components/ui/alert";
@@ -151,9 +151,11 @@ const WorkspaceTabs: Array<{ id: WorkspaceTab; label: string; icon: LucideIcon }
   { id: "tables", label: "Tables", icon: QrCode },
   { id: "settings", label: "Settings", icon: Settings }
 ];
+const WorkspaceTabIds = new Set<WorkspaceTab>(WorkspaceTabs.map((tab) => tab.id));
 
 export default function AdminBranchDetailPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const params = useParams<{ branchId: string }>();
   const branchId = params.branchId;
 
@@ -231,6 +233,13 @@ export default function AdminBranchDetailPage() {
 
     void loadBranchDetail();
   }, [branchId, router]);
+
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (isWorkspaceTab(tab)) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (!getAccessToken()) {
@@ -2386,6 +2395,10 @@ function formatMoney(value: number): string {
 function parseUtcDate(value: string): Date {
   const hasTimeZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value);
   return new Date(hasTimeZone ? value : `${value}Z`);
+}
+
+function isWorkspaceTab(value: string | null): value is WorkspaceTab {
+  return value !== null && WorkspaceTabIds.has(value as WorkspaceTab);
 }
 
 function utcTimestamp(value: string): number {
