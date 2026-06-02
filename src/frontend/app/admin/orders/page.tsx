@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ClipboardList, RefreshCw, Store, Users } from "lucide-react";
 import { AdminShell } from "../../../components/admin-shell";
-import { BranchSelect, EmptyBranchState, MetricCard, PageError, PageLoading } from "../../../components/admin-page-common";
+import { EmptyBranchState, MetricCard, PageError, PageLoading } from "../../../components/admin-page-common";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../components/ui/card";
@@ -101,7 +101,14 @@ export default function AdminOrdersPage() {
   const branchName = workspace.selectedBranch?.name ?? "Orders";
 
   return (
-    <AdminShell active="orders" onLogout={workspace.logout} branchName={branchName}>
+    <AdminShell
+      active="orders"
+      branchName={branchName}
+      branches={workspace.activeBranches}
+      onLogout={workspace.logout}
+      onSelectedBranchChange={workspace.setSelectedBranchId}
+      selectedBranchId={workspace.selectedBranchId}
+    >
       <div className="mx-auto max-w-7xl space-y-6">
         <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -115,7 +122,6 @@ export default function AdminOrdersPage() {
             </p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <BranchSelect branches={workspace.activeBranches} selectedBranchId={workspace.selectedBranchId} onChange={workspace.setSelectedBranchId} />
             <Button type="button" variant="outline" onClick={() => workspace.selectedBranch && loadOrders(workspace.selectedBranch.branchId)}>
               <RefreshCw size={17} />
               Refresh

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, ChefHat, IndianRupee, Layers3, Plus } from "lucide-react";
 import { AdminShell } from "../../../components/admin-shell";
-import { BranchSelect, EmptyBranchState, MetricCard, PageError, PageLoading } from "../../../components/admin-page-common";
+import { EmptyBranchState, MetricCard, PageError, PageLoading } from "../../../components/admin-page-common";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../components/ui/card";
@@ -55,7 +55,14 @@ export default function AdminMenuPage() {
   const editorHref = workspace.selectedBranch ? `/admin/branches/${workspace.selectedBranch.branchId}?tab=menu` : "/admin/branches";
 
   return (
-    <AdminShell active="menu" onLogout={workspace.logout} branchName={branchName}>
+    <AdminShell
+      active="menu"
+      branchName={branchName}
+      branches={workspace.activeBranches}
+      onLogout={workspace.logout}
+      onSelectedBranchChange={workspace.setSelectedBranchId}
+      selectedBranchId={workspace.selectedBranchId}
+    >
       <div className="mx-auto max-w-7xl space-y-6">
         <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -69,7 +76,6 @@ export default function AdminMenuPage() {
             </p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <BranchSelect branches={workspace.activeBranches} selectedBranchId={workspace.selectedBranchId} onChange={workspace.setSelectedBranchId} />
             <Button type="button" onClick={() => (window.location.href = editorHref)}>
               <Plus size={18} />
               Open editor
@@ -124,8 +130,13 @@ export default function AdminMenuPage() {
                       {items.map((item) => (
                         <TableRow key={item.menuItemId}>
                           <TableCell>
-                            <p className="font-bold text-on-surface">{item.name}</p>
-                            <p className="mt-1 line-clamp-1 text-xs text-on-surface-variant">{item.description || "No description"}</p>
+                            <div className="flex items-center gap-3">
+                              <MenuItemImage imageAltText={item.imageAltText} imageUrl={item.imageUrl} name={item.name} />
+                              <div className="min-w-0">
+                                <p className="font-bold text-on-surface">{item.name}</p>
+                                <p className="mt-1 line-clamp-1 text-xs text-on-surface-variant">{item.description || "No description"}</p>
+                              </div>
+                            </div>
                           </TableCell>
                           <TableCell className="text-on-surface-variant">{item.categoryName}</TableCell>
                           <TableCell className="font-bold text-primary">{formatMoney(item.price)}</TableCell>
@@ -143,5 +154,20 @@ export default function AdminMenuPage() {
         )}
       </div>
     </AdminShell>
+  );
+}
+
+function MenuItemImage({ imageAltText, imageUrl, name }: { imageAltText: string | null; imageUrl: string | null; name: string }) {
+  const initials = name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
+
+  return (
+    <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl bg-secondary-container text-sm font-black text-primary">
+      {imageUrl ? <img src={imageUrl} alt={imageAltText ?? name} className="h-full w-full object-cover" /> : initials || <ChefHat size={18} />}
+    </div>
   );
 }

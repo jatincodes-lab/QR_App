@@ -478,54 +478,86 @@ function MenuHero({
   const availableCategories = categories.filter((category) => category.items.length > 0);
   const featured = availableCategories.map((category) => ({ category, item: category.items[0] })).slice(0, 4);
   const offers = (menu.offers ?? []).sort((left, right) => left.displayOrder - right.displayOrder);
-  const heroOffer = offers[0] ?? null;
+  const [activeOfferIndex, setActiveOfferIndex] = useState(0);
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (offers.length <= 1) {
+      setActiveOfferIndex(0);
+      return;
+    }
+
+    setActiveOfferIndex((current) => (current >= offers.length ? 0 : current));
+    const timer = window.setInterval(() => {
+      setActiveOfferIndex((current) => (current + 1) % offers.length);
+    }, 4_200);
+
+    return () => window.clearInterval(timer);
+  }, [offers.length]);
+
+  function handleOfferTouchEnd(clientX: number) {
+    if (touchStartX === null || offers.length <= 1) {
+      setTouchStartX(null);
+      return;
+    }
+
+    const delta = touchStartX - clientX;
+    if (Math.abs(delta) > 36) {
+      setActiveOfferIndex((current) => (delta > 0 ? current + 1 : current - 1 + offers.length) % offers.length);
+    }
+
+    setTouchStartX(null);
+  }
 
   return (
     <section className="bg-[#f5faf8] px-4 pb-5 pt-3">
-      <div className="overflow-hidden rounded-[28px] bg-gradient-to-br from-[#98efe2] via-[#62d8cd] to-[#28b7b1] p-5 text-[#102536] shadow-soft-saas">
-        <div className="flex items-start justify-between gap-4">
-          <div className="max-w-[62%]">
-            <p className="text-xs font-extrabold uppercase tracking-wide text-[#102536]/60">{menu.tableName}</p>
-            <h2 className="mt-3 text-[26px] font-black leading-[1.05]">{heroOffer?.title ?? "Order fresh food today"}</h2>
-            <p className="mt-3 text-sm font-semibold text-[#102536]/70">{heroOffer?.subtitle ?? `${itemCount} dishes available`}</p>
-            {heroOffer?.discountText ? <div className="mt-4 inline-flex rounded-2xl bg-white/40 px-3 py-2 text-3xl font-black text-[#f5c84c]">{heroOffer.discountText}</div> : null}
-          </div>
-          <div className="relative h-32 flex-1">
-            <div className="absolute right-0 top-0 grid h-28 w-28 place-items-center rounded-full bg-white/65 shadow-soft-saas">
-              {heroOffer?.imageUrl ? (
-                <img src={heroOffer.imageUrl} alt={heroOffer.imageAltText ?? heroOffer.title} className="h-24 w-24 rounded-full object-cover" />
-              ) : (
-                <div className="grid h-24 w-24 place-items-center rounded-full bg-gradient-to-br from-orange-100 via-white to-emerald-100">
-                  <Utensils className="h-11 w-11 text-primary" aria-hidden="true" />
+      <div
+        className="overflow-hidden rounded-[28px] bg-gradient-to-br from-[#98efe2] via-[#62d8cd] to-[#28b7b1] text-[#102536] shadow-soft-saas"
+        onTouchStart={(event) => setTouchStartX(event.touches[0]?.clientX ?? null)}
+        onTouchEnd={(event) => handleOfferTouchEnd(event.changedTouches[0]?.clientX ?? 0)}
+      >
+        <div className="flex transition-transform duration-700 ease-out" style={{ transform: `translateX(-${offers.length > 0 ? activeOfferIndex * 100 : 0}%)` }}>
+          {(offers.length > 0 ? offers : [null]).map((offer) => (
+            <div key={offer?.branchOfferId ?? "default-offer"} className="min-w-full p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div className="max-w-[62%]">
+                  <p className="text-xs font-extrabold uppercase tracking-wide text-[#102536]/60">{menu.tableName}</p>
+                  <h2 className="mt-3 text-[26px] font-black leading-[1.05]">{offer?.title ?? "Order fresh food today"}</h2>
+                  <p className="mt-3 text-sm font-semibold text-[#102536]/70">{offer?.subtitle ?? `${itemCount} dishes available`}</p>
+                  {offer?.discountText ? <div className="mt-4 inline-flex rounded-2xl bg-white/40 px-3 py-2 text-3xl font-black text-[#f5c84c]">{offer.discountText}</div> : null}
                 </div>
-              )}
-            </div>
-            <span className="absolute bottom-3 left-1 h-5 w-5 rounded-full bg-red-400" />
-            <span className="absolute bottom-8 right-24 h-4 w-4 rounded-full bg-emerald-500" />
-            <span className="absolute right-4 top-24 h-3 w-3 rounded-full bg-yellow-300" />
-          </div>
-        </div>
-      </div>
-
-      {offers.length > 1 ? (
-        <div className="mt-4 flex gap-3 overflow-x-auto pb-1">
-          {offers.slice(1).map((offer) => (
-            <article key={offer.branchOfferId} className="flex min-w-[260px] items-center gap-3 rounded-2xl bg-white p-3 shadow-sm">
-              {offer.imageUrl ? (
-                <img src={offer.imageUrl} alt={offer.imageAltText ?? offer.title} className="h-14 w-14 shrink-0 rounded-2xl object-cover" />
-              ) : (
-                <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-[#1bb7b5]/10 text-[#159f9b]">
-                  <Utensils className="h-6 w-6" aria-hidden="true" />
+                <div className="relative h-32 flex-1">
+                  <div className="absolute right-0 top-0 grid h-28 w-28 place-items-center rounded-full bg-white/65 shadow-soft-saas">
+                    {offer?.imageUrl ? (
+                      <img src={offer.imageUrl} alt={offer.imageAltText ?? offer.title} className="h-24 w-24 rounded-full object-cover" />
+                    ) : (
+                      <div className="grid h-24 w-24 place-items-center rounded-full bg-gradient-to-br from-orange-100 via-white to-emerald-100">
+                        <Utensils className="h-11 w-11 text-primary" aria-hidden="true" />
+                      </div>
+                    )}
+                  </div>
+                  <span className="absolute bottom-3 left-1 h-5 w-5 rounded-full bg-red-400" />
+                  <span className="absolute bottom-8 right-24 h-4 w-4 rounded-full bg-emerald-500" />
+                  <span className="absolute right-4 top-24 h-3 w-3 rounded-full bg-yellow-300" />
                 </div>
-              )}
-              <div className="min-w-0">
-                <p className="truncate text-sm font-black text-on-surface">{offer.title}</p>
-                <p className="mt-1 truncate text-xs font-semibold text-on-surface-variant">{offer.subtitle ?? offer.discountText ?? "Special offer"}</p>
               </div>
-            </article>
+            </div>
           ))}
         </div>
-      ) : null}
+        {offers.length > 1 ? (
+          <div className="flex justify-center gap-1.5 pb-4">
+            {offers.map((offer, index) => (
+              <button
+                key={offer.branchOfferId}
+                type="button"
+                onClick={() => setActiveOfferIndex(index)}
+                className={`h-1.5 rounded-full transition-all ${index === activeOfferIndex ? "w-6 bg-[#102536]" : "w-1.5 bg-[#102536]/30"}`}
+                aria-label={`Show offer ${index + 1}`}
+              />
+            ))}
+          </div>
+        ) : null}
+      </div>
 
       <div className="mt-4 grid grid-cols-[1fr_48px] gap-3">
         <div className="flex h-12 items-center gap-3 rounded-2xl bg-white px-4 shadow-sm">

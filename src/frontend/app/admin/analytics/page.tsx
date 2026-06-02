@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { BarChart3, ChefHat, ClipboardList, QrCode, Store, Users } from "lucide-react";
 import { AdminShell } from "../../../components/admin-shell";
-import { BranchSelect, EmptyBranchState, MetricCard, PageError, PageLoading } from "../../../components/admin-page-common";
+import { EmptyBranchState, MetricCard, PageError, PageLoading } from "../../../components/admin-page-common";
 import { Badge } from "../../../components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../components/ui/card";
 import { getAdminOrders, getBranchTables, getMenuItems, getWaiterCalls, type AdminOrder, type WaiterCall } from "../../../lib/api";
@@ -61,7 +61,14 @@ export default function AdminAnalyticsPage() {
   const branchName = workspace.selectedBranch?.name ?? "Analytics";
 
   return (
-    <AdminShell active="analytics" onLogout={workspace.logout} branchName={branchName}>
+    <AdminShell
+      active="analytics"
+      branchName={branchName}
+      branches={workspace.activeBranches}
+      onLogout={workspace.logout}
+      onSelectedBranchChange={workspace.setSelectedBranchId}
+      selectedBranchId={workspace.selectedBranchId}
+    >
       <div className="mx-auto max-w-7xl space-y-6">
         <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -74,7 +81,6 @@ export default function AdminAnalyticsPage() {
               Practical branch metrics from existing order, waiter-call, menu, and table data.
             </p>
           </div>
-          <BranchSelect branches={workspace.activeBranches} selectedBranchId={workspace.selectedBranchId} onChange={workspace.setSelectedBranchId} />
         </header>
 
         <PageError message={workspace.workspaceError} />

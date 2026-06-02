@@ -19,12 +19,16 @@ import {
   X
 } from "lucide-react";
 import { Button } from "./ui/button";
+import type { BranchListItem } from "../lib/api";
 
 type AdminShellProps = {
   active: "dashboard" | "branches" | "menu" | "orders" | "analytics" | "settings";
   branchName?: string;
+  branches?: BranchListItem[];
   children: ReactNode;
   onLogout: () => void;
+  onSelectedBranchChange?: (branchId: string) => void;
+  selectedBranchId?: string;
 };
 
 type NavItem = {
@@ -55,13 +59,29 @@ const navGroups: { label: string; items: NavItem[] }[] = [
   }
 ];
 
-export function AdminShell({ active, branchName = "Main Branch", children, onLogout }: AdminShellProps) {
+export function AdminShell({
+  active,
+  branchName = "Main Branch",
+  branches = [],
+  children,
+  onLogout,
+  onSelectedBranchChange,
+  selectedBranchId = ""
+}: AdminShellProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const canSelectBranch = branches.length > 0 && Boolean(onSelectedBranchChange);
 
   return (
     <div className={`min-h-screen bg-background text-on-background lg:grid ${isCollapsed ? "lg:grid-cols-[5.5rem_1fr]" : "lg:grid-cols-[17rem_1fr]"}`}>
-      <MobileHeader branchName={branchName} onOpen={() => setIsMobileOpen(true)} />
+      <MobileHeader
+        branchName={branchName}
+        branches={branches}
+        canSelectBranch={canSelectBranch}
+        selectedBranchId={selectedBranchId}
+        onBranchChange={onSelectedBranchChange}
+        onOpen={() => setIsMobileOpen(true)}
+      />
       {isMobileOpen ? <div className="fixed inset-0 z-40 bg-primary/45 backdrop-blur-sm lg:hidden" onClick={() => setIsMobileOpen(false)} /> : null}
 
       <aside
@@ -136,6 +156,9 @@ export function AdminShell({ active, branchName = "Main Branch", children, onLog
             <h2 className="mt-1 text-xl font-extrabold text-on-surface">Restaurant workspace</h2>
           </div>
           <div className="flex items-center gap-3">
+            {canSelectBranch ? (
+              <TopBranchSelect branches={branches} selectedBranchId={selectedBranchId} onChange={onSelectedBranchChange!} />
+            ) : null}
             <div className="relative w-[22rem]">
               <Search size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant/55" />
               <input
@@ -166,20 +189,70 @@ export function AdminShell({ active, branchName = "Main Branch", children, onLog
   );
 }
 
-function MobileHeader({ branchName, onOpen }: { branchName: string; onOpen: () => void }) {
+function MobileHeader({
+  branchName,
+  branches,
+  canSelectBranch,
+  onBranchChange,
+  onOpen,
+  selectedBranchId
+}: {
+  branchName: string;
+  branches: BranchListItem[];
+  canSelectBranch: boolean;
+  onBranchChange?: (branchId: string) => void;
+  onOpen: () => void;
+  selectedBranchId: string;
+}) {
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-outline-variant/70 bg-background/95 px-4 backdrop-blur lg:hidden">
+    <header className="sticky top-0 z-30 flex min-h-16 items-center justify-between gap-3 border-b border-outline-variant/70 bg-background/95 px-4 py-2 backdrop-blur lg:hidden">
       <button type="button" onClick={onOpen} className="grid h-10 w-10 place-items-center rounded-xl border border-outline-variant/70 bg-white text-primary" aria-label="Open sidebar">
         <Menu size={20} />
       </button>
-      <div className="min-w-0 text-center">
-        <p className="text-sm font-extrabold text-on-surface">Qrave</p>
-        <p className="truncate text-xs text-on-surface-variant">{branchName}</p>
+      <div className="min-w-0 flex-1 text-center">
+        {canSelectBranch ? (
+          <select
+            value={selectedBranchId}
+            onChange={(event) => onBranchChange?.(event.target.value)}
+            className="h-10 w-full rounded-xl border border-outline-variant/70 bg-white px-3 text-sm font-bold text-on-surface outline-none"
+            aria-label="Select branch"
+          >
+            {branches.map((branch) => (
+              <option key={branch.branchId} value={branch.branchId}>
+                {branch.name}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <>
+            <p className="text-sm font-extrabold text-on-surface">Qrave</p>
+            <p className="truncate text-xs text-on-surface-variant">{branchName}</p>
+          </>
+        )}
       </div>
       <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary-fixed text-primary">
         <Store size={18} />
       </div>
     </header>
+  );
+}
+
+function TopBranchSelect({ branches, onChange, selectedBranchId }: { branches: BranchListItem[]; onChange: (branchId: string) => void; selectedBranchId: string }) {
+  return (
+    <label className="block w-[15rem]">
+      <span className="sr-only">Branch</span>
+      <select
+        value={selectedBranchId}
+        onChange={(event) => onChange(event.target.value)}
+        className="h-11 w-full rounded-xl border border-outline-variant/70 bg-white px-3 text-sm font-semibold text-on-surface outline-none transition-colors focus:border-primary/25 focus:ring-2 focus:ring-ring/15"
+      >
+        {branches.map((branch) => (
+          <option key={branch.branchId} value={branch.branchId}>
+            {branch.name}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 

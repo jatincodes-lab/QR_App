@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { ArrowRight, ChefHat, ClipboardList, QrCode, Settings, Store, Users } from "lucide-react";
 import { AdminShell } from "../../../components/admin-shell";
-import { BranchSelect, EmptyBranchState, MetricCard, PageError, PageLoading } from "../../../components/admin-page-common";
+import { EmptyBranchState, MetricCard, PageError, PageLoading } from "../../../components/admin-page-common";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../components/ui/card";
@@ -82,7 +82,14 @@ export default function AdminDashboardPage() {
   );
 
   return (
-    <AdminShell active="dashboard" onLogout={workspace.logout} branchName={branchName}>
+    <AdminShell
+      active="dashboard"
+      branchName={branchName}
+      branches={workspace.activeBranches}
+      onLogout={workspace.logout}
+      onSelectedBranchChange={workspace.setSelectedBranchId}
+      selectedBranchId={workspace.selectedBranchId}
+    >
       <div className="mx-auto max-w-7xl space-y-6">
         <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -95,7 +102,6 @@ export default function AdminDashboardPage() {
               Track setup progress, live orders, waiter calls, and branch readiness from one place.
             </p>
           </div>
-          <BranchSelect branches={workspace.activeBranches} selectedBranchId={workspace.selectedBranchId} onChange={workspace.setSelectedBranchId} />
         </header>
 
         <PageError message={workspace.workspaceError} />

@@ -5,6 +5,8 @@ import { useEffect, useMemo, useState } from "react";
 import { ApiError, BranchListItem, getBranches } from "./api";
 import { clearAccessToken, getAccessToken } from "./auth";
 
+const SelectedBranchStorageKey = "qrapp.admin.selectedBranchId";
+
 export function useAdminWorkspace() {
   const router = useRouter();
   const [branches, setBranches] = useState<BranchListItem[]>([]);
@@ -35,7 +37,12 @@ export function useAdminWorkspace() {
       const response = await getBranches();
       setBranches(response);
       const firstActive = response.find((branch) => branch.isActive);
-      setSelectedBranchId((current) => current || firstActive?.branchId || "");
+      const storedBranchId = typeof window === "undefined" ? "" : window.localStorage.getItem(SelectedBranchStorageKey) ?? "";
+      const storedBranch = response.find((branch) => branch.isActive && branch.branchId === storedBranchId);
+      setSelectedBranchId((current) => {
+        const currentBranch = response.find((branch) => branch.isActive && branch.branchId === current);
+        return currentBranch?.branchId ?? storedBranch?.branchId ?? firstActive?.branchId ?? "";
+      });
     } catch (caught) {
       handleApiError(caught);
     } finally {
@@ -54,8 +61,19 @@ export function useAdminWorkspace() {
   }
 
   function logout() {
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(SelectedBranchStorageKey);
+    }
+
     clearAccessToken();
     router.replace("/admin/login");
+  }
+
+  function selectBranch(branchId: string) {
+    setSelectedBranchId(branchId);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(SelectedBranchStorageKey, branchId);
+    }
   }
 
   return {
@@ -67,7 +85,7 @@ export function useAdminWorkspace() {
     logout,
     selectedBranch,
     selectedBranchId,
-    setSelectedBranchId,
+    setSelectedBranchId: selectBranch,
     workspaceError,
     setWorkspaceError
   };

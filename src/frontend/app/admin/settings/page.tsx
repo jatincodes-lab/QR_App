@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Save, Settings, Store } from "lucide-react";
 import { AdminShell } from "../../../components/admin-shell";
-import { BranchSelect, EmptyBranchState, PageError, PageLoading } from "../../../components/admin-page-common";
+import { EmptyBranchState, PageError, PageLoading } from "../../../components/admin-page-common";
 import { Alert, AlertDescription } from "../../../components/ui/alert";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
@@ -85,7 +85,14 @@ export default function AdminSettingsPage() {
   const branchName = workspace.selectedBranch?.name ?? "Settings";
 
   return (
-    <AdminShell active="settings" onLogout={workspace.logout} branchName={branchName}>
+    <AdminShell
+      active="settings"
+      branchName={branchName}
+      branches={workspace.activeBranches}
+      onLogout={workspace.logout}
+      onSelectedBranchChange={workspace.setSelectedBranchId}
+      selectedBranchId={workspace.selectedBranchId}
+    >
       <div className="mx-auto max-w-5xl space-y-6">
         <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -98,7 +105,6 @@ export default function AdminSettingsPage() {
               Control customer ordering rules, required details, and waiter-call availability for each branch.
             </p>
           </div>
-          <BranchSelect branches={workspace.activeBranches} selectedBranchId={workspace.selectedBranchId} onChange={workspace.setSelectedBranchId} />
         </header>
 
         <PageError message={workspace.workspaceError} />

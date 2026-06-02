@@ -1324,8 +1324,13 @@ function MenuPanel({
                     ) : (
                       <>
                         <TableCell>
-                          <p className="font-semibold text-on-surface">{item.name}</p>
-                          <p className="mt-1 max-w-sm truncate text-xs text-on-surface-variant">{item.description || "No description"}</p>
+                          <div className="flex items-center gap-3">
+                            <AdminItemThumb imageAltText={item.imageAltText} imageUrl={item.imageUrl} name={item.name} />
+                            <div className="min-w-0">
+                              <p className="font-semibold text-on-surface">{item.name}</p>
+                              <p className="mt-1 max-w-sm truncate text-xs text-on-surface-variant">{item.description || "No description"}</p>
+                            </div>
+                          </div>
                         </TableCell>
                         <TableCell>{item.categoryName}</TableCell>
                         <TableCell>{formatMoney(item.price)}</TableCell>
@@ -2210,6 +2215,21 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
     <div className="space-y-2">
       <Label>{label}</Label>
       {children}
+    </div>
+  );
+}
+
+function AdminItemThumb({ imageAltText, imageUrl, name }: { imageAltText: string | null; imageUrl: string | null; name: string }) {
+  const initials = name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
+
+  return (
+    <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl bg-secondary-container text-sm font-black text-primary">
+      {imageUrl ? <img src={imageUrl} alt={imageAltText ?? name} className="h-full w-full object-cover" /> : initials || <Utensils size={18} />}
     </div>
   );
 }
