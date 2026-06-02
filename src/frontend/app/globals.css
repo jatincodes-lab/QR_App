@@ -77,10 +77,10 @@ input {
   }
   18% {
     opacity: 1;
-    transform: translate3d(-18px, -34px, 0) scale(1);
+    transform: translate3d(-22px, -26px, 0) scale(1);
   }
   100% {
     opacity: 0;
-    transform: translate3d(138px, calc(-100vh + 132px), 0) scale(0.18);
+    transform: translate3d(-122px, 18px, 0) scale(0.3);
   }
 }

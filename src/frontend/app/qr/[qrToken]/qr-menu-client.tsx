@@ -88,6 +88,8 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
   const [waiterCallNote, setWaiterCallNote] = useState("");
   const [waiterCallState, setWaiterCallState] = useState<WaiterCallState>({ kind: "idle" });
   const [flyingItem, setFlyingItem] = useState<{ key: number; name: string } | null>(null);
+  const [recentItem, setRecentItem] = useState<PublicQrMenuItem | null>(null);
+  const [barPulseKey, setBarPulseKey] = useState(0);
 
   const cartLines = Object.values(cart);
   const cartCount = cartLines.reduce((total, line) => total + line.quantity, 0);
@@ -140,6 +142,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
 
     setSubmitState({ kind: "idle" });
     setFlyingItem({ key: Date.now(), name: item.name });
+    setRecentItem(item);
     setCart((current) => {
       const existing = current[item.menuItemId];
       return {
@@ -151,7 +154,10 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
         }
       };
     });
-    window.setTimeout(() => setFlyingItem(null), 760);
+    window.setTimeout(() => {
+      setFlyingItem(null);
+      setBarPulseKey((current) => current + 1);
+    }, 1120);
   }
 
   function decrementItem(menuItemId: string) {
@@ -165,6 +171,14 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
       if (existing.quantity <= 1) {
         const next = { ...current };
         delete next[menuItemId];
+        setRecentItem((currentRecent) => {
+          if (currentRecent?.menuItemId !== menuItemId) {
+            return currentRecent;
+          }
+
+          const remaining = Object.values(next);
+          return remaining[remaining.length - 1]?.item ?? null;
+        });
         return next;
       }
 
@@ -357,7 +371,13 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
           </div>
 
           {canOrder && cartCount > 0 ? (
-            <CheckoutBar cartCount={cartCount} cartTotal={cartTotal} onOpen={() => setActiveView("cart")} />
+            <CheckoutBar
+              cartCount={cartCount}
+              cartTotal={cartTotal}
+              pulseKey={barPulseKey}
+              recentItem={recentItem ?? cartLines[cartLines.length - 1]?.item ?? null}
+              onOpen={() => setActiveView("cart")}
+            />
           ) : null}
 
           <FloatingMenuButton hasCheckoutBar={canOrder && cartCount > 0} onOpen={() => setIsCategoryOpen(true)} />
@@ -455,7 +475,8 @@ function MenuHero({
   onSearchChange: (value: string) => void;
   search: string;
 }) {
-  const featured = categories.flatMap((category) => category.items.map((item) => ({ categoryName: category.name, item }))).slice(0, 4);
+  const availableCategories = categories.filter((category) => category.items.length > 0);
+  const featured = availableCategories.map((category) => ({ category, item: category.items[0] })).slice(0, 4);
 
   return (
     <section className="bg-[#f5faf8] px-4 pb-5 pt-3">
@@ -499,7 +520,7 @@ function MenuHero({
       </div>
 
       <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
-        {categories.map((category, index) => (
+        {availableCategories.map((category, index) => (
           <a
             key={category.menuCategoryId}
             href={`#category-${category.menuCategoryId}`}
@@ -519,10 +540,10 @@ function MenuHero({
             <p className="text-sm font-extrabold text-[#1bb7b5]">View all</p>
           </div>
           <div className="grid grid-cols-4 gap-3">
-            {featured.map(({ categoryName, item }) => (
-              <a key={item.menuItemId} href={`#category-${categories.find((category) => category.name === categoryName)?.menuCategoryId ?? ""}`} className="rounded-2xl bg-white p-2 text-center shadow-sm">
+            {featured.map(({ category, item }) => (
+              <a key={category.menuCategoryId} href={`#category-${category.menuCategoryId}`} className="rounded-2xl bg-white p-2 text-center shadow-sm">
                 <FoodThumb name={item.name} compact />
-                <p className="mt-2 truncate text-[11px] font-bold text-on-surface">{categoryName}</p>
+                <p className="mt-2 truncate text-[11px] font-bold text-on-surface">{category.name}</p>
               </a>
             ))}
           </div>
@@ -629,10 +650,14 @@ function FlyingCartItem({ name }: { name: string }) {
 function CheckoutBar({
   cartCount,
   cartTotal,
+  pulseKey,
+  recentItem,
   onOpen
 }: {
   cartCount: number;
   cartTotal: number;
+  pulseKey: number;
+  recentItem: PublicQrMenuItem | null;
   onOpen: () => void;
 }) {
   return (
@@ -640,14 +665,20 @@ function CheckoutBar({
       <div className="mx-auto w-full max-w-md px-4 pb-5">
         <button
           type="button"
-          className="pointer-events-auto flex h-14 w-full items-center justify-between gap-3 rounded bg-primary px-4 text-on-primary shadow-modal"
+          className="pointer-events-auto flex min-h-16 w-full items-center gap-3 rounded-[22px] bg-primary px-3 py-2 text-on-primary shadow-modal"
           onClick={onOpen}
         >
-          <span className="grid h-8 min-w-8 place-items-center rounded-full bg-white/15 px-2 text-sm font-extrabold">
-            {cartCount}
+          <span key={pulseKey} className="relative grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-white shadow-sm animate-[pulse_650ms_ease-out_1]">
+            {recentItem ? <FoodThumb name={recentItem.name} compact /> : <ShoppingCart className="h-5 w-5 text-primary" aria-hidden="true" />}
+            <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-[#f4c542] px-1 text-[11px] font-black leading-none text-primary">
+              {cartCount}
+            </span>
           </span>
-          <span className="min-w-0 flex-1 text-left text-sm font-extrabold">View cart</span>
-          <span className="flex items-center gap-2 text-sm font-extrabold">
+          <span className="min-w-0 flex-1 text-left">
+            <span className="block text-sm font-black">View cart</span>
+            <span className="mt-0.5 block truncate text-xs font-semibold text-white/65">{recentItem?.name ?? `${cartCount} selected items`}</span>
+          </span>
+          <span className="flex shrink-0 items-center gap-2 text-sm font-black">
             {formatPrice(cartTotal)}
             <ChevronRight className="h-4 w-4" aria-hidden="true" />
           </span>
