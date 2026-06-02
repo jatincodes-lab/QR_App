@@ -21,6 +21,11 @@ public static class AdminMenuEndpoints
         group.MapPut("/branches/{branchId:guid}/menu-items/{menuItemId:guid}", UpdateItemAsync);
         group.MapDelete("/branches/{branchId:guid}/menu-items/{menuItemId:guid}", DeactivateItemAsync);
 
+        group.MapPost("/branches/{branchId:guid}/offers", CreateOfferAsync);
+        group.MapGet("/branches/{branchId:guid}/offers", GetOffersAsync);
+        group.MapPut("/branches/{branchId:guid}/offers/{branchOfferId:guid}", UpdateOfferAsync);
+        group.MapDelete("/branches/{branchId:guid}/offers/{branchOfferId:guid}", DeactivateOfferAsync);
+
         return app;
     }
 
@@ -243,6 +248,112 @@ public static class AdminMenuEndpoints
         {
             loggerFactory.CreateLogger(nameof(AdminMenuEndpoints)).LogError(ex, "Failed to deactivate menu item {MenuItemId}.", menuItemId);
             return ApiProblemResponses.ServerError("Menu item could not be deactivated.");
+        }
+    }
+
+    private static async Task<IResult> CreateOfferAsync(
+        Guid branchId,
+        CreateBranchOfferRequest request,
+        ITenantContext tenantContext,
+        IBranchOfferService service,
+        ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await service.CreateAsync(tenantContext.TenantId, branchId, request, cancellationToken);
+            return result.IsSuccess
+                ? Results.Created($"/api/v1/admin/branches/{branchId}/offers/{result.Value!.BranchOfferId}", result.Value)
+                : ApiProblemResponses.Validation(result.Errors);
+        }
+        catch (Exception ex)
+        when (ex is SqlException)
+        {
+            var sqlException = (SqlException)ex;
+            loggerFactory.CreateLogger(nameof(AdminMenuEndpoints)).LogWarning(sqlException, "Database rejected offer creation for branch {BranchId}.", branchId);
+            return SqlProblemMapper.ToProblem(sqlException);
+        }
+        catch (Exception ex)
+        {
+            loggerFactory.CreateLogger(nameof(AdminMenuEndpoints)).LogError(ex, "Failed to create offer for branch {BranchId}.", branchId);
+            return ApiProblemResponses.ServerError("Offer could not be created.");
+        }
+    }
+
+    private static async Task<IResult> GetOffersAsync(
+        Guid branchId,
+        bool? includeInactive,
+        ITenantContext tenantContext,
+        IBranchOfferService service,
+        ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var offers = await service.GetListByBranchAsync(tenantContext.TenantId, branchId, includeInactive.GetValueOrDefault(), cancellationToken);
+            return Results.Ok(offers);
+        }
+        catch (Exception ex)
+        when (ex is SqlException)
+        {
+            var sqlException = (SqlException)ex;
+            loggerFactory.CreateLogger(nameof(AdminMenuEndpoints)).LogWarning(sqlException, "Database failed while listing offers for branch {BranchId}.", branchId);
+            return SqlProblemMapper.ToProblem(sqlException);
+        }
+    }
+
+    private static async Task<IResult> UpdateOfferAsync(
+        Guid branchId,
+        Guid branchOfferId,
+        UpdateBranchOfferRequest request,
+        ITenantContext tenantContext,
+        IBranchOfferService service,
+        ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await service.UpdateAsync(tenantContext.TenantId, branchId, branchOfferId, request, cancellationToken);
+            return result.IsSuccess ? Results.Ok(result.Value) : ApiProblemResponses.Validation(result.Errors);
+        }
+        catch (Exception ex)
+        when (ex is SqlException)
+        {
+            var sqlException = (SqlException)ex;
+            loggerFactory.CreateLogger(nameof(AdminMenuEndpoints)).LogWarning(sqlException, "Database rejected offer update for offer {BranchOfferId}.", branchOfferId);
+            return SqlProblemMapper.ToProblem(sqlException);
+        }
+        catch (Exception ex)
+        {
+            loggerFactory.CreateLogger(nameof(AdminMenuEndpoints)).LogError(ex, "Failed to update offer {BranchOfferId}.", branchOfferId);
+            return ApiProblemResponses.ServerError("Offer could not be updated.");
+        }
+    }
+
+    private static async Task<IResult> DeactivateOfferAsync(
+        Guid branchId,
+        Guid branchOfferId,
+        ITenantContext tenantContext,
+        IBranchOfferService service,
+        ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await service.DeactivateAsync(tenantContext.TenantId, branchId, branchOfferId, cancellationToken);
+            return Results.NoContent();
+        }
+        catch (Exception ex)
+        when (ex is SqlException)
+        {
+            var sqlException = (SqlException)ex;
+            loggerFactory.CreateLogger(nameof(AdminMenuEndpoints)).LogWarning(sqlException, "Database rejected offer deactivation for offer {BranchOfferId}.", branchOfferId);
+            return SqlProblemMapper.ToProblem(sqlException);
+        }
+        catch (Exception ex)
+        {
+            loggerFactory.CreateLogger(nameof(AdminMenuEndpoints)).LogError(ex, "Failed to deactivate offer {BranchOfferId}.", branchOfferId);
+            return ApiProblemResponses.ServerError("Offer could not be deactivated.");
         }
     }
 }

@@ -77,6 +77,25 @@ export type MenuItem = {
   displayOrder: number;
   createdAtUtc: string;
   updatedAtUtc: string | null;
+  imageUrl: string | null;
+  imageAltText: string | null;
+};
+
+export type BranchOffer = {
+  branchOfferId: string;
+  tenantId: string;
+  branchId: string;
+  title: string;
+  subtitle: string | null;
+  discountText: string | null;
+  imageUrl: string | null;
+  imageAltText: string | null;
+  displayOrder: number;
+  isActive: boolean;
+  startsAtUtc: string | null;
+  endsAtUtc: string | null;
+  createdAtUtc: string;
+  updatedAtUtc: string | null;
 };
 
 export type BranchTable = {
@@ -116,6 +135,18 @@ export type PublicQrMenuItem = {
   description: string | null;
   price: number;
   displayOrder: number;
+  imageUrl: string | null;
+  imageAltText: string | null;
+};
+
+export type PublicQrMenuOffer = {
+  branchOfferId: string;
+  title: string;
+  subtitle: string | null;
+  discountText: string | null;
+  imageUrl: string | null;
+  imageAltText: string | null;
+  displayOrder: number;
 };
 
 export type PublicQrMenuCategory = {
@@ -133,6 +164,7 @@ export type PublicQrMenu = {
   qrToken: string;
   orderSettings: PublicQrOrderSettings;
   categories: PublicQrMenuCategory[];
+  offers: PublicQrMenuOffer[];
 };
 
 export type CreatePublicQrOrderItemInput = {
@@ -263,9 +295,26 @@ export type CreateMenuItemInput = {
   price: number;
   isAvailable: boolean;
   displayOrder: number;
+  imageUrl: string | null;
+  imageAltText: string | null;
 };
 
 export type UpdateMenuItemInput = CreateMenuItemInput & {
+  isActive: boolean;
+};
+
+export type CreateBranchOfferInput = {
+  title: string;
+  subtitle: string | null;
+  discountText: string | null;
+  imageUrl: string | null;
+  imageAltText: string | null;
+  displayOrder: number;
+  startsAtUtc: string | null;
+  endsAtUtc: string | null;
+};
+
+export type UpdateBranchOfferInput = CreateBranchOfferInput & {
   isActive: boolean;
 };
 
@@ -419,6 +468,36 @@ export async function updateMenuItem(branchId: string, menuItemId: string, input
 
 export async function deactivateMenuItem(branchId: string, menuItemId: string): Promise<void> {
   await request<void>(`/api/v1/admin/branches/${branchId}/menu-items/${menuItemId}`, {
+    method: "DELETE",
+    requireAuth: true
+  });
+}
+
+export async function getBranchOffers(branchId: string): Promise<BranchOffer[]> {
+  return request<BranchOffer[]>(`/api/v1/admin/branches/${branchId}/offers?includeInactive=false`, {
+    method: "GET",
+    requireAuth: true
+  });
+}
+
+export async function createBranchOffer(branchId: string, input: CreateBranchOfferInput): Promise<BranchOffer> {
+  return request<BranchOffer>(`/api/v1/admin/branches/${branchId}/offers`, {
+    method: "POST",
+    body: input,
+    requireAuth: true
+  });
+}
+
+export async function updateBranchOffer(branchId: string, branchOfferId: string, input: UpdateBranchOfferInput): Promise<BranchOffer> {
+  return request<BranchOffer>(`/api/v1/admin/branches/${branchId}/offers/${branchOfferId}`, {
+    method: "PUT",
+    body: input,
+    requireAuth: true
+  });
+}
+
+export async function deactivateBranchOffer(branchId: string, branchOfferId: string): Promise<void> {
+  await request<void>(`/api/v1/admin/branches/${branchId}/offers/${branchOfferId}`, {
     method: "DELETE",
     requireAuth: true
   });

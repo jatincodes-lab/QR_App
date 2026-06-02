@@ -41,6 +41,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import {
   ApiError,
   AdminOrder,
+  BranchOffer,
   BranchListItem,
   BranchOrderSettings,
   BranchTable,
@@ -48,10 +49,12 @@ import {
   MenuItem,
   WaiterCall,
   createBranchOrderSettings,
+  createBranchOffer,
   createBranchTable,
   createMenuCategory,
   createMenuItem,
   deactivateBranchTable,
+  deactivateBranchOffer,
   deactivateMenuCategory,
   deactivateMenuItem,
   getWaiterCalls,
@@ -59,10 +62,12 @@ import {
   getBranchOrderSettings,
   getBranchTables,
   getAdminOrders,
+  getBranchOffers,
   getMenuCategories,
   getMenuItems,
   regenerateBranchTableQrToken,
   updateBranch,
+  updateBranchOffer,
   updateAdminOrderStatus,
   updateMenuCategory,
   updateMenuItem,
@@ -83,9 +88,20 @@ type ItemForm = {
   menuCategoryId: string;
   name: string;
   description: string;
+  imageUrl: string;
+  imageAltText: string;
   price: string;
   displayOrder: string;
   isAvailable: boolean;
+};
+
+type OfferForm = {
+  title: string;
+  subtitle: string;
+  discountText: string;
+  imageUrl: string;
+  imageAltText: string;
+  displayOrder: string;
 };
 
 type TableForm = {
@@ -123,9 +139,19 @@ const EmptyItemForm: ItemForm = {
   menuCategoryId: "",
   name: "",
   description: "",
+  imageUrl: "",
+  imageAltText: "",
   price: "",
   displayOrder: "1",
   isAvailable: true
+};
+const EmptyOfferForm: OfferForm = {
+  title: "",
+  subtitle: "",
+  discountText: "",
+  imageUrl: "",
+  imageAltText: "",
+  displayOrder: "1"
 };
 const EmptyTableForm: TableForm = { name: "", displayOrder: "1" };
 const EmptyBranchProfileForm: BranchProfileForm = {
@@ -162,6 +188,7 @@ export default function AdminBranchDetailPage() {
   const [branch, setBranch] = useState<BranchListItem | null>(null);
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [items, setItems] = useState<MenuItem[]>([]);
+  const [offers, setOffers] = useState<BranchOffer[]>([]);
   const [tables, setTables] = useState<BranchTable[]>([]);
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [waiterCalls, setWaiterCalls] = useState<WaiterCall[]>([]);
@@ -170,10 +197,13 @@ export default function AdminBranchDetailPage() {
   const [settingsForm, setSettingsForm] = useState<SettingsForm>(DefaultSettingsForm);
   const [categoryForm, setCategoryForm] = useState<CategoryForm>(EmptyCategoryForm);
   const [itemForm, setItemForm] = useState<ItemForm>(EmptyItemForm);
+  const [offerForm, setOfferForm] = useState<OfferForm>(EmptyOfferForm);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [editingCategoryForm, setEditingCategoryForm] = useState<CategoryForm>(EmptyCategoryForm);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingItemForm, setEditingItemForm] = useState<ItemForm>(EmptyItemForm);
+  const [editingOfferId, setEditingOfferId] = useState<string | null>(null);
+  const [editingOfferForm, setEditingOfferForm] = useState<OfferForm>(EmptyOfferForm);
   const [tableForm, setTableForm] = useState<TableForm>(EmptyTableForm);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshingOrders, setIsRefreshingOrders] = useState(false);
@@ -207,6 +237,10 @@ export default function AdminBranchDetailPage() {
   const activeItems = useMemo(
     () => [...items].filter((item) => item.isActive).sort((a, b) => a.displayOrder - b.displayOrder),
     [items]
+  );
+  const activeOffers = useMemo(
+    () => [...offers].filter((offer) => offer.isActive).sort((a, b) => a.displayOrder - b.displayOrder),
+    [offers]
   );
   const activeTables = useMemo(
     () => [...tables].filter((table) => table.isActive).sort((a, b) => a.displayOrder - b.displayOrder),
@@ -335,10 +369,11 @@ export default function AdminBranchDetailPage() {
     setError(null);
 
     try {
-      const [branchResponse, categoryResponse, itemResponse, tableResponse, settingsResponse, orderResponse, waiterCallResponse] = await Promise.all([
+      const [branchResponse, categoryResponse, itemResponse, offerResponse, tableResponse, settingsResponse, orderResponse, waiterCallResponse] = await Promise.all([
         getBranch(branchId),
         getMenuCategories(branchId),
         getMenuItems(branchId),
+        getBranchOffers(branchId),
         getBranchTables(branchId),
         getBranchOrderSettings(branchId),
         getAdminOrders(branchId),
@@ -349,6 +384,7 @@ export default function AdminBranchDetailPage() {
       setBranchProfileForm(toBranchProfileForm(branchResponse));
       setCategories(categoryResponse);
       setItems(itemResponse);
+      setOffers(offerResponse);
       setTables(tableResponse);
       setOrders(orderResponse);
       knownOrderIdsRef.current = new Set(orderResponse.map((order) => order.orderId));
@@ -460,7 +496,9 @@ export default function AdminBranchDetailPage() {
         description: optional(itemForm.description),
         price: Number(itemForm.price),
         isAvailable: itemForm.isAvailable,
-        displayOrder: toPositiveNumber(itemForm.displayOrder)
+        displayOrder: toPositiveNumber(itemForm.displayOrder),
+        imageUrl: optional(itemForm.imageUrl),
+        imageAltText: optional(itemForm.imageAltText)
       });
       setItems((current) => [...current, item]);
       setItemForm((current) => ({
@@ -482,6 +520,16 @@ export default function AdminBranchDetailPage() {
       setTables((current) => [...current, table]);
       setTableForm({ name: "", displayOrder: String(activeTables.length + 2) });
       showSuccess("Table and QR token added.");
+    });
+  }
+
+  async function handleCreateOffer(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await runSaving("offer", async () => {
+      const offer = await createBranchOffer(branchId, toOfferInput(offerForm));
+      setOffers((current) => [...current, offer]);
+      setOfferForm({ ...EmptyOfferForm, displayOrder: String(activeOffers.length + 2) });
+      showSuccess("Menu offer added.");
     });
   }
 
@@ -511,6 +559,14 @@ export default function AdminBranchDetailPage() {
       await deactivateMenuItem(branchId, item.menuItemId);
       setItems((current) => current.filter((currentItem) => currentItem.menuItemId !== item.menuItemId));
       showSuccess("Menu item turned off.");
+    });
+  }
+
+  async function handleDeactivateOffer(offer: BranchOffer) {
+    await runSaving(`offer-${offer.branchOfferId}`, async () => {
+      await deactivateBranchOffer(branchId, offer.branchOfferId);
+      setOffers((current) => current.filter((currentOffer) => currentOffer.branchOfferId !== offer.branchOfferId));
+      showSuccess("Menu offer turned off.");
     });
   }
 
@@ -600,6 +656,8 @@ export default function AdminBranchDetailPage() {
       menuCategoryId: item.menuCategoryId,
       name: item.name,
       description: item.description ?? "",
+      imageUrl: item.imageUrl ?? "",
+      imageAltText: item.imageAltText ?? "",
       price: String(item.price),
       displayOrder: String(item.displayOrder),
       isAvailable: item.isAvailable
@@ -615,12 +673,32 @@ export default function AdminBranchDetailPage() {
         price: Number(editingItemForm.price),
         isAvailable: editingItemForm.isAvailable,
         isActive: item.isActive,
-        displayOrder: toPositiveNumber(editingItemForm.displayOrder)
+        displayOrder: toPositiveNumber(editingItemForm.displayOrder),
+        imageUrl: optional(editingItemForm.imageUrl),
+        imageAltText: optional(editingItemForm.imageAltText)
       });
       setItems((current) => current.map((currentItem) => (currentItem.menuItemId === updated.menuItemId ? updated : currentItem)));
       setEditingItemId(null);
       setEditingItemForm(EmptyItemForm);
       showSuccess("Menu item updated.");
+    });
+  }
+
+  function handleStartEditOffer(offer: BranchOffer) {
+    setEditingOfferId(offer.branchOfferId);
+    setEditingOfferForm(toOfferForm(offer));
+  }
+
+  async function handleSaveOffer(offer: BranchOffer) {
+    await runSaving(`offer-edit-${offer.branchOfferId}`, async () => {
+      const updated = await updateBranchOffer(branchId, offer.branchOfferId, {
+        ...toOfferInput(editingOfferForm),
+        isActive: offer.isActive
+      });
+      setOffers((current) => current.map((currentOffer) => (currentOffer.branchOfferId === updated.branchOfferId ? updated : currentOffer)));
+      setEditingOfferId(null);
+      setEditingOfferForm(EmptyOfferForm);
+      showSuccess("Menu offer updated.");
     });
   }
 
@@ -792,27 +870,38 @@ export default function AdminBranchDetailPage() {
                 <MenuPanel
                   categories={activeCategories}
                   items={activeItems}
+                  offers={activeOffers}
                   categoryForm={categoryForm}
                   itemForm={itemForm}
+                  offerForm={offerForm}
                   editingCategoryId={editingCategoryId}
                   editingCategoryForm={editingCategoryForm}
                   editingItemId={editingItemId}
                   editingItemForm={editingItemForm}
+                  editingOfferId={editingOfferId}
+                  editingOfferForm={editingOfferForm}
                   savingKey={savingKey}
                   onCategoryFormChange={setCategoryForm}
                   onItemFormChange={setItemForm}
+                  onOfferFormChange={setOfferForm}
                   onEditingCategoryFormChange={setEditingCategoryForm}
                   onEditingItemFormChange={setEditingItemForm}
+                  onEditingOfferFormChange={setEditingOfferForm}
                   onCreateCategory={handleCreateCategory}
                   onCreateItem={handleCreateItem}
+                  onCreateOffer={handleCreateOffer}
                   onCancelEditCategory={() => setEditingCategoryId(null)}
                   onCancelEditItem={() => setEditingItemId(null)}
+                  onCancelEditOffer={() => setEditingOfferId(null)}
                   onDeactivateCategory={handleDeactivateCategory}
                   onDeactivateItem={handleDeactivateItem}
+                  onDeactivateOffer={handleDeactivateOffer}
                   onSaveCategory={handleSaveCategory}
                   onSaveItem={handleSaveItem}
+                  onSaveOffer={handleSaveOffer}
                   onStartEditCategory={handleStartEditCategory}
                   onStartEditItem={handleStartEditItem}
+                  onStartEditOffer={handleStartEditOffer}
                 />
               ) : null}
 
@@ -883,51 +972,73 @@ function WorkspaceTabNav({ activeTab, onChange }: { activeTab: WorkspaceTab; onC
 function MenuPanel({
   categories,
   items,
+  offers,
   categoryForm,
   itemForm,
+  offerForm,
   editingCategoryId,
   editingCategoryForm,
   editingItemId,
   editingItemForm,
+  editingOfferId,
+  editingOfferForm,
   savingKey,
   onCategoryFormChange,
   onItemFormChange,
+  onOfferFormChange,
   onEditingCategoryFormChange,
   onEditingItemFormChange,
+  onEditingOfferFormChange,
   onCreateCategory,
   onCreateItem,
+  onCreateOffer,
   onCancelEditCategory,
   onCancelEditItem,
+  onCancelEditOffer,
   onDeactivateCategory,
   onDeactivateItem,
+  onDeactivateOffer,
   onSaveCategory,
   onSaveItem,
+  onSaveOffer,
   onStartEditCategory,
-  onStartEditItem
+  onStartEditItem,
+  onStartEditOffer
 }: {
   categories: MenuCategory[];
   items: MenuItem[];
+  offers: BranchOffer[];
   categoryForm: CategoryForm;
   itemForm: ItemForm;
+  offerForm: OfferForm;
   editingCategoryId: string | null;
   editingCategoryForm: CategoryForm;
   editingItemId: string | null;
   editingItemForm: ItemForm;
+  editingOfferId: string | null;
+  editingOfferForm: OfferForm;
   savingKey: string | null;
   onCategoryFormChange: (form: CategoryForm) => void;
   onItemFormChange: (form: ItemForm) => void;
+  onOfferFormChange: (form: OfferForm) => void;
   onEditingCategoryFormChange: (form: CategoryForm) => void;
   onEditingItemFormChange: (form: ItemForm) => void;
+  onEditingOfferFormChange: (form: OfferForm) => void;
   onCreateCategory: (event: FormEvent<HTMLFormElement>) => void;
   onCreateItem: (event: FormEvent<HTMLFormElement>) => void;
+  onCreateOffer: (event: FormEvent<HTMLFormElement>) => void;
   onCancelEditCategory: () => void;
   onCancelEditItem: () => void;
+  onCancelEditOffer: () => void;
   onDeactivateCategory: (category: MenuCategory) => void;
   onDeactivateItem: (item: MenuItem) => void;
+  onDeactivateOffer: (offer: BranchOffer) => void;
   onSaveCategory: (category: MenuCategory) => void;
   onSaveItem: (item: MenuItem) => void;
+  onSaveOffer: (offer: BranchOffer) => void;
   onStartEditCategory: (category: MenuCategory) => void;
   onStartEditItem: (item: MenuItem) => void;
+  onStartEditOffer: (offer: BranchOffer) => void;
 }) {
   return (
     <Card className="border-outline-variant/30 bg-surface-container-lowest shadow-soft-saas">
@@ -978,6 +1089,12 @@ function MenuPanel({
           <Field label="Description">
             <Input value={itemForm.description} onChange={(event) => onItemFormChange({ ...itemForm, description: event.target.value })} />
           </Field>
+          <Field label="Item image URL">
+            <Input value={itemForm.imageUrl} onChange={(event) => onItemFormChange({ ...itemForm, imageUrl: event.target.value })} placeholder="https://..." />
+          </Field>
+          <Field label="Image alt text">
+            <Input value={itemForm.imageAltText} onChange={(event) => onItemFormChange({ ...itemForm, imageAltText: event.target.value })} />
+          </Field>
           <div className="grid gap-3 sm:grid-cols-[1fr_7rem]">
             <Field label="Price">
               <Input
@@ -1013,6 +1130,105 @@ function MenuPanel({
             Add Item
           </Button>
         </form>
+
+        <section className="rounded-lg border border-outline-variant/30 bg-surface-container-low p-4">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className="text-base font-extrabold text-on-surface">Menu offers</h3>
+              <p className="mt-1 text-sm text-on-surface-variant">These banners appear at the top of the public mobile menu.</p>
+            </div>
+            <Badge variant="secondary">{offers.length} active</Badge>
+          </div>
+
+          <form onSubmit={onCreateOffer} className="grid gap-3 lg:grid-cols-2">
+            <Field label="Offer title">
+              <Input value={offerForm.title} onChange={(event) => onOfferFormChange({ ...offerForm, title: event.target.value })} required />
+            </Field>
+            <Field label="Discount text">
+              <Input value={offerForm.discountText} onChange={(event) => onOfferFormChange({ ...offerForm, discountText: event.target.value })} placeholder="35% off" />
+            </Field>
+            <Field label="Subtitle">
+              <Input value={offerForm.subtitle} onChange={(event) => onOfferFormChange({ ...offerForm, subtitle: event.target.value })} />
+            </Field>
+            <Field label="Offer image URL">
+              <Input value={offerForm.imageUrl} onChange={(event) => onOfferFormChange({ ...offerForm, imageUrl: event.target.value })} placeholder="https://..." />
+            </Field>
+            <Field label="Image alt text">
+              <Input value={offerForm.imageAltText} onChange={(event) => onOfferFormChange({ ...offerForm, imageAltText: event.target.value })} />
+            </Field>
+            <Field label="Order">
+              <Input type="number" min="1" value={offerForm.displayOrder} onChange={(event) => onOfferFormChange({ ...offerForm, displayOrder: event.target.value })} required />
+            </Field>
+            <Button type="submit" disabled={savingKey === "offer"} className="justify-self-start">
+              {savingKey === "offer" ? <Loader2 size={17} className="animate-spin" /> : <Plus size={17} />}
+              Add Offer
+            </Button>
+          </form>
+
+          {offers.length > 0 ? (
+            <div className="mt-4 grid gap-3 lg:grid-cols-2">
+              {offers.map((offer) => (
+                <div key={offer.branchOfferId} className="rounded-lg border border-outline-variant/30 bg-white p-3">
+                  {editingOfferId === offer.branchOfferId ? (
+                    <div className="grid gap-3">
+                      <Field label="Offer title">
+                        <Input value={editingOfferForm.title} onChange={(event) => onEditingOfferFormChange({ ...editingOfferForm, title: event.target.value })} required />
+                      </Field>
+                      <Field label="Discount text">
+                        <Input value={editingOfferForm.discountText} onChange={(event) => onEditingOfferFormChange({ ...editingOfferForm, discountText: event.target.value })} />
+                      </Field>
+                      <Field label="Subtitle">
+                        <Input value={editingOfferForm.subtitle} onChange={(event) => onEditingOfferFormChange({ ...editingOfferForm, subtitle: event.target.value })} />
+                      </Field>
+                      <Field label="Offer image URL">
+                        <Input value={editingOfferForm.imageUrl} onChange={(event) => onEditingOfferFormChange({ ...editingOfferForm, imageUrl: event.target.value })} />
+                      </Field>
+                      <Field label="Image alt text">
+                        <Input value={editingOfferForm.imageAltText} onChange={(event) => onEditingOfferFormChange({ ...editingOfferForm, imageAltText: event.target.value })} />
+                      </Field>
+                      <Field label="Order">
+                        <Input type="number" min="1" value={editingOfferForm.displayOrder} onChange={(event) => onEditingOfferFormChange({ ...editingOfferForm, displayOrder: event.target.value })} required />
+                      </Field>
+                      <div className="flex justify-end gap-2">
+                        <Button type="button" variant="outline" size="sm" onClick={onCancelEditOffer}>
+                          Cancel
+                        </Button>
+                        <Button type="button" size="sm" onClick={() => onSaveOffer(offer)} disabled={savingKey === `offer-edit-${offer.branchOfferId}`}>
+                          {savingKey === `offer-edit-${offer.branchOfferId}` ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                          Save
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-bold text-on-surface">{offer.title}</p>
+                        <p className="mt-1 truncate text-xs text-on-surface-variant">{offer.subtitle || offer.discountText || "No subtitle"}</p>
+                        <p className="mt-1 text-xs text-on-surface-variant">Order {offer.displayOrder}</p>
+                      </div>
+                      <div className="flex shrink-0 gap-1">
+                        <Button type="button" variant="outline" size="icon" onClick={() => onStartEditOffer(offer)} className="h-8 w-8 border-outline-variant/60" aria-label={`Edit ${offer.title}`}>
+                          <Pencil size={14} />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => onDeactivateOffer(offer)}
+                          disabled={savingKey === `offer-${offer.branchOfferId}`}
+                          className="h-8 w-8 border-destructive/30 text-destructive"
+                          aria-label={`Turn off ${offer.title}`}
+                        >
+                          <Power size={14} />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </section>
 
         <div className="overflow-hidden rounded-lg border border-outline-variant/30">
           <Table>
@@ -1057,6 +1273,12 @@ function MenuPanel({
                           </Field>
                           <Field label="Description">
                             <Input value={editingItemForm.description} onChange={(event) => onEditingItemFormChange({ ...editingItemForm, description: event.target.value })} />
+                          </Field>
+                          <Field label="Item image URL">
+                            <Input value={editingItemForm.imageUrl} onChange={(event) => onEditingItemFormChange({ ...editingItemForm, imageUrl: event.target.value })} placeholder="https://..." />
+                          </Field>
+                          <Field label="Image alt text">
+                            <Input value={editingItemForm.imageAltText} onChange={(event) => onEditingItemFormChange({ ...editingItemForm, imageAltText: event.target.value })} />
                           </Field>
                           <div className="grid gap-3 sm:grid-cols-[1fr_7rem]">
                             <Field label="Price">
@@ -2043,6 +2265,30 @@ function toBranchProfileForm(branch: BranchListItem): BranchProfileForm {
   };
 }
 
+function toOfferInput(form: OfferForm) {
+  return {
+    title: form.title.trim(),
+    subtitle: optional(form.subtitle),
+    discountText: optional(form.discountText),
+    imageUrl: optional(form.imageUrl),
+    imageAltText: optional(form.imageAltText),
+    displayOrder: toPositiveNumber(form.displayOrder),
+    startsAtUtc: null,
+    endsAtUtc: null
+  };
+}
+
+function toOfferForm(offer: BranchOffer): OfferForm {
+  return {
+    title: offer.title,
+    subtitle: offer.subtitle ?? "",
+    discountText: offer.discountText ?? "",
+    imageUrl: offer.imageUrl ?? "",
+    imageAltText: offer.imageAltText ?? "",
+    displayOrder: String(offer.displayOrder)
+  };
+}
+
 function toPositiveNumber(value: string): number {
   const number = Number(value);
   return Number.isFinite(number) && number > 0 ? number : 1;
@@ -2070,6 +2316,10 @@ function getSavingMessage(key: string): string {
     return "Adding menu item...";
   }
 
+  if (key === "offer") {
+    return "Adding menu offer...";
+  }
+
   if (key === "table") {
     return "Adding table QR...";
   }
@@ -2082,12 +2332,20 @@ function getSavingMessage(key: string): string {
     return "Saving menu item...";
   }
 
+  if (key.startsWith("offer-edit")) {
+    return "Saving menu offer...";
+  }
+
   if (key.startsWith("category-")) {
     return "Turning off menu category...";
   }
 
   if (key.startsWith("item-")) {
     return "Turning off menu item...";
+  }
+
+  if (key.startsWith("offer-")) {
+    return "Turning off menu offer...";
   }
 
   if (key.startsWith("table-")) {

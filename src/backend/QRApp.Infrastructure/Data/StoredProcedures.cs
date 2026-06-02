@@ -29,6 +29,12 @@ internal static class StoredProcedures
     public const string MenuItemDeactivate = "dbo.MenuItem_Deactivate";
     public const string PublicMenuGetByBranch = "dbo.PublicMenu_GetByBranch";
 
+    public const string BranchOfferCreate = "dbo.BranchOffer_Create";
+    public const string BranchOfferUpdate = "dbo.BranchOffer_Update";
+    public const string BranchOfferGetListByBranch = "dbo.BranchOffer_GetListByBranch";
+    public const string BranchOfferDeactivate = "dbo.BranchOffer_Deactivate";
+    public const string PublicOffersGetByQrToken = "dbo.PublicOffers_GetByQrToken";
+
     public const string BranchTableCreate = "dbo.BranchTable_Create";
     public const string BranchTableUpdate = "dbo.BranchTable_Update";
     public const string BranchTableGetListByBranch = "dbo.BranchTable_GetListByBranch";

@@ -87,7 +87,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
   const [submitState, setSubmitState] = useState<SubmitState>({ kind: "idle" });
   const [waiterCallNote, setWaiterCallNote] = useState("");
   const [waiterCallState, setWaiterCallState] = useState<WaiterCallState>({ kind: "idle" });
-  const [flyingItem, setFlyingItem] = useState<{ key: number; name: string } | null>(null);
+  const [flyingItem, setFlyingItem] = useState<{ key: number; item: PublicQrMenuItem } | null>(null);
   const [recentItem, setRecentItem] = useState<PublicQrMenuItem | null>(null);
   const [barPulseKey, setBarPulseKey] = useState(0);
 
@@ -141,7 +141,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
     }
 
     setSubmitState({ kind: "idle" });
-    setFlyingItem({ key: Date.now(), name: item.name });
+    setFlyingItem({ key: Date.now(), item });
     setRecentItem(item);
     setCart((current) => {
       const existing = current[item.menuItemId];
@@ -335,7 +335,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
         />
       ) : (
         <>
-          {flyingItem ? <FlyingCartItem key={flyingItem.key} name={flyingItem.name} /> : null}
+          {flyingItem ? <FlyingCartItem key={flyingItem.key} item={flyingItem.item} /> : null}
           {!canOrder ? <OrderingUnavailableNotice /> : null}
           {canCallWaiter ? (
             <WaiterCallAction
@@ -477,6 +477,8 @@ function MenuHero({
 }) {
   const availableCategories = categories.filter((category) => category.items.length > 0);
   const featured = availableCategories.map((category) => ({ category, item: category.items[0] })).slice(0, 4);
+  const offers = (menu.offers ?? []).sort((left, right) => left.displayOrder - right.displayOrder);
+  const heroOffer = offers[0] ?? null;
 
   return (
     <section className="bg-[#f5faf8] px-4 pb-5 pt-3">
@@ -484,15 +486,19 @@ function MenuHero({
         <div className="flex items-start justify-between gap-4">
           <div className="max-w-[62%]">
             <p className="text-xs font-extrabold uppercase tracking-wide text-[#102536]/60">{menu.tableName}</p>
-            <h2 className="mt-3 text-[26px] font-black leading-[1.05]">Order fresh food today</h2>
-            <p className="mt-3 text-sm font-semibold text-[#102536]/70">{itemCount} dishes available</p>
-            <div className="mt-4 inline-flex rounded-2xl bg-white/40 px-3 py-2 text-3xl font-black text-[#f5c84c]">35%</div>
+            <h2 className="mt-3 text-[26px] font-black leading-[1.05]">{heroOffer?.title ?? "Order fresh food today"}</h2>
+            <p className="mt-3 text-sm font-semibold text-[#102536]/70">{heroOffer?.subtitle ?? `${itemCount} dishes available`}</p>
+            {heroOffer?.discountText ? <div className="mt-4 inline-flex rounded-2xl bg-white/40 px-3 py-2 text-3xl font-black text-[#f5c84c]">{heroOffer.discountText}</div> : null}
           </div>
           <div className="relative h-32 flex-1">
             <div className="absolute right-0 top-0 grid h-28 w-28 place-items-center rounded-full bg-white/65 shadow-soft-saas">
-              <div className="grid h-24 w-24 place-items-center rounded-full bg-gradient-to-br from-orange-100 via-white to-emerald-100">
-                <Utensils className="h-11 w-11 text-primary" aria-hidden="true" />
-              </div>
+              {heroOffer?.imageUrl ? (
+                <img src={heroOffer.imageUrl} alt={heroOffer.imageAltText ?? heroOffer.title} className="h-24 w-24 rounded-full object-cover" />
+              ) : (
+                <div className="grid h-24 w-24 place-items-center rounded-full bg-gradient-to-br from-orange-100 via-white to-emerald-100">
+                  <Utensils className="h-11 w-11 text-primary" aria-hidden="true" />
+                </div>
+              )}
             </div>
             <span className="absolute bottom-3 left-1 h-5 w-5 rounded-full bg-red-400" />
             <span className="absolute bottom-8 right-24 h-4 w-4 rounded-full bg-emerald-500" />
@@ -500,6 +506,26 @@ function MenuHero({
           </div>
         </div>
       </div>
+
+      {offers.length > 1 ? (
+        <div className="mt-4 flex gap-3 overflow-x-auto pb-1">
+          {offers.slice(1).map((offer) => (
+            <article key={offer.branchOfferId} className="flex min-w-[260px] items-center gap-3 rounded-2xl bg-white p-3 shadow-sm">
+              {offer.imageUrl ? (
+                <img src={offer.imageUrl} alt={offer.imageAltText ?? offer.title} className="h-14 w-14 shrink-0 rounded-2xl object-cover" />
+              ) : (
+                <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-[#1bb7b5]/10 text-[#159f9b]">
+                  <Utensils className="h-6 w-6" aria-hidden="true" />
+                </div>
+              )}
+              <div className="min-w-0">
+                <p className="truncate text-sm font-black text-on-surface">{offer.title}</p>
+                <p className="mt-1 truncate text-xs font-semibold text-on-surface-variant">{offer.subtitle ?? offer.discountText ?? "Special offer"}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : null}
 
       <div className="mt-4 grid grid-cols-[1fr_48px] gap-3">
         <div className="flex h-12 items-center gap-3 rounded-2xl bg-white px-4 shadow-sm">
@@ -542,7 +568,7 @@ function MenuHero({
           <div className="grid grid-cols-4 gap-3">
             {featured.map(({ category, item }) => (
               <a key={category.menuCategoryId} href={`#category-${category.menuCategoryId}`} className="rounded-2xl bg-white p-2 text-center shadow-sm">
-                <FoodThumb name={item.name} compact />
+                <FoodThumb imageAltText={item.imageAltText} imageUrl={item.imageUrl} name={item.name} compact />
                 <p className="mt-2 truncate text-[11px] font-bold text-on-surface">{category.name}</p>
               </a>
             ))}
@@ -581,7 +607,7 @@ function MenuCategorySection({
 
           return (
             <article key={item.menuItemId} className="relative overflow-hidden rounded-[22px] bg-white p-3 shadow-sm">
-              <FoodThumb name={item.name} />
+              <FoodThumb imageAltText={item.imageAltText} imageUrl={item.imageUrl} name={item.name} />
 
               <div className="mt-3 min-w-0">
                 <h3 className="line-clamp-2 min-h-10 break-words text-sm font-black leading-5 text-ink">{item.name}</h3>
@@ -637,11 +663,11 @@ function MenuCategorySection({
   );
 }
 
-function FlyingCartItem({ name }: { name: string }) {
+function FlyingCartItem({ item }: { item: PublicQrMenuItem }) {
   return (
     <div className="pointer-events-none fixed bottom-24 left-1/2 z-50 -ml-9">
       <div className="qr-fly-to-cart grid h-16 w-16 place-items-center rounded-full bg-white shadow-modal ring-4 ring-[#e9fbf8]">
-        <FoodThumb name={name} compact />
+        <FoodThumb imageAltText={item.imageAltText} imageUrl={item.imageUrl} name={item.name} compact />
       </div>
     </div>
   );
@@ -669,7 +695,7 @@ function CheckoutBar({
           onClick={onOpen}
         >
           <span key={pulseKey} className="relative grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-white shadow-sm animate-[pulse_650ms_ease-out_1]">
-            {recentItem ? <FoodThumb name={recentItem.name} compact /> : <ShoppingCart className="h-5 w-5 text-primary" aria-hidden="true" />}
+            {recentItem ? <FoodThumb imageAltText={recentItem.imageAltText} imageUrl={recentItem.imageUrl} name={recentItem.name} compact /> : <ShoppingCart className="h-5 w-5 text-primary" aria-hidden="true" />}
             <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-[#f4c542] px-1 text-[11px] font-black leading-none text-primary">
               {cartCount}
             </span>
@@ -1115,7 +1141,7 @@ function CategorySheet({
   );
 }
 
-function FoodThumb({ compact = false, name }: { compact?: boolean; name: string }) {
+function FoodThumb({ compact = false, imageAltText, imageUrl, name }: { compact?: boolean; imageAltText?: string | null; imageUrl?: string | null; name: string }) {
   const initials = name
     .split(/\s+/)
     .filter(Boolean)
@@ -1125,13 +1151,19 @@ function FoodThumb({ compact = false, name }: { compact?: boolean; name: string 
 
   return (
     <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-100 via-white to-emerald-100 ${compact ? "mx-auto h-12 w-12" : "h-28 w-full"}`}>
-      <div className="absolute -right-4 -top-4 h-16 w-16 rounded-full bg-[#1bb7b5]/20" />
-      <div className="absolute -bottom-3 left-2 h-10 w-10 rounded-full bg-[#f4c542]/30" />
-      <div className="absolute inset-0 grid place-items-center p-3">
-        <div className={`grid place-items-center rounded-full bg-white text-primary shadow-soft-saas ${compact ? "h-9 w-9 text-[11px]" : "h-20 w-20 text-lg"}`}>
-          <span className="font-black">{initials || <Utensils className="h-5 w-5" aria-hidden="true" />}</span>
-        </div>
-      </div>
+      {imageUrl ? (
+        <img src={imageUrl} alt={imageAltText ?? name} className="absolute inset-0 h-full w-full object-cover" />
+      ) : (
+        <>
+          <div className="absolute -right-4 -top-4 h-16 w-16 rounded-full bg-[#1bb7b5]/20" />
+          <div className="absolute -bottom-3 left-2 h-10 w-10 rounded-full bg-[#f4c542]/30" />
+          <div className="absolute inset-0 grid place-items-center p-3">
+            <div className={`grid place-items-center rounded-full bg-white text-primary shadow-soft-saas ${compact ? "h-9 w-9 text-[11px]" : "h-20 w-20 text-lg"}`}>
+              <span className="font-black">{initials || <Utensils className="h-5 w-5" aria-hidden="true" />}</span>
+            </div>
+          </div>
+        </>
+      )}
       <span className="sr-only">{name}</span>
     </div>
   );

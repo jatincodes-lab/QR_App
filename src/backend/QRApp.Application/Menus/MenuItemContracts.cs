@@ -6,7 +6,9 @@ public sealed record CreateMenuItemRequest(
     string? Description,
     decimal Price,
     bool IsAvailable,
-    int DisplayOrder);
+    int DisplayOrder,
+    string? ImageUrl = null,
+    string? ImageAltText = null);
 
 public sealed record UpdateMenuItemRequest(
     Guid MenuCategoryId,
@@ -15,7 +17,9 @@ public sealed record UpdateMenuItemRequest(
     decimal Price,
     bool IsAvailable,
     bool IsActive,
-    int DisplayOrder);
+    int DisplayOrder,
+    string? ImageUrl = null,
+    string? ImageAltText = null);
 
 public sealed record MenuItemResponse(
     Guid MenuItemId,
@@ -30,12 +34,17 @@ public sealed record MenuItemResponse(
     bool IsActive,
     int DisplayOrder,
     DateTime CreatedAtUtc,
-    DateTime? UpdatedAtUtc);
+    DateTime? UpdatedAtUtc,
+    string? ImageUrl = null,
+    string? ImageAltText = null);
 
 public sealed record PublicMenuResponse(
     Guid BranchId,
     string BranchName,
-    IReadOnlyCollection<PublicMenuCategoryResponse> Categories);
+    IReadOnlyCollection<PublicMenuCategoryResponse> Categories)
+{
+    public IReadOnlyCollection<PublicMenuOfferResponse> Offers { get; init; } = Array.Empty<PublicMenuOfferResponse>();
+}
 
 public sealed record PublicMenuCategoryResponse(
     Guid MenuCategoryId,
@@ -48,7 +57,9 @@ public sealed record PublicMenuItemResponse(
     string Name,
     string? Description,
     decimal Price,
-    int DisplayOrder);
+    int DisplayOrder,
+    string? ImageUrl = null,
+    string? ImageAltText = null);
 
 public sealed record PublicMenuItemRecord(
     Guid BranchId,
@@ -60,5 +71,15 @@ public sealed record PublicMenuItemRecord(
     string ItemName,
     string? Description,
     decimal Price,
-    int ItemDisplayOrder);
+    int ItemDisplayOrder,
+    string? ImageUrl = null,
+    string? ImageAltText = null);
 
+public sealed record PublicMenuOfferResponse(
+    Guid BranchOfferId,
+    string Title,
+    string? Subtitle,
+    string? DiscountText,
+    string? ImageUrl,
+    string? ImageAltText,
+    int DisplayOrder);

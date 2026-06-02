@@ -11,7 +11,7 @@ public sealed class MenuItemService(IMenuItemRepository repository) : IMenuItemS
         CreateMenuItemRequest request,
         CancellationToken cancellationToken)
     {
-        var errors = Validate(request.MenuCategoryId, request.Name, request.Description, request.Price, request.DisplayOrder);
+        var errors = Validate(request.MenuCategoryId, request.Name, request.Description, request.Price, request.DisplayOrder, request.ImageUrl, request.ImageAltText);
         if (errors.Count > 0)
         {
             return OperationResult<MenuItemResponse>.Failed(errors.ToArray());
@@ -23,7 +23,9 @@ public sealed class MenuItemService(IMenuItemRepository repository) : IMenuItemS
             TextRules.CleanOptional(request.Description),
             request.Price,
             request.IsAvailable,
-            request.DisplayOrder);
+            request.DisplayOrder,
+            TextRules.CleanOptional(request.ImageUrl),
+            TextRules.CleanOptional(request.ImageAltText));
 
         var item = await repository.CreateAsync(tenantId, branchId, Guid.NewGuid(), cleaned, cancellationToken);
         return OperationResult<MenuItemResponse>.Success(item);
@@ -36,7 +38,7 @@ public sealed class MenuItemService(IMenuItemRepository repository) : IMenuItemS
         UpdateMenuItemRequest request,
         CancellationToken cancellationToken)
     {
-        var errors = Validate(request.MenuCategoryId, request.Name, request.Description, request.Price, request.DisplayOrder);
+        var errors = Validate(request.MenuCategoryId, request.Name, request.Description, request.Price, request.DisplayOrder, request.ImageUrl, request.ImageAltText);
         if (errors.Count > 0)
         {
             return OperationResult<MenuItemResponse>.Failed(errors.ToArray());
@@ -49,7 +51,9 @@ public sealed class MenuItemService(IMenuItemRepository repository) : IMenuItemS
             request.Price,
             request.IsAvailable,
             request.IsActive,
-            request.DisplayOrder);
+            request.DisplayOrder,
+            TextRules.CleanOptional(request.ImageUrl),
+            TextRules.CleanOptional(request.ImageAltText));
 
         var item = await repository.UpdateAsync(tenantId, branchId, menuItemId, cleaned, cancellationToken);
         return OperationResult<MenuItemResponse>.Success(item);
@@ -89,7 +93,9 @@ public sealed class MenuItemService(IMenuItemRepository repository) : IMenuItemS
                     row.ItemName,
                     row.Description,
                     row.Price,
-                    row.ItemDisplayOrder)).ToArray()))
+                    row.ItemDisplayOrder,
+                    row.ImageUrl,
+                    row.ImageAltText)).ToArray()))
             .ToArray();
 
         return new PublicMenuResponse(first.BranchId, first.BranchName, categories);
@@ -100,7 +106,9 @@ public sealed class MenuItemService(IMenuItemRepository repository) : IMenuItemS
         string name,
         string? description,
         decimal price,
-        int displayOrder)
+        int displayOrder,
+        string? imageUrl,
+        string? imageAltText)
     {
         var errors = new List<ValidationFailure>();
         var cleanName = TextRules.CleanRequired(name);
@@ -121,6 +129,16 @@ public sealed class MenuItemService(IMenuItemRepository repository) : IMenuItemS
             errors.Add(new ValidationFailure(nameof(CreateMenuItemRequest.Description), "Menu item description cannot exceed 1000 characters."));
         }
 
+        if (TextRules.CleanOptional(imageUrl)?.Length > 1000)
+        {
+            errors.Add(new ValidationFailure(nameof(CreateMenuItemRequest.ImageUrl), "Menu item image URL cannot exceed 1000 characters."));
+        }
+
+        if (TextRules.CleanOptional(imageAltText)?.Length > 200)
+        {
+            errors.Add(new ValidationFailure(nameof(CreateMenuItemRequest.ImageAltText), "Menu item image alt text cannot exceed 200 characters."));
+        }
+
         if (price is < 0 or > 99999999.99m)
         {
             errors.Add(new ValidationFailure(nameof(CreateMenuItemRequest.Price), "Menu item price must be between 0 and 99999999.99."));
@@ -134,4 +152,3 @@ public sealed class MenuItemService(IMenuItemRepository repository) : IMenuItemS
         return errors;
     }
 }
-

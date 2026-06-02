@@ -1,3 +1,4 @@
+using QRApp.Application.Menus;
 using QRApp.Application.Tables;
 
 namespace QRApp.Application.Tests.Tables;
@@ -8,7 +9,7 @@ public sealed class BranchTableServiceTests
     public async Task CreateAsync_WhenRequestIsValid_NormalizesNameAndGeneratesQrToken()
     {
         var repository = new FakeBranchTableRepository();
-        var service = new BranchTableService(repository);
+        var service = new BranchTableService(repository, new FakeBranchOfferRepository());
 
         var result = await service.CreateAsync(
             Guid.NewGuid(),
@@ -25,7 +26,7 @@ public sealed class BranchTableServiceTests
     [Fact]
     public async Task CreateAsync_WhenDisplayOrderIsNegative_ReturnsValidationError()
     {
-        var service = new BranchTableService(new FakeBranchTableRepository());
+        var service = new BranchTableService(new FakeBranchTableRepository(), new FakeBranchOfferRepository());
 
         var result = await service.CreateAsync(
             Guid.NewGuid(),
@@ -53,7 +54,7 @@ public sealed class BranchTableServiceTests
                 new PublicQrMenuRecord(branchId, "Cafe", tableId, "Table 1", "token-123456789012", true, true, false, true, categoryId, "Mains", 1, secondItemId, "Veg Burger", "With fries", 180m, 2)
             ]
         };
-        var service = new BranchTableService(repository);
+        var service = new BranchTableService(repository, new FakeBranchOfferRepository());
 
         var menu = await service.GetPublicMenuByQrTokenAsync(" token-123456789012 ", CancellationToken.None);
 
@@ -79,7 +80,7 @@ public sealed class BranchTableServiceTests
                 new PublicQrMenuRecord(branchId, "Cafe", tableId, "Table 1", "demo-table-1", true, true, false, true, categoryId, "Beverages", 1, itemId, "Masala Tea", null, 25m, 1)
             ]
         };
-        var service = new BranchTableService(repository);
+        var service = new BranchTableService(repository, new FakeBranchOfferRepository());
 
         var menu = await service.GetPublicMenuByQrTokenAsync(" demo-table-1 ", CancellationToken.None);
 
@@ -148,6 +149,34 @@ public sealed class BranchTableServiceTests
         {
             PublicQrToken = qrToken;
             return Task.FromResult(PublicRows);
+        }
+    }
+
+    private sealed class FakeBranchOfferRepository : IBranchOfferRepository
+    {
+        public Task<BranchOfferResponse> CreateAsync(Guid tenantId, Guid branchId, Guid branchOfferId, CreateBranchOfferRequest request, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<BranchOfferResponse> UpdateAsync(Guid tenantId, Guid branchId, Guid branchOfferId, UpdateBranchOfferRequest request, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<IReadOnlyCollection<BranchOfferResponse>> GetListByBranchAsync(Guid tenantId, Guid branchId, bool includeInactive, CancellationToken cancellationToken)
+        {
+            return Task.FromResult<IReadOnlyCollection<BranchOfferResponse>>(Array.Empty<BranchOfferResponse>());
+        }
+
+        public Task<IReadOnlyCollection<PublicMenuOfferResponse>> GetPublicByQrTokenAsync(string qrToken, CancellationToken cancellationToken)
+        {
+            return Task.FromResult<IReadOnlyCollection<PublicMenuOfferResponse>>(Array.Empty<PublicMenuOfferResponse>());
+        }
+
+        public Task DeactivateAsync(Guid tenantId, Guid branchId, Guid branchOfferId, CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
         }
     }
 }

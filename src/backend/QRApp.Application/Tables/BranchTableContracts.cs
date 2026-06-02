@@ -30,7 +30,10 @@ public sealed record PublicQrMenuResponse(
     string TableName,
     string QrToken,
     PublicQrOrderSettingsResponse OrderSettings,
-    IReadOnlyCollection<PublicMenuCategoryResponse> Categories);
+    IReadOnlyCollection<PublicMenuCategoryResponse> Categories)
+{
+    public IReadOnlyCollection<PublicMenuOfferResponse> Offers { get; init; } = Array.Empty<PublicMenuOfferResponse>();
+}
 
 public sealed record PublicQrMenuRecord(
     Guid BranchId,
@@ -49,4 +52,6 @@ public sealed record PublicQrMenuRecord(
     string? ItemName,
     string? Description,
     decimal? Price,
-    int? ItemDisplayOrder);
+    int? ItemDisplayOrder,
+    string? ImageUrl = null,
+    string? ImageAltText = null);

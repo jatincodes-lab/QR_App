@@ -57,6 +57,8 @@ public sealed class SqlMenuItemRepository(ISqlConnectionFactory connectionFactor
         command.AddBool("@IsAvailable", request.IsAvailable);
         command.AddBool("@IsActive", request.IsActive);
         command.AddInt("@DisplayOrder", request.DisplayOrder);
+        command.AddString("@ImageUrl", request.ImageUrl, 1000);
+        command.AddString("@ImageAltText", request.ImageAltText, 200);
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         if (await reader.ReadAsync(cancellationToken))
@@ -137,7 +139,9 @@ public sealed class SqlMenuItemRepository(ISqlConnectionFactory connectionFactor
                 reader.GetString(reader.GetOrdinal("ItemName")),
                 reader.IsDBNull(reader.GetOrdinal("Description")) ? null : reader.GetString(reader.GetOrdinal("Description")),
                 reader.GetDecimal(reader.GetOrdinal("Price")),
-                reader.GetInt32(reader.GetOrdinal("ItemDisplayOrder"))));
+                reader.GetInt32(reader.GetOrdinal("ItemDisplayOrder")),
+                reader.IsDBNull(reader.GetOrdinal("ImageUrl")) ? null : reader.GetString(reader.GetOrdinal("ImageUrl")),
+                reader.IsDBNull(reader.GetOrdinal("ImageAltText")) ? null : reader.GetString(reader.GetOrdinal("ImageAltText"))));
         }
 
         return items;
@@ -153,6 +157,8 @@ public sealed class SqlMenuItemRepository(ISqlConnectionFactory connectionFactor
         command.AddDecimal("@Price", request.Price, 10, 2);
         command.AddBool("@IsAvailable", request.IsAvailable);
         command.AddInt("@DisplayOrder", request.DisplayOrder);
+        command.AddString("@ImageUrl", request.ImageUrl, 1000);
+        command.AddString("@ImageAltText", request.ImageAltText, 200);
     }
 
     private static MenuItemResponse ReadItem(SqlDataReader reader)
@@ -170,7 +176,8 @@ public sealed class SqlMenuItemRepository(ISqlConnectionFactory connectionFactor
             reader.GetBoolean(reader.GetOrdinal("IsActive")),
             reader.GetInt32(reader.GetOrdinal("DisplayOrder")),
             reader.GetDateTime(reader.GetOrdinal("CreatedAtUtc")),
-            reader.IsDBNull(reader.GetOrdinal("UpdatedAtUtc")) ? null : reader.GetDateTime(reader.GetOrdinal("UpdatedAtUtc")));
+            reader.IsDBNull(reader.GetOrdinal("UpdatedAtUtc")) ? null : reader.GetDateTime(reader.GetOrdinal("UpdatedAtUtc")),
+            reader.IsDBNull(reader.GetOrdinal("ImageUrl")) ? null : reader.GetString(reader.GetOrdinal("ImageUrl")),
+            reader.IsDBNull(reader.GetOrdinal("ImageAltText")) ? null : reader.GetString(reader.GetOrdinal("ImageAltText")));
     }
 }
-

@@ -5,7 +5,7 @@ using QRApp.Shared.Results;
 
 namespace QRApp.Application.Tables;
 
-public sealed class BranchTableService(IBranchTableRepository repository) : IBranchTableService
+public sealed class BranchTableService(IBranchTableRepository repository, IBranchOfferRepository offerRepository) : IBranchTableService
 {
     private const int MinQrTokenLength = 8;
     private const int MaxQrTokenLength = 80;
@@ -91,6 +91,7 @@ public sealed class BranchTableService(IBranchTableRepository repository) : IBra
         }
 
         var rows = await repository.GetPublicMenuByQrTokenAsync(cleanToken, cancellationToken);
+        var offers = await offerRepository.GetPublicByQrTokenAsync(cleanToken, cancellationToken);
         var first = rows.FirstOrDefault();
         if (first is null)
         {
@@ -114,7 +115,9 @@ public sealed class BranchTableService(IBranchTableRepository repository) : IBra
                     row.ItemName!,
                     row.Description,
                     row.Price!.Value,
-                    row.ItemDisplayOrder!.Value)).ToArray()))
+                    row.ItemDisplayOrder!.Value,
+                    row.ImageUrl,
+                    row.ImageAltText)).ToArray()))
             .ToArray();
 
         return new PublicQrMenuResponse(
@@ -128,7 +131,10 @@ public sealed class BranchTableService(IBranchTableRepository repository) : IBra
                 first.RequireCustomerName,
                 first.RequireCustomerWhatsApp,
                 first.WaiterCallEnabled),
-            categories);
+            categories)
+        {
+            Offers = offers
+        };
     }
 
     private static List<ValidationFailure> Validate(string name, int displayOrder)
