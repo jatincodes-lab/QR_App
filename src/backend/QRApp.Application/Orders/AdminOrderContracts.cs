@@ -28,4 +28,4 @@ public sealed record AdminOrderResponse(
     DateTime? UpdatedAtUtc,
     IReadOnlyCollection<AdminOrderItemResponse> Items);
 
-public sealed record UpdateAdminOrderStatusRequest(string OrderStatusCode);
+public sealed record UpdateAdminOrderStatusRequest(string OrderStatusCode, string? Reason = null);

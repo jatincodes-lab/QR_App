@@ -16,7 +16,7 @@ const KitchenNextStatus: Partial<Record<OrderStatusCode, OrderStatusCode>> = {
   Placed: "Preparing",
   Accepted: "Preparing",
   Preparing: "Ready",
-  Ready: "Completed"
+  Ready: "Served"
 };
 
 export default function AdminKitchenPage() {

@@ -11,6 +11,7 @@ public sealed class AdminOrderService(IAdminOrderRepository repository) : IAdmin
         "Accepted",
         "Preparing",
         "Ready",
+        "Served",
         "Completed",
         "Cancelled"
     };
@@ -38,8 +39,15 @@ public sealed class AdminOrderService(IAdminOrderRepository repository) : IAdmin
                 new ValidationFailure(nameof(UpdateAdminOrderStatusRequest.OrderStatusCode), "Order status is invalid."));
         }
 
+        var reason = TextRules.CleanOptional(request.Reason);
+        if (reason?.Length > 300)
+        {
+            return OperationResult<AdminOrderResponse>.Failed(
+                new ValidationFailure(nameof(UpdateAdminOrderStatusRequest.Reason), "Status reason cannot exceed 300 characters."));
+        }
+
         var normalized = AllowedStatuses.First(item => string.Equals(item, status, StringComparison.OrdinalIgnoreCase));
-        var order = await repository.UpdateStatusAsync(tenantId, branchId, orderId, normalized, cancellationToken);
+        var order = await repository.UpdateStatusAsync(tenantId, branchId, orderId, normalized, reason, cancellationToken);
         return OperationResult<AdminOrderResponse>.Success(order);
     }
 }

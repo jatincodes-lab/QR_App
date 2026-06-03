@@ -25,7 +25,8 @@ const OrderNextStatus: Partial<Record<OrderStatusCode, OrderStatusCode>> = {
   Placed: "Accepted",
   Accepted: "Preparing",
   Preparing: "Ready",
-  Ready: "Completed"
+  Ready: "Served",
+  Served: "Completed"
 };
 
 const WaiterNextStatus: Partial<Record<WaiterCallStatusCode, WaiterCallStatusCode>> = {

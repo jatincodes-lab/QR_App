@@ -10,6 +10,16 @@ internal static class SqlCommandExtensions
         command.Parameters.Add(name, SqlDbType.UniqueIdentifier).Value = value;
     }
 
+    public static void AddNullableGuid(this SqlCommand command, string name, Guid? value)
+    {
+        command.Parameters.Add(name, SqlDbType.UniqueIdentifier).Value = value.HasValue ? value.Value : DBNull.Value;
+    }
+
+    public static void AddDateTime(this SqlCommand command, string name, DateTime? value)
+    {
+        command.Parameters.Add(name, SqlDbType.DateTime2).Value = value.HasValue ? value.Value : DBNull.Value;
+    }
+
     public static void AddString(this SqlCommand command, string name, string? value, int length)
     {
         var parameter = command.Parameters.Add(name, SqlDbType.NVarChar, length);

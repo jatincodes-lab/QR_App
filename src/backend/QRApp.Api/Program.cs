@@ -153,6 +153,7 @@ app.MapAdminBranchEndpoints();
 app.MapAdminMenuEndpoints();
 app.MapAdminTableEndpoints();
 app.MapAdminOrderEndpoints();
+app.MapAdminReportEndpoints();
 app.MapPublicMenuEndpoints();
 app.MapPublicQrEndpoints();
 app.MapPublicOrderEndpoints();

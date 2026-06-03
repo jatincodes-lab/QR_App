@@ -4,6 +4,7 @@ using QRApp.Application.Branches;
 using QRApp.Application.BranchOrderSettings;
 using QRApp.Application.Menus;
 using QRApp.Application.Orders;
+using QRApp.Application.Reports;
 using QRApp.Application.Tables;
 using QRApp.Application.Tenants;
 using QRApp.Application.WaiterCalls;
@@ -25,6 +26,7 @@ public static class DependencyInjection
         services.AddScoped<IBranchTableService, BranchTableService>();
         services.AddScoped<IOrderService, OrderService>();
         services.AddScoped<IAdminOrderService, AdminOrderService>();
+        services.AddScoped<IReportService, ReportService>();
         services.AddScoped<IWaiterCallService, WaiterCallService>();
 
         return services;

@@ -259,7 +259,7 @@ export type AdminOrder = {
   items: AdminOrderItem[];
 };
 
-export type OrderStatusCode = "Placed" | "Accepted" | "Preparing" | "Ready" | "Completed" | "Cancelled";
+export type OrderStatusCode = "Placed" | "Accepted" | "Preparing" | "Ready" | "Served" | "Completed" | "Cancelled";
 
 export type WaiterCallStatusCode = "Open" | "Acknowledged" | "Resolved" | "Cancelled";
 
@@ -352,6 +352,63 @@ export type CreateBranchOfferInput = {
 
 export type UpdateBranchOfferInput = CreateBranchOfferInput & {
   isActive: boolean;
+};
+
+export type ReportFilterInput = {
+  branchId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  status?: string;
+  search?: string;
+};
+
+export type OrderReportSummary = {
+  totalOrders: number;
+  completedOrders: number;
+  cancelledOrders: number;
+  totalOrderValue: number;
+  averageOrderValue: number;
+  averageReadyMinutes: number;
+};
+
+export type OrderReportListItem = {
+  orderId: string;
+  branchId: string;
+  branchName: string;
+  tableId: string;
+  tableName: string;
+  orderStatusCode: OrderStatusCode;
+  customerName: string | null;
+  customerWhatsApp: string | null;
+  notes: string | null;
+  totalAmount: number;
+  itemCount: number;
+  createdAtUtc: string;
+  updatedAtUtc: string | null;
+  acceptedAtUtc: string | null;
+  preparingAtUtc: string | null;
+  readyAtUtc: string | null;
+  servedAtUtc: string | null;
+  completedAtUtc: string | null;
+  cancelledAtUtc: string | null;
+  latestReason: string | null;
+};
+
+export type ItemReport = {
+  itemName: string;
+  variantName: string | null;
+  quantity: number;
+  orderCount: number;
+  totalValue: number;
+};
+
+export type CustomerReport = {
+  customerKey: string;
+  customerName: string | null;
+  customerWhatsApp: string | null;
+  orderCount: number;
+  totalValue: number;
+  lastOrderAtUtc: string;
 };
 
 export type CreateBranchTableInput = {
@@ -578,11 +635,40 @@ export async function getAdminOrders(branchId: string, includeCompleted = false)
 export async function updateAdminOrderStatus(
   branchId: string,
   orderId: string,
-  orderStatusCode: OrderStatusCode
+  orderStatusCode: OrderStatusCode,
+  reason: string | null = null
 ): Promise<AdminOrder> {
   return request<AdminOrder>(`/api/v1/admin/branches/${branchId}/orders/${orderId}/status`, {
     method: "PUT",
-    body: { orderStatusCode },
+    body: { orderStatusCode, reason },
+    requireAuth: true
+  });
+}
+
+export async function getOrderReportSummary(filter: ReportFilterInput): Promise<OrderReportSummary> {
+  return request<OrderReportSummary>(`/api/v1/admin/reports/orders/summary${toReportQuery(filter)}`, {
+    method: "GET",
+    requireAuth: true
+  });
+}
+
+export async function getOrderReportOrders(filter: ReportFilterInput): Promise<OrderReportListItem[]> {
+  return request<OrderReportListItem[]>(`/api/v1/admin/reports/orders${toReportQuery(filter)}`, {
+    method: "GET",
+    requireAuth: true
+  });
+}
+
+export async function getItemReport(filter: ReportFilterInput): Promise<ItemReport[]> {
+  return request<ItemReport[]>(`/api/v1/admin/reports/items${toReportQuery(filter)}`, {
+    method: "GET",
+    requireAuth: true
+  });
+}
+
+export async function getCustomerReport(filter: ReportFilterInput): Promise<CustomerReport[]> {
+  return request<CustomerReport[]>(`/api/v1/admin/reports/customers${toReportQuery(filter)}`, {
+    method: "GET",
     requireAuth: true
   });
 }
@@ -734,4 +820,16 @@ function firstFieldMessage(errors: Record<string, string[]> | undefined): string
   }
 
   return null;
+}
+
+function toReportQuery(filter: ReportFilterInput): string {
+  const params = new URLSearchParams();
+  if (filter.branchId) params.set("branchId", filter.branchId);
+  if (filter.dateFrom) params.set("dateFrom", filter.dateFrom);
+  if (filter.dateTo) params.set("dateTo", filter.dateTo);
+  if (filter.status) params.set("status", filter.status);
+  if (filter.search) params.set("search", filter.search);
+
+  const query = params.toString();
+  return query ? `?${query}` : "";
 }

@@ -13,5 +13,6 @@ public interface IAdminOrderRepository
         Guid branchId,
         Guid orderId,
         string orderStatusCode,
+        string? reason,
         CancellationToken cancellationToken);
 }

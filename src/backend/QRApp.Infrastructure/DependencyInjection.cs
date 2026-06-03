@@ -4,6 +4,7 @@ using QRApp.Application.Branches;
 using QRApp.Application.BranchOrderSettings;
 using QRApp.Application.Menus;
 using QRApp.Application.Orders;
+using QRApp.Application.Reports;
 using QRApp.Application.Tables;
 using QRApp.Application.Tenants;
 using QRApp.Application.WaiterCalls;
@@ -13,6 +14,7 @@ using QRApp.Infrastructure.BranchOrderSettings;
 using QRApp.Infrastructure.Data;
 using QRApp.Infrastructure.Menus;
 using QRApp.Infrastructure.Orders;
+using QRApp.Infrastructure.Reports;
 using QRApp.Infrastructure.Tables;
 using QRApp.Infrastructure.Tenants;
 using QRApp.Infrastructure.WaiterCalls;
@@ -34,6 +36,7 @@ public static class DependencyInjection
         services.AddScoped<IBranchTableRepository, SqlBranchTableRepository>();
         services.AddScoped<IOrderRepository, SqlOrderRepository>();
         services.AddScoped<IAdminOrderRepository, SqlAdminOrderRepository>();
+        services.AddScoped<IReportRepository, SqlReportRepository>();
         services.AddScoped<IWaiterCallRepository, SqlWaiterCallRepository>();
 
         return services;
