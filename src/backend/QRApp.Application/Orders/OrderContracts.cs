@@ -1,6 +1,6 @@
 namespace QRApp.Application.Orders;
 
-public sealed record CreatePublicQrOrderItemRequest(Guid MenuItemId, int Quantity, Guid? MenuItemVariantId = null);
+public sealed record CreatePublicQrOrderItemRequest(Guid MenuItemId, int Quantity, Guid? MenuItemVariantId = null, string? ItemNote = null);
 
 public sealed record CreatePublicQrOrderRequest(
     string? CustomerName,
@@ -15,6 +15,7 @@ public sealed record PublicOrderItemResponse(
     Guid? MenuItemVariantId,
     string MenuItemName,
     string? VariantName,
+    string? ItemNote,
     decimal UnitPrice,
     int Quantity,
     decimal LineTotal);

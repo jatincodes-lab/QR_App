@@ -7,6 +7,7 @@ public sealed record AdminOrderItemResponse(
     Guid? MenuItemVariantId,
     string MenuItemName,
     string? VariantName,
+    string? ItemNote,
     decimal UnitPrice,
     int Quantity,
     decimal LineTotal);

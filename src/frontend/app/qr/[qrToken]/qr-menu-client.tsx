@@ -37,6 +37,7 @@ type CartLine = {
   item: PublicQrMenuItem;
   categoryName: string;
   variant: PublicQrMenuItem["variants"][number] | null;
+  itemNote: string;
   quantity: number;
 };
 
@@ -167,6 +168,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
           item,
           categoryName,
           variant,
+          itemNote: existing?.itemNote ?? "",
           quantity: existing ? existing.quantity + 1 : 1
         }
       };
@@ -209,6 +211,24 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
     });
   }
 
+  function updateCartLineNote(cartLineId: string, itemNote: string) {
+    setSubmitState({ kind: "idle" });
+    setCart((current) => {
+      const existing = current[cartLineId];
+      if (!existing) {
+        return current;
+      }
+
+      return {
+        ...current,
+        [cartLineId]: {
+          ...existing,
+          itemNote
+        }
+      };
+    });
+  }
+
   async function submitOrder() {
     if (!canOrder || cartLines.length === 0 || submitState.kind === "submitting") {
       return;
@@ -231,6 +251,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
       items: cartLines.map((line) => ({
         menuItemId: line.item.menuItemId,
         menuItemVariantId: line.variant?.menuItemVariantId ?? null,
+        itemNote: valueOrNull(line.itemNote),
         quantity: line.quantity
       }))
     };
@@ -357,6 +378,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
           onCustomerNameChange={setCustomerName}
           onCustomerWhatsAppChange={setCustomerWhatsApp}
           onDecrement={decrementItem}
+          onItemNoteChange={updateCartLineNote}
           onBackToMenu={returnToMenu}
           onNotesChange={setNotes}
           onSubmit={submitOrder}
@@ -871,6 +893,7 @@ function CartPage({
   onCustomerNameChange,
   onCustomerWhatsAppChange,
   onDecrement,
+  onItemNoteChange,
   onBackToMenu,
   onNotesChange,
   onSubmit
@@ -887,6 +910,7 @@ function CartPage({
   onCustomerNameChange: (value: string) => void;
   onCustomerWhatsAppChange: (value: string) => void;
   onDecrement: (cartLineId: string) => void;
+  onItemNoteChange: (cartLineId: string, value: string) => void;
   onBackToMenu: () => void;
   onNotesChange: (value: string) => void;
   onSubmit: () => void;
@@ -920,28 +944,40 @@ function CartPage({
         <div className="space-y-4">
           <div className="space-y-3">
             {cartLines.map((line) => (
-              <div key={line.cartLineId} className="grid grid-cols-[4.75rem_1fr_auto] gap-3 rounded-2xl border border-[#d9e4df] bg-white p-3 shadow-sm">
-                <FoodThumb imageAltText={line.item.imageAltText} imageUrl={line.item.imageUrl} name={line.item.name} compact />
-                <div className="min-w-0">
-                  <p className="line-clamp-2 break-words text-sm font-black text-[#001c11]">{formatCartItemName(line)}</p>
-                  <p className="mt-1 text-xs font-semibold text-[#5a625e]">{line.categoryName}</p>
-                  <p className="mt-2 text-sm font-black text-[#006d36]">{formatPrice(getCartLinePrice(line))}</p>
+              <div key={line.cartLineId} className="rounded-2xl border border-[#d9e4df] bg-white p-3 shadow-sm">
+                <div className="grid grid-cols-[4.75rem_1fr_auto] gap-3">
+                  <FoodThumb imageAltText={line.item.imageAltText} imageUrl={line.item.imageUrl} name={line.item.name} compact />
+                  <div className="min-w-0">
+                    <p className="line-clamp-2 break-words text-sm font-black text-[#001c11]">{formatCartItemName(line)}</p>
+                    <p className="mt-1 text-xs font-semibold text-[#5a625e]">{line.categoryName}</p>
+                    <p className="mt-2 text-sm font-black text-[#006d36]">{formatPrice(getCartLinePrice(line))}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-black text-[#001c11]">x{line.quantity}</span>
+                    <button
+                      type="button"
+                      className="grid h-10 w-10 place-items-center rounded-full border border-[#d9e4df] bg-[#f8f9fa] text-[#414844]"
+                      onClick={() => onDecrement(line.cartLineId)}
+                      aria-label={`Remove one ${line.item.name}`}
+                    >
+                      {line.quantity === 1 ? (
+                        <Trash2 className="h-4 w-4" aria-hidden="true" />
+                      ) : (
+                        <Minus className="h-4 w-4" aria-hidden="true" />
+                      )}
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-black text-[#001c11]">x{line.quantity}</span>
-                  <button
-                    type="button"
-                    className="grid h-10 w-10 place-items-center rounded-full border border-[#d9e4df] bg-[#f8f9fa] text-[#414844]"
-                    onClick={() => onDecrement(line.cartLineId)}
-                    aria-label={`Remove one ${line.item.name}`}
-                  >
-                    {line.quantity === 1 ? (
-                      <Trash2 className="h-4 w-4" aria-hidden="true" />
-                    ) : (
-                      <Minus className="h-4 w-4" aria-hidden="true" />
-                    )}
-                  </button>
-                </div>
+                <label className="mt-3 block">
+                  <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-on-surface-variant">Item note</span>
+                  <textarea
+                    className="mt-1 min-h-16 w-full resize-none rounded-xl border border-[#d9e4df] bg-[#f8f9fa] px-3 py-2 text-sm outline-none focus:border-[#006d36]"
+                    value={line.itemNote}
+                    onChange={(event) => onItemNoteChange(line.cartLineId, event.target.value)}
+                    maxLength={200}
+                    placeholder="Less spicy, no onion, no ice..."
+                  />
+                </label>
               </div>
             ))}
           </div>
@@ -1070,6 +1106,7 @@ function OrderPlacedView({
                 <p className="mt-1 text-xs text-on-surface-variant">
                   {item.quantity} x {formatPrice(item.unitPrice)}
                 </p>
+                {item.itemNote ? <p className="mt-1 rounded-lg bg-[#f8f9fa] px-2 py-1 text-xs font-semibold text-[#5a625e]">{item.itemNote}</p> : null}
               </div>
               <p className="text-sm font-black text-[#001c11]">{formatPrice(item.lineTotal)}</p>
             </div>
@@ -1165,6 +1202,7 @@ function PreviousOrdersPage({
                       <p className="mt-1 text-xs text-on-surface-variant">
                         {item.quantity} x {formatPrice(item.unitPrice)}
                       </p>
+                      {item.itemNote ? <p className="mt-1 rounded-lg bg-[#f8f9fa] px-2 py-1 text-xs font-semibold text-[#5a625e]">{item.itemNote}</p> : null}
                     </div>
                     <p className="text-sm font-black text-[#001c11]">{formatPrice(item.lineTotal)}</p>
                   </div>
@@ -1477,12 +1515,7 @@ function formatOrderDate(value: string): string {
   return new Intl.DateTimeFormat("en-IN", {
     dateStyle: "medium",
     timeStyle: "short"
-  }).format(parseUtcDate(value));
-}
-
-function parseUtcDate(value: string): Date {
-  const hasTimeZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value);
-  return new Date(hasTimeZone ? value : `${value}Z`);
+  }).format(new Date(value));
 }
 
 function formatPrice(price: number): string {

@@ -19,3 +19,26 @@ export function clearAccessToken(): void {
 
   window.localStorage.removeItem(TokenStorageKey);
 }
+
+export function getCurrentRoleCode(): string | null {
+  const token = getAccessToken();
+  if (!token) {
+    return null;
+  }
+
+  const [, payload] = token.split(".");
+  if (!payload) {
+    return null;
+  }
+
+  try {
+    const decoded = JSON.parse(window.atob(toBase64(payload))) as { role_code?: string };
+    return decoded.role_code ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function toBase64(value: string): string {
+  return value.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(value.length / 4) * 4, "=");
+}

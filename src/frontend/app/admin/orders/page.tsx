@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import type { HubConnection } from "@microsoft/signalr";
 import { ClipboardList, RefreshCw, Store, Users } from "lucide-react";
 import { AdminShell } from "../../../components/admin-shell";
 import { EmptyBranchState, MetricCard, PageError, PageLoading } from "../../../components/admin-page-common";
@@ -18,6 +19,7 @@ import {
   type WaiterCallStatusCode
 } from "../../../lib/api";
 import { formatMoney, useAdminWorkspace } from "../../../lib/admin-workspace";
+import { createAdminOrderConnection, stopConnection, type AdminOrderRealtimeEvent, type AdminWaiterCallRealtimeEvent } from "../../../lib/realtime";
 
 const OrderNextStatus: Partial<Record<OrderStatusCode, OrderStatusCode>> = {
   Placed: "Accepted",
@@ -36,6 +38,7 @@ export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [waiterCalls, setWaiterCalls] = useState<WaiterCall[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+  const [liveState, setLiveState] = useState<"connecting" | "live" | "offline">("offline");
   const [savingKey, setSavingKey] = useState<string | null>(null);
 
   const activeOrders = useMemo(() => orders.filter((order) => !["Completed", "Cancelled"].includes(order.orderStatusCode)), [orders]);
@@ -51,6 +54,75 @@ export default function AdminOrdersPage() {
 
     void loadOrders(workspace.selectedBranch.branchId);
   }, [workspace.selectedBranch?.branchId]);
+
+  useEffect(() => {
+    if (!workspace.selectedBranch) {
+      setLiveState("offline");
+      return;
+    }
+
+    let isDisposed = false;
+    let connection: HubConnection | null = null;
+    const branchId = workspace.selectedBranch.branchId;
+
+    async function connect() {
+      setLiveState("connecting");
+      connection = createAdminOrderConnection();
+      connection.on("OrderCreated", (event: AdminOrderRealtimeEvent) => handleRealtimeOrder(event, branchId));
+      connection.on("OrderStatusUpdated", (event: AdminOrderRealtimeEvent) => handleRealtimeOrder(event, branchId));
+      connection.on("WaiterCallCreated", (event: AdminWaiterCallRealtimeEvent) => handleRealtimeWaiterCall(event, branchId));
+      connection.on("WaiterCallStatusUpdated", (event: AdminWaiterCallRealtimeEvent) => handleRealtimeWaiterCall(event, branchId));
+      connection.onreconnected(async () => {
+        if (!isDisposed && connection) {
+          await connection.invoke("JoinBranch", branchId);
+          setLiveState("live");
+          void loadOrders(branchId);
+        }
+      });
+      connection.onclose(() => {
+        if (!isDisposed) {
+          setLiveState("offline");
+        }
+      });
+
+      try {
+        await connection.start();
+        await connection.invoke("JoinBranch", branchId);
+        if (!isDisposed) {
+          setLiveState("live");
+        }
+      } catch {
+        if (!isDisposed) {
+          setLiveState("offline");
+        }
+      }
+    }
+
+    void connect();
+
+    return () => {
+      isDisposed = true;
+      if (connection) {
+        void stopConnection(connection);
+      }
+    };
+  }, [workspace.selectedBranch?.branchId]);
+
+  function handleRealtimeOrder(event: AdminOrderRealtimeEvent, branchId: string) {
+    if (event.branchId !== branchId) {
+      return;
+    }
+
+    void loadOrders(branchId);
+  }
+
+  function handleRealtimeWaiterCall(event: AdminWaiterCallRealtimeEvent, branchId: string) {
+    if (event.branchId !== branchId) {
+      return;
+    }
+
+    void loadOrders(branchId);
+  }
 
   async function loadOrders(branchId: string) {
     setIsLoadingOrders(true);
@@ -122,6 +194,7 @@ export default function AdminOrdersPage() {
             </p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <Badge variant={liveState === "live" ? "default" : "outline"}>{liveState === "live" ? "Live" : liveState === "connecting" ? "Connecting" : "Manual refresh"}</Badge>
             <Button type="button" variant="outline" onClick={() => workspace.selectedBranch && loadOrders(workspace.selectedBranch.branchId)}>
               <RefreshCw size={17} />
               Refresh
@@ -190,8 +263,8 @@ function OrderCard({ order, savingKey, onMove }: { order: AdminOrder; savingKey:
     <article className="rounded-xl border border-outline-variant/70 bg-white p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-sm font-extrabold text-on-surface">{order.tableName}</p>
-          <p className="mt-1 text-xs text-on-surface-variant">{order.customerName || "Guest"} · {new Date(order.createdAtUtc).toLocaleString()}</p>
+          <p className="text-sm font-extrabold text-on-surface">{order.tableName} - #{shortOrderCode(order.orderId)}</p>
+          <p className="mt-1 text-xs text-on-surface-variant">{order.customerName || "Guest"} - {formatAdminDate(order.createdAtUtc)}</p>
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="outline">{order.orderStatusCode}</Badge>
@@ -199,7 +272,12 @@ function OrderCard({ order, savingKey, onMove }: { order: AdminOrder; savingKey:
         </div>
       </div>
       <div className="mt-3 rounded-lg bg-surface-container-low p-3 text-xs leading-5 text-on-surface-variant">
-        {order.items.map((item) => `${item.quantity}x ${formatAdminOrderItemName(item.menuItemName, item.variantName)}`).join(", ")}
+        {order.items.map((item) => (
+          <div key={item.orderItemId}>
+            <span>{item.quantity}x {formatAdminOrderItemName(item.menuItemName, item.variantName)}</span>
+            {item.itemNote ? <span className="ml-2 font-bold text-primary">Note: {item.itemNote}</span> : null}
+          </div>
+        ))}
       </div>
       {nextStatus ? (
         <Button type="button" size="sm" className="mt-3" disabled={savingKey === order.orderId} onClick={() => onMove(order, nextStatus)}>
@@ -218,7 +296,7 @@ function WaiterCallCard({ call, savingKey, onMove }: { call: WaiterCall; savingK
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm font-extrabold text-on-surface">{call.tableName}</p>
-          <p className="mt-1 text-xs text-on-surface-variant">{call.customerName || "Guest"} · {new Date(call.createdAtUtc).toLocaleString()}</p>
+          <p className="mt-1 text-xs text-on-surface-variant">{call.customerName || "Guest"} - {formatAdminDate(call.createdAtUtc)}</p>
         </div>
         <Badge variant="outline">{call.statusCode}</Badge>
       </div>
@@ -243,4 +321,15 @@ function EmptyPanel({ text, title }: { text: string; title: string }) {
 
 function formatAdminOrderItemName(name: string, variantName: string | null): string {
   return variantName ? `${name} - ${variantName}` : name;
+}
+
+function shortOrderCode(orderId: string): string {
+  return orderId.replaceAll("-", "").slice(0, 8).toUpperCase();
+}
+
+function formatAdminDate(value: string): string {
+  return new Intl.DateTimeFormat("en-IN", {
+    dateStyle: "medium",
+    timeStyle: "short"
+  }).format(new Date(value));
 }

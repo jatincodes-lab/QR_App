@@ -25,8 +25,9 @@ public sealed class OrderService(IOrderRepository repository) : IOrderService
             CleanOptional(request.CustomerWhatsApp),
             CleanOptional(request.Notes),
             request.Items
-                .GroupBy(item => item.MenuItemId)
-                .Select(group => new CreatePublicQrOrderItemRequest(group.Key, group.Sum(item => item.Quantity)))
+                .Select(item => item with { ItemNote = CleanOptional(item.ItemNote) })
+                .GroupBy(item => new { item.MenuItemId, item.MenuItemVariantId, item.ItemNote })
+                .Select(group => new CreatePublicQrOrderItemRequest(group.Key.MenuItemId, group.Sum(item => item.Quantity), group.Key.MenuItemVariantId, group.Key.ItemNote))
                 .ToArray());
 
         var order = await repository.CreateFromQrTokenAsync(cleanToken, Guid.NewGuid(), cleaned, cancellationToken);
@@ -99,6 +100,11 @@ public sealed class OrderService(IOrderRepository repository) : IOrderService
             if (item.Quantity is < 1 or > 99)
             {
                 errors.Add(new ValidationFailure(nameof(CreatePublicQrOrderItemRequest.Quantity), "Quantity must be between 1 and 99."));
+            }
+
+            if (CleanOptional(item.ItemNote)?.Length > 200)
+            {
+                errors.Add(new ValidationFailure(nameof(CreatePublicQrOrderItemRequest.ItemNote), "Item note cannot exceed 200 characters."));
             }
         }
 

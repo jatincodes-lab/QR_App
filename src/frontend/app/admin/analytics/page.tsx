@@ -25,10 +25,12 @@ export default function AdminAnalyticsPage() {
   const completedOrders = useMemo(() => stats?.orders.filter((order) => order.orderStatusCode === "Completed") ?? [], [stats]);
   const openOrders = useMemo(() => stats?.orders.filter((order) => !["Completed", "Cancelled"].includes(order.orderStatusCode)) ?? [], [stats]);
   const completedValue = useMemo(() => completedOrders.reduce((total, order) => total + order.totalAmount, 0), [completedOrders]);
+  const averageOrderValue = completedOrders.length > 0 ? completedValue / completedOrders.length : 0;
   const activeCalls = useMemo(() => stats?.waiterCalls.filter((call) => !["Resolved", "Cancelled"].includes(call.statusCode)) ?? [], [stats]);
   const orderStatusData = useMemo(() => buildCountData(stats?.orders ?? [], (order) => order.orderStatusCode, OrderStatusLabels), [stats]);
   const waiterStatusData = useMemo(() => buildCountData(stats?.waiterCalls ?? [], (call) => call.statusCode, WaiterStatusLabels), [stats]);
   const orderValueData = useMemo(() => buildRecentOrderValueData(stats?.orders ?? []), [stats]);
+  const topItems = useMemo(() => buildTopItems(stats?.orders ?? []), [stats]);
 
   useEffect(() => {
     if (!workspace.selectedBranch) {
@@ -94,8 +96,8 @@ export default function AdminAnalyticsPage() {
             <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               <MetricCard icon={<ClipboardList size={20} />} label="Total orders" value={isLoadingStats ? "..." : String(stats?.orders.length ?? 0)} />
               <MetricCard icon={<Store size={20} />} label="Completed value" value={isLoadingStats ? "..." : formatMoney(completedValue)} />
+              <MetricCard icon={<BarChart3 size={20} />} label="Average order" value={isLoadingStats ? "..." : formatMoney(averageOrderValue)} />
               <MetricCard icon={<ChefHat size={20} />} label="Menu items" value={isLoadingStats ? "..." : String(stats?.menuItems ?? 0)} />
-              <MetricCard icon={<QrCode size={20} />} label="QR tables" value={isLoadingStats ? "..." : String(stats?.tables ?? 0)} />
             </section>
 
             <section className="grid gap-4 lg:grid-cols-3">
@@ -111,17 +113,7 @@ export default function AdminAnalyticsPage() {
 
             <section className="grid gap-4 xl:grid-cols-[0.8fr_1.2fr]">
               <DonutChartCard title="Waiter-call status" description="Service request distribution." data={waiterStatusData} />
-              <Card>
-                <CardHeader>
-                  <CardTitle>Reporting roadmap</CardTitle>
-                  <CardDescription>These charts use existing order data. Daily aggregates, top items, and response-time reports should become backend analytics APIs next.</CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-3 md:grid-cols-3">
-                  <RoadmapItem icon={<BarChart3 size={18} />} title="Daily sales API" />
-                  <RoadmapItem icon={<ChefHat size={18} />} title="Top menu items" />
-                  <RoadmapItem icon={<Users size={18} />} title="Service response time" />
-                </CardContent>
-              </Card>
+              <TopItemsCard items={topItems} />
             </section>
           </>
         )}
@@ -150,6 +142,44 @@ type ChartDatum = {
   label: string;
   value: number;
 };
+
+type TopItemDatum = {
+  name: string;
+  quantity: number;
+  value: number;
+};
+
+function TopItemsCard({ items }: { items: TopItemDatum[] }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Best-selling items</CardTitle>
+        <CardDescription>Top items by quantity from current order records.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {items.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-outline-variant/70 bg-surface-container-low p-8 text-center">
+            <p className="text-sm font-bold text-on-surface">No sales yet</p>
+            <p className="mt-1 text-sm text-on-surface-variant">Completed and active order items will appear here.</p>
+          </div>
+        ) : (
+          <div className="grid gap-3">
+            {items.map((item, index) => (
+              <div key={item.name} className="grid grid-cols-[2rem_1fr_auto] items-center gap-3 rounded-xl border border-outline-variant/60 bg-white p-3">
+                <div className="grid h-8 w-8 place-items-center rounded-lg bg-primary-fixed text-sm font-extrabold text-primary">{index + 1}</div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-extrabold text-on-surface">{item.name}</p>
+                  <p className="mt-1 text-xs text-on-surface-variant">{item.quantity} sold</p>
+                </div>
+                <p className="text-sm font-extrabold text-primary">{formatMoney(item.value)}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 function BarChartCard({
   data,
@@ -282,6 +312,27 @@ function buildRecentOrderValueData(orders: AdminOrder[]): ChartDatum[] {
       value
     };
   });
+}
+
+function buildTopItems(orders: AdminOrder[]): TopItemDatum[] {
+  const totals = new Map<string, TopItemDatum>();
+
+  orders
+    .filter((order) => order.orderStatusCode !== "Cancelled")
+    .flatMap((order) => order.items)
+    .forEach((item) => {
+      const name = item.variantName ? `${item.menuItemName} - ${item.variantName}` : item.menuItemName;
+      const existing = totals.get(name) ?? { name, quantity: 0, value: 0 };
+      totals.set(name, {
+        name,
+        quantity: existing.quantity + item.quantity,
+        value: existing.value + item.lineTotal
+      });
+    });
+
+  return [...totals.values()]
+    .sort((left, right) => right.quantity - left.quantity || right.value - left.value)
+    .slice(0, 6);
 }
 
 function buildDonutSegments(data: ChartDatum[], total: number) {

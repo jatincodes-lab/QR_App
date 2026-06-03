@@ -139,6 +139,7 @@ public sealed class SqlAdminOrderRepository(ISqlConnectionFactory connectionFact
             GetNullableGuid(reader, "MenuItemVariantId"),
             reader.GetString(reader.GetOrdinal("MenuItemName")),
             GetNullableString(reader, "VariantName"),
+            GetNullableString(reader, "ItemNote"),
             reader.GetDecimal(reader.GetOrdinal("UnitPrice")),
             reader.GetInt32(reader.GetOrdinal("Quantity")),
             reader.GetDecimal(reader.GetOrdinal("LineTotal")));

@@ -9,6 +9,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardList,
+  Gift,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -20,9 +21,12 @@ import {
 } from "lucide-react";
 import { Button } from "./ui/button";
 import type { BranchListItem } from "../lib/api";
+import { getCurrentRoleCode } from "../lib/auth";
+
+const SidebarCollapsedStorageKey = "qrapp.admin.sidebarCollapsed";
 
 type AdminShellProps = {
-  active: "dashboard" | "branches" | "menu" | "orders" | "analytics" | "settings";
+  active: "dashboard" | "branches" | "menu" | "orders" | "kitchen" | "offers" | "analytics" | "settings";
   branchName?: string;
   branches?: BranchListItem[];
   children: ReactNode;
@@ -47,7 +51,9 @@ const navGroups: { label: string; items: NavItem[] }[] = [
       { id: "dashboard", label: "Dashboard", helper: "Overview", icon: LayoutDashboard, href: "/admin/dashboard" },
       { id: "branches", label: "Branches", helper: "Locations", icon: Store, href: "/admin/branches" },
       { id: "menu", label: "Menu", helper: "Items", icon: ChefHat, href: "/admin/menu" },
-      { id: "orders", label: "Orders", helper: "Kitchen", icon: ClipboardList, href: "/admin/orders" }
+      { id: "orders", label: "Orders", helper: "Live board", icon: ClipboardList, href: "/admin/orders" },
+      { id: "kitchen", label: "Kitchen", helper: "Prep view", icon: ChefHat, href: "/admin/kitchen" },
+      { id: "offers", label: "Offers", helper: "Combos", icon: Gift, href: "/admin/offers" }
     ]
   },
   {
@@ -68,9 +74,22 @@ export function AdminShell({
   onSelectedBranchChange,
   selectedBranchId = ""
 }: AdminShellProps) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    if (typeof window === "undefined") {
+      return false;
+    }
+
+    return window.localStorage.getItem(SidebarCollapsedStorageKey) === "true";
+  });
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const canSelectBranch = branches.length > 0 && Boolean(onSelectedBranchChange);
+  const roleCode = getCurrentRoleCode();
+  const visibleNavGroups = navGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => canAccessNavItem(roleCode, item.id))
+    }))
+    .filter((group) => group.items.length > 0);
 
   return (
     <div className={`min-h-screen bg-background text-on-background lg:grid ${isCollapsed ? "lg:grid-cols-[5.5rem_1fr]" : "lg:grid-cols-[17rem_1fr]"}`}>
@@ -110,7 +129,7 @@ export function AdminShell({
         </div>
 
         <nav className={`flex-1 overflow-y-auto px-3 py-5 ${isCollapsed ? "lg:px-2" : ""}`}>
-          {navGroups.map((group) => (
+          {visibleNavGroups.map((group) => (
             <div key={group.label} className="mb-6">
               <p className={`mb-2 px-3 text-[11px] font-bold uppercase tracking-wider text-white/40 ${isCollapsed ? "lg:text-center lg:text-[0]" : ""}`}>
                 {group.label}
@@ -173,7 +192,13 @@ export function AdminShell({
             </button>
             <button
               type="button"
-              onClick={() => setIsCollapsed((current) => !current)}
+              onClick={() => {
+                setIsCollapsed((current) => {
+                  const next = !current;
+                  window.localStorage.setItem(SidebarCollapsedStorageKey, String(next));
+                  return next;
+                });
+              }}
               className="grid h-11 w-11 place-items-center rounded-xl border border-outline-variant/70 bg-white text-on-surface-variant transition-colors hover:border-primary/20 hover:text-primary"
               aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
               title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
@@ -291,4 +316,12 @@ function NavButton({ item, active, collapsed }: { item: NavItem; active: boolean
       {content}
     </div>
   );
+}
+
+function canAccessNavItem(roleCode: string | null, itemId: AdminShellProps["active"]): boolean {
+  if (roleCode === "staff") {
+    return ["orders", "kitchen", "settings"].includes(itemId);
+  }
+
+  return true;
 }

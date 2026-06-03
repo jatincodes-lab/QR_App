@@ -189,6 +189,7 @@ export type PublicQrMenu = {
 export type CreatePublicQrOrderItemInput = {
   menuItemId: string;
   menuItemVariantId: string | null;
+  itemNote: string | null;
   quantity: number;
 };
 
@@ -206,6 +207,7 @@ export type PublicQrOrderItem = {
   menuItemVariantId: string | null;
   menuItemName: string;
   variantName: string | null;
+  itemNote: string | null;
   unitPrice: number;
   quantity: number;
   lineTotal: number;
@@ -234,6 +236,7 @@ export type AdminOrderItem = {
   menuItemVariantId: string | null;
   menuItemName: string;
   variantName: string | null;
+  itemNote: string | null;
   unitPrice: number;
   quantity: number;
   lineTotal: number;
