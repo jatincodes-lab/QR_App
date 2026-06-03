@@ -7,6 +7,7 @@ import { EmptyBranchState, MetricCard, PageError, PageLoading } from "../../../c
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../components/ui/dialog";
 import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../../components/ui/table";
@@ -67,6 +68,8 @@ export default function AdminMenuPage() {
   const [editingCategoryForm, setEditingCategoryForm] = useState<CategoryForm>(EmptyCategoryForm);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingItemForm, setEditingItemForm] = useState<ItemForm>(EmptyItemForm);
+  const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
+  const [isItemDialogOpen, setIsItemDialogOpen] = useState(false);
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [menuNotice, setMenuNotice] = useState<string | null>(null);
 
@@ -107,6 +110,8 @@ export default function AdminMenuPage() {
       setEditingCategoryForm(EmptyCategoryForm);
       setEditingItemId(null);
       setEditingItemForm(EmptyItemForm);
+      setIsCategoryDialogOpen(false);
+      setIsItemDialogOpen(false);
     } catch (caught) {
       workspace.handleApiError(caught);
     } finally {
@@ -147,6 +152,7 @@ export default function AdminMenuPage() {
         menuCategoryId: current.menuCategoryId || category.menuCategoryId
       }));
       setMenuNotice("Menu category added.");
+      setIsCategoryDialogOpen(false);
     });
   }
 
@@ -176,7 +182,16 @@ export default function AdminMenuPage() {
         displayOrder: String(items.length + 2)
       }));
       setMenuNotice("Menu item added.");
+      setIsItemDialogOpen(false);
     });
+  }
+
+  function handleOpenCreateCategory() {
+    setMenuNotice(null);
+    setEditingCategoryId(null);
+    setEditingCategoryForm(EmptyCategoryForm);
+    setCategoryForm({ ...EmptyCategoryForm, displayOrder: String(categories.length + 1) });
+    setIsCategoryDialogOpen(true);
   }
 
   function handleStartEditCategory(category: MenuCategory) {
@@ -186,11 +201,13 @@ export default function AdminMenuPage() {
       name: category.name,
       displayOrder: String(category.displayOrder)
     });
+    setIsCategoryDialogOpen(true);
   }
 
   function handleCancelEditCategory() {
     setEditingCategoryId(null);
     setEditingCategoryForm(EmptyCategoryForm);
+    setIsCategoryDialogOpen(false);
   }
 
   async function handleSaveCategory(category: MenuCategory) {
@@ -214,6 +231,7 @@ export default function AdminMenuPage() {
       setEditingCategoryId(null);
       setEditingCategoryForm(EmptyCategoryForm);
       setMenuNotice("Menu category updated.");
+      setIsCategoryDialogOpen(false);
     });
   }
 
@@ -240,6 +258,18 @@ export default function AdminMenuPage() {
     });
   }
 
+  function handleOpenCreateItem() {
+    setMenuNotice(null);
+    setEditingItemId(null);
+    setEditingItemForm(EmptyItemForm);
+    setItemForm((current) => ({
+      ...EmptyItemForm,
+      menuCategoryId: current.menuCategoryId || sortedCategories[0]?.menuCategoryId || "",
+      displayOrder: String(items.length + 1)
+    }));
+    setIsItemDialogOpen(true);
+  }
+
   function handleStartEditItem(item: MenuItem) {
     setMenuNotice(null);
     setEditingItemId(item.menuItemId);
@@ -253,11 +283,13 @@ export default function AdminMenuPage() {
       displayOrder: String(item.displayOrder),
       isAvailable: item.isAvailable
     });
+    setIsItemDialogOpen(true);
   }
 
   function handleCancelEditItem() {
     setEditingItemId(null);
     setEditingItemForm(EmptyItemForm);
+    setIsItemDialogOpen(false);
   }
 
   async function handleSaveItem(item: MenuItem) {
@@ -282,6 +314,7 @@ export default function AdminMenuPage() {
       setEditingItemId(null);
       setEditingItemForm(EmptyItemForm);
       setMenuNotice("Menu item updated.");
+      setIsItemDialogOpen(false);
     });
   }
 
@@ -302,6 +335,10 @@ export default function AdminMenuPage() {
   }
 
   const branchName = workspace.selectedBranch?.name ?? "Menu";
+  const editingCategory = editingCategoryId ? categories.find((category) => category.menuCategoryId === editingCategoryId) ?? null : null;
+  const editingItem = editingItemId ? items.find((item) => item.menuItemId === editingItemId) ?? null : null;
+  const isEditingCategory = Boolean(editingCategory);
+  const isEditingItem = Boolean(editingItem);
 
   return (
     <AdminShell
@@ -342,9 +379,21 @@ export default function AdminMenuPage() {
 
             <Card>
               <CardHeader>
-                <div>
-                  <CardTitle>Menu setup</CardTitle>
-                  <CardDescription>Add categories and customer-facing items for {workspace.selectedBranch.name}.</CardDescription>
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <CardTitle>Menu setup</CardTitle>
+                    <CardDescription>Add categories and customer-facing items for {workspace.selectedBranch.name}.</CardDescription>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" variant="outline" onClick={handleOpenCreateCategory} disabled={isLoadingMenu}>
+                      <Plus size={17} />
+                      Add Category
+                    </Button>
+                    <Button type="button" onClick={handleOpenCreateItem} disabled={isLoadingMenu || categories.length === 0}>
+                      <Plus size={17} />
+                      Add Item
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -366,122 +415,41 @@ export default function AdminMenuPage() {
                         <Badge variant="secondary">{categories.length} active</Badge>
                       </div>
 
-                      <form onSubmit={handleCreateCategory} className="grid gap-3 sm:grid-cols-[1fr_7rem_auto]">
-                        <Field label="Category name">
-                          <Input value={categoryForm.name} onChange={(event) => setCategoryForm({ ...categoryForm, name: event.target.value })} required />
-                        </Field>
-                        <Field label="Order">
-                          <Input type="number" min="1" value={categoryForm.displayOrder} onChange={(event) => setCategoryForm({ ...categoryForm, displayOrder: event.target.value })} required />
-                        </Field>
-                        <Button type="submit" disabled={savingKey === "category"} className="self-end">
-                          {savingKey === "category" ? <Loader2 size={17} className="animate-spin" /> : <Plus size={17} />}
-                          Add
-                        </Button>
-                      </form>
-
                       {sortedCategories.length > 0 ? (
                         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                           {sortedCategories.map((category) => (
                             <div key={category.menuCategoryId} className="rounded-lg border border-outline-variant/30 bg-white p-3">
-                              {editingCategoryId === category.menuCategoryId ? (
-                                <div className="grid gap-3">
-                                  <Field label="Category name">
-                                    <Input value={editingCategoryForm.name} onChange={(event) => setEditingCategoryForm({ ...editingCategoryForm, name: event.target.value })} required />
-                                  </Field>
-                                  <Field label="Order">
-                                    <Input type="number" min="1" value={editingCategoryForm.displayOrder} onChange={(event) => setEditingCategoryForm({ ...editingCategoryForm, displayOrder: event.target.value })} required />
-                                  </Field>
-                                  <div className="flex justify-end gap-2">
-                                    <Button type="button" variant="outline" size="sm" onClick={handleCancelEditCategory}>
-                                      Cancel
-                                    </Button>
-                                    <Button type="button" size="sm" onClick={() => handleSaveCategory(category)} disabled={savingKey === `category-edit-${category.menuCategoryId}`}>
-                                      {savingKey === `category-edit-${category.menuCategoryId}` ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                                      Save
-                                    </Button>
-                                  </div>
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-bold text-on-surface">{category.name}</p>
+                                  <p className="mt-1 text-xs text-on-surface-variant">Order {category.displayOrder}</p>
                                 </div>
-                              ) : (
-                                <div className="flex items-start justify-between gap-3">
-                                  <div className="min-w-0">
-                                    <p className="truncate text-sm font-bold text-on-surface">{category.name}</p>
-                                    <p className="mt-1 text-xs text-on-surface-variant">Order {category.displayOrder}</p>
-                                  </div>
-                                  <div className="flex shrink-0 gap-1">
-                                    <Button type="button" variant="outline" size="icon" onClick={() => handleStartEditCategory(category)} className="h-8 w-8 border-outline-variant/60" aria-label={`Edit ${category.name}`}>
-                                      <Pencil size={14} />
-                                    </Button>
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      size="icon"
-                                      onClick={() => handleDeactivateCategory(category)}
-                                      disabled={savingKey === `category-${category.menuCategoryId}`}
-                                      className="h-8 w-8 border-destructive/30 text-destructive"
-                                      aria-label={`Turn off ${category.name}`}
-                                    >
-                                      {savingKey === `category-${category.menuCategoryId}` ? <Loader2 size={14} className="animate-spin" /> : <Power size={14} />}
-                                    </Button>
-                                  </div>
+                                <div className="flex shrink-0 gap-1">
+                                  <Button type="button" variant="outline" size="icon" onClick={() => handleStartEditCategory(category)} className="h-8 w-8 border-outline-variant/60" aria-label={`Edit ${category.name}`}>
+                                    <Pencil size={14} />
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => handleDeactivateCategory(category)}
+                                    disabled={savingKey === `category-${category.menuCategoryId}`}
+                                    className="h-8 w-8 border-destructive/30 text-destructive"
+                                    aria-label={`Turn off ${category.name}`}
+                                  >
+                                    {savingKey === `category-${category.menuCategoryId}` ? <Loader2 size={14} className="animate-spin" /> : <Power size={14} />}
+                                  </Button>
                                 </div>
-                              )}
+                              </div>
                             </div>
                           ))}
                         </div>
-                      ) : null}
+                      ) : (
+                        <div className="mt-4 rounded-lg border border-dashed border-outline-variant/70 bg-white p-6 text-center text-sm font-semibold text-on-surface-variant">
+                          Add a category to organize menu items.
+                        </div>
+                      )}
                     </section>
-
-                    <form onSubmit={handleCreateItem} className="grid gap-3 rounded-lg border border-outline-variant/30 bg-surface-container-low p-4 lg:grid-cols-2">
-                      <Field label="Category">
-                        <select
-                          value={itemForm.menuCategoryId}
-                          onChange={(event) => setItemForm({ ...itemForm, menuCategoryId: event.target.value })}
-                          className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                          required
-                          disabled={categories.length === 0}
-                        >
-                          {categories.length === 0 ? <option value="">Add a category first</option> : null}
-                          {sortedCategories.map((category) => (
-                            <option key={category.menuCategoryId} value={category.menuCategoryId}>
-                              {category.name}
-                            </option>
-                          ))}
-                        </select>
-                      </Field>
-                      <Field label="Item name">
-                        <Input value={itemForm.name} onChange={(event) => setItemForm({ ...itemForm, name: event.target.value })} required />
-                      </Field>
-                      <Field label="Description">
-                        <Input value={itemForm.description} onChange={(event) => setItemForm({ ...itemForm, description: event.target.value })} />
-                      </Field>
-                      <Field label="Item image URL">
-                        <Input value={itemForm.imageUrl} onChange={(event) => setItemForm({ ...itemForm, imageUrl: event.target.value })} placeholder="https://..." />
-                      </Field>
-                      <Field label="Image alt text">
-                        <Input value={itemForm.imageAltText} onChange={(event) => setItemForm({ ...itemForm, imageAltText: event.target.value })} />
-                      </Field>
-                      <div className="grid gap-3 sm:grid-cols-[1fr_7rem]">
-                        <Field label="Price">
-                          <Input type="number" min="0.01" step="0.01" value={itemForm.price} onChange={(event) => setItemForm({ ...itemForm, price: event.target.value })} required />
-                        </Field>
-                        <Field label="Order">
-                          <Input type="number" min="1" value={itemForm.displayOrder} onChange={(event) => setItemForm({ ...itemForm, displayOrder: event.target.value })} required />
-                        </Field>
-                      </div>
-                      <label className="flex h-10 items-center gap-3 text-sm font-semibold text-on-surface">
-                        <input
-                          type="checkbox"
-                          checked={itemForm.isAvailable}
-                          onChange={(event) => setItemForm({ ...itemForm, isAvailable: event.target.checked })}
-                          className="h-4 w-4 rounded border-outline-variant text-primary"
-                        />
-                        Available
-                      </label>
-                      <Button type="submit" disabled={savingKey === "item" || categories.length === 0} className="justify-self-start">
-                        {savingKey === "item" ? <Loader2 size={17} className="animate-spin" /> : <Plus size={17} />}
-                        Add Item
-                      </Button>
-                    </form>
 
                     {items.length === 0 ? (
                       <div className="rounded-xl border border-dashed border-outline-variant/70 bg-surface-container-low p-8 text-center">
@@ -502,112 +470,38 @@ export default function AdminMenuPage() {
                         <TableBody>
                           {items.map((item) => (
                             <TableRow key={item.menuItemId}>
-                              {editingItemId === item.menuItemId ? (
-                                <TableCell colSpan={5} className="bg-surface-container-low/70">
-                                  <div className="grid gap-3 lg:grid-cols-2">
-                                    <Field label="Category">
-                                      <select
-                                        value={editingItemForm.menuCategoryId}
-                                        onChange={(event) => setEditingItemForm({ ...editingItemForm, menuCategoryId: event.target.value })}
-                                        className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                                        required
-                                      >
-                                        {sortedCategories.map((category) => (
-                                          <option key={category.menuCategoryId} value={category.menuCategoryId}>
-                                            {category.name}
-                                          </option>
-                                        ))}
-                                      </select>
-                                    </Field>
-                                    <Field label="Item name">
-                                      <Input value={editingItemForm.name} onChange={(event) => setEditingItemForm({ ...editingItemForm, name: event.target.value })} required />
-                                    </Field>
-                                    <Field label="Description">
-                                      <Input value={editingItemForm.description} onChange={(event) => setEditingItemForm({ ...editingItemForm, description: event.target.value })} />
-                                    </Field>
-                                    <Field label="Item image URL">
-                                      <Input value={editingItemForm.imageUrl} onChange={(event) => setEditingItemForm({ ...editingItemForm, imageUrl: event.target.value })} placeholder="https://..." />
-                                    </Field>
-                                    <Field label="Image alt text">
-                                      <Input value={editingItemForm.imageAltText} onChange={(event) => setEditingItemForm({ ...editingItemForm, imageAltText: event.target.value })} />
-                                    </Field>
-                                    <div className="grid gap-3 sm:grid-cols-[1fr_7rem]">
-                                      <Field label="Price">
-                                        <Input
-                                          type="number"
-                                          min="0.01"
-                                          step="0.01"
-                                          value={editingItemForm.price}
-                                          onChange={(event) => setEditingItemForm({ ...editingItemForm, price: event.target.value })}
-                                          required
-                                        />
-                                      </Field>
-                                      <Field label="Order">
-                                        <Input
-                                          type="number"
-                                          min="1"
-                                          value={editingItemForm.displayOrder}
-                                          onChange={(event) => setEditingItemForm({ ...editingItemForm, displayOrder: event.target.value })}
-                                          required
-                                        />
-                                      </Field>
-                                    </div>
-                                    <label className="flex h-10 items-center gap-3 text-sm font-semibold text-on-surface">
-                                      <input
-                                        type="checkbox"
-                                        checked={editingItemForm.isAvailable}
-                                        onChange={(event) => setEditingItemForm({ ...editingItemForm, isAvailable: event.target.checked })}
-                                        className="h-4 w-4 rounded border-outline-variant text-primary"
-                                      />
-                                      Available
-                                    </label>
-                                    <div className="flex flex-wrap justify-end gap-2">
-                                      <Button type="button" variant="outline" onClick={handleCancelEditItem}>
-                                        Cancel
-                                      </Button>
-                                      <Button type="button" onClick={() => handleSaveItem(item)} disabled={savingKey === `item-edit-${item.menuItemId}`}>
-                                        {savingKey === `item-edit-${item.menuItemId}` ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
-                                        Save
-                                      </Button>
-                                    </div>
+                              <TableCell>
+                                <div className="flex items-center gap-3">
+                                  <MenuItemImage imageAltText={item.imageAltText} imageUrl={item.imageUrl} name={item.name} />
+                                  <div className="min-w-0">
+                                    <p className="font-bold text-on-surface">{item.name}</p>
+                                    <p className="mt-1 line-clamp-1 text-xs text-on-surface-variant">{item.description || "No description"}</p>
                                   </div>
-                                </TableCell>
-                              ) : (
-                                <>
-                                  <TableCell>
-                                    <div className="flex items-center gap-3">
-                                      <MenuItemImage imageAltText={item.imageAltText} imageUrl={item.imageUrl} name={item.name} />
-                                      <div className="min-w-0">
-                                        <p className="font-bold text-on-surface">{item.name}</p>
-                                        <p className="mt-1 line-clamp-1 text-xs text-on-surface-variant">{item.description || "No description"}</p>
-                                      </div>
-                                    </div>
-                                  </TableCell>
-                                  <TableCell className="text-on-surface-variant">{item.categoryName}</TableCell>
-                                  <TableCell className="font-bold text-primary">{formatMoney(item.price)}</TableCell>
-                                  <TableCell>
-                                    <Badge variant={item.isAvailable ? "success" : "outline"}>{item.isAvailable ? "Available" : "Hidden"}</Badge>
-                                  </TableCell>
-                                  <TableCell>
-                                    <div className="flex justify-end gap-2">
-                                      <Button type="button" variant="outline" size="icon" onClick={() => handleStartEditItem(item)} className="h-8 w-8 border-outline-variant/60" aria-label={`Edit ${item.name}`}>
-                                        <Pencil size={14} />
-                                      </Button>
-                                      <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="icon"
-                                        onClick={() => handleDeactivateItem(item)}
-                                        disabled={savingKey === `item-${item.menuItemId}`}
-                                        className="h-8 w-8 border-destructive/30 text-destructive"
-                                        aria-label={`Turn off ${item.name}`}
-                                      >
-                                        {savingKey === `item-${item.menuItemId}` ? <Loader2 size={14} className="animate-spin" /> : <Power size={14} />}
-                                      </Button>
-                                    </div>
-                                  </TableCell>
-                                </>
-                              )}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-on-surface-variant">{item.categoryName}</TableCell>
+                              <TableCell className="font-bold text-primary">{formatMoney(item.price)}</TableCell>
+                              <TableCell>
+                                <Badge variant={item.isAvailable ? "success" : "outline"}>{item.isAvailable ? "Available" : "Hidden"}</Badge>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex justify-end gap-2">
+                                  <Button type="button" variant="outline" size="icon" onClick={() => handleStartEditItem(item)} className="h-8 w-8 border-outline-variant/60" aria-label={`Edit ${item.name}`}>
+                                    <Pencil size={14} />
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => handleDeactivateItem(item)}
+                                    disabled={savingKey === `item-${item.menuItemId}`}
+                                    className="h-8 w-8 border-destructive/30 text-destructive"
+                                    aria-label={`Turn off ${item.name}`}
+                                  >
+                                    {savingKey === `item-${item.menuItemId}` ? <Loader2 size={14} className="animate-spin" /> : <Power size={14} />}
+                                  </Button>
+                                </div>
+                              </TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
@@ -617,6 +511,206 @@ export default function AdminMenuPage() {
                 )}
               </CardContent>
             </Card>
+
+            {isCategoryDialogOpen ? (
+              <Dialog>
+                <DialogContent className="max-w-lg p-6">
+                  <DialogHeader>
+                    <DialogTitle>{isEditingCategory ? "Edit category" : "Add category"}</DialogTitle>
+                    <DialogDescription>{isEditingCategory ? "Update the category details shown on the menu." : "Create a category before adding menu items."}</DialogDescription>
+                  </DialogHeader>
+                  <form
+                    onSubmit={(event) => {
+                      if (editingCategory) {
+                        event.preventDefault();
+                        void handleSaveCategory(editingCategory);
+                        return;
+                      }
+
+                      void handleCreateCategory(event);
+                    }}
+                    className="mt-5 grid gap-4"
+                  >
+                    <Field label="Category name">
+                      <Input
+                        value={isEditingCategory ? editingCategoryForm.name : categoryForm.name}
+                        onChange={(event) =>
+                          isEditingCategory
+                            ? setEditingCategoryForm({ ...editingCategoryForm, name: event.target.value })
+                            : setCategoryForm({ ...categoryForm, name: event.target.value })
+                        }
+                        required
+                      />
+                    </Field>
+                    <Field label="Order">
+                      <Input
+                        type="number"
+                        min="1"
+                        value={isEditingCategory ? editingCategoryForm.displayOrder : categoryForm.displayOrder}
+                        onChange={(event) =>
+                          isEditingCategory
+                            ? setEditingCategoryForm({ ...editingCategoryForm, displayOrder: event.target.value })
+                            : setCategoryForm({ ...categoryForm, displayOrder: event.target.value })
+                        }
+                        required
+                      />
+                    </Field>
+                    <div className="flex flex-wrap justify-end gap-2">
+                      <Button type="button" variant="outline" onClick={handleCancelEditCategory}>
+                        Cancel
+                      </Button>
+                      <Button type="submit" disabled={savingKey === "category" || (editingCategory ? savingKey === `category-edit-${editingCategory.menuCategoryId}` : false)}>
+                        {savingKey === "category" || (editingCategory ? savingKey === `category-edit-${editingCategory.menuCategoryId}` : false) ? (
+                          <Loader2 size={17} className="animate-spin" />
+                        ) : isEditingCategory ? (
+                          <Save size={17} />
+                        ) : (
+                          <Plus size={17} />
+                        )}
+                        {isEditingCategory ? "Update" : "Add Category"}
+                      </Button>
+                    </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            ) : null}
+
+            {isItemDialogOpen ? (
+              <Dialog>
+                <DialogContent className="max-w-3xl p-6">
+                  <DialogHeader>
+                    <DialogTitle>{isEditingItem ? "Edit item" : "Add item"}</DialogTitle>
+                    <DialogDescription>{isEditingItem ? "Update item details shown to customers." : "Add a customer-facing menu item."}</DialogDescription>
+                  </DialogHeader>
+                  <form
+                    onSubmit={(event) => {
+                      if (editingItem) {
+                        event.preventDefault();
+                        void handleSaveItem(editingItem);
+                        return;
+                      }
+
+                      void handleCreateItem(event);
+                    }}
+                    className="mt-5 grid gap-4 lg:grid-cols-2"
+                  >
+                    <Field label="Category">
+                      <select
+                        value={isEditingItem ? editingItemForm.menuCategoryId : itemForm.menuCategoryId}
+                        onChange={(event) =>
+                          isEditingItem
+                            ? setEditingItemForm({ ...editingItemForm, menuCategoryId: event.target.value })
+                            : setItemForm({ ...itemForm, menuCategoryId: event.target.value })
+                        }
+                        className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                        required
+                        disabled={categories.length === 0}
+                      >
+                        {categories.length === 0 ? <option value="">Add a category first</option> : null}
+                        {sortedCategories.map((category) => (
+                          <option key={category.menuCategoryId} value={category.menuCategoryId}>
+                            {category.name}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="Item name">
+                      <Input
+                        value={isEditingItem ? editingItemForm.name : itemForm.name}
+                        onChange={(event) =>
+                          isEditingItem ? setEditingItemForm({ ...editingItemForm, name: event.target.value }) : setItemForm({ ...itemForm, name: event.target.value })
+                        }
+                        required
+                      />
+                    </Field>
+                    <Field label="Description">
+                      <Input
+                        value={isEditingItem ? editingItemForm.description : itemForm.description}
+                        onChange={(event) =>
+                          isEditingItem
+                            ? setEditingItemForm({ ...editingItemForm, description: event.target.value })
+                            : setItemForm({ ...itemForm, description: event.target.value })
+                        }
+                      />
+                    </Field>
+                    <Field label="Item image URL">
+                      <Input
+                        value={isEditingItem ? editingItemForm.imageUrl : itemForm.imageUrl}
+                        onChange={(event) =>
+                          isEditingItem ? setEditingItemForm({ ...editingItemForm, imageUrl: event.target.value }) : setItemForm({ ...itemForm, imageUrl: event.target.value })
+                        }
+                        placeholder="https://..."
+                      />
+                    </Field>
+                    <Field label="Image alt text">
+                      <Input
+                        value={isEditingItem ? editingItemForm.imageAltText : itemForm.imageAltText}
+                        onChange={(event) =>
+                          isEditingItem
+                            ? setEditingItemForm({ ...editingItemForm, imageAltText: event.target.value })
+                            : setItemForm({ ...itemForm, imageAltText: event.target.value })
+                        }
+                      />
+                    </Field>
+                    <div className="grid gap-3 sm:grid-cols-[1fr_7rem]">
+                      <Field label="Price">
+                        <Input
+                          type="number"
+                          min="0.01"
+                          step="0.01"
+                          value={isEditingItem ? editingItemForm.price : itemForm.price}
+                          onChange={(event) =>
+                            isEditingItem ? setEditingItemForm({ ...editingItemForm, price: event.target.value }) : setItemForm({ ...itemForm, price: event.target.value })
+                          }
+                          required
+                        />
+                      </Field>
+                      <Field label="Order">
+                        <Input
+                          type="number"
+                          min="1"
+                          value={isEditingItem ? editingItemForm.displayOrder : itemForm.displayOrder}
+                          onChange={(event) =>
+                            isEditingItem
+                              ? setEditingItemForm({ ...editingItemForm, displayOrder: event.target.value })
+                              : setItemForm({ ...itemForm, displayOrder: event.target.value })
+                          }
+                          required
+                        />
+                      </Field>
+                    </div>
+                    <label className="flex h-10 items-center gap-3 text-sm font-semibold text-on-surface">
+                      <input
+                        type="checkbox"
+                        checked={isEditingItem ? editingItemForm.isAvailable : itemForm.isAvailable}
+                        onChange={(event) =>
+                          isEditingItem
+                            ? setEditingItemForm({ ...editingItemForm, isAvailable: event.target.checked })
+                            : setItemForm({ ...itemForm, isAvailable: event.target.checked })
+                        }
+                        className="h-4 w-4 rounded border-outline-variant text-primary"
+                      />
+                      Available
+                    </label>
+                    <div className="flex flex-wrap justify-end gap-2 lg:col-span-2">
+                      <Button type="button" variant="outline" onClick={handleCancelEditItem}>
+                        Cancel
+                      </Button>
+                      <Button type="submit" disabled={savingKey === "item" || (editingItem ? savingKey === `item-edit-${editingItem.menuItemId}` : false) || categories.length === 0}>
+                        {savingKey === "item" || (editingItem ? savingKey === `item-edit-${editingItem.menuItemId}` : false) ? (
+                          <Loader2 size={17} className="animate-spin" />
+                        ) : isEditingItem ? (
+                          <Save size={17} />
+                        ) : (
+                          <Plus size={17} />
+                        )}
+                        {isEditingItem ? "Update" : "Add Item"}
+                      </Button>
+                    </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            ) : null}
           </>
         )}
       </div>
