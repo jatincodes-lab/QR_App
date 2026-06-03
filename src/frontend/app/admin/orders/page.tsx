@@ -199,7 +199,7 @@ function OrderCard({ order, savingKey, onMove }: { order: AdminOrder; savingKey:
         </div>
       </div>
       <div className="mt-3 rounded-lg bg-surface-container-low p-3 text-xs leading-5 text-on-surface-variant">
-        {order.items.map((item) => `${item.quantity}x ${item.menuItemName}`).join(", ")}
+        {order.items.map((item) => `${item.quantity}x ${formatAdminOrderItemName(item.menuItemName, item.variantName)}`).join(", ")}
       </div>
       {nextStatus ? (
         <Button type="button" size="sm" className="mt-3" disabled={savingKey === order.orderId} onClick={() => onMove(order, nextStatus)}>
@@ -239,4 +239,8 @@ function EmptyPanel({ text, title }: { text: string; title: string }) {
       <p className="mt-1 text-sm text-on-surface-variant">{text}</p>
     </div>
   );
+}
+
+function formatAdminOrderItemName(name: string, variantName: string | null): string {
+  return variantName ? `${name} - ${variantName}` : name;
 }

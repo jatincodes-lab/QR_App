@@ -54,4 +54,5 @@ public sealed record PublicQrMenuRecord(
     decimal? Price,
     int? ItemDisplayOrder,
     string? ImageUrl = null,
-    string? ImageAltText = null);
+    string? ImageAltText = null,
+    string? VariantsJson = null);

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using QRApp.Application.Common;
 using QRApp.Shared.Results;
 
@@ -5,13 +6,14 @@ namespace QRApp.Application.Menus;
 
 public sealed class MenuItemService(IMenuItemRepository repository) : IMenuItemService
 {
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     public async Task<OperationResult<MenuItemResponse>> CreateAsync(
         Guid tenantId,
         Guid branchId,
         CreateMenuItemRequest request,
         CancellationToken cancellationToken)
     {
-        var errors = Validate(request.MenuCategoryId, request.Name, request.Description, request.Price, request.DisplayOrder, request.ImageUrl, request.ImageAltText);
+        var errors = Validate(request.MenuCategoryId, request.Name, request.Description, request.Price, request.DisplayOrder, request.ImageUrl, request.ImageAltText, request.Variants);
         if (errors.Count > 0)
         {
             return OperationResult<MenuItemResponse>.Failed(errors.ToArray());
@@ -25,7 +27,8 @@ public sealed class MenuItemService(IMenuItemRepository repository) : IMenuItemS
             request.IsAvailable,
             request.DisplayOrder,
             TextRules.CleanOptional(request.ImageUrl),
-            TextRules.CleanOptional(request.ImageAltText));
+            TextRules.CleanOptional(request.ImageAltText),
+            CleanVariants(request.Variants));
 
         var item = await repository.CreateAsync(tenantId, branchId, Guid.NewGuid(), cleaned, cancellationToken);
         return OperationResult<MenuItemResponse>.Success(item);
@@ -38,7 +41,7 @@ public sealed class MenuItemService(IMenuItemRepository repository) : IMenuItemS
         UpdateMenuItemRequest request,
         CancellationToken cancellationToken)
     {
-        var errors = Validate(request.MenuCategoryId, request.Name, request.Description, request.Price, request.DisplayOrder, request.ImageUrl, request.ImageAltText);
+        var errors = Validate(request.MenuCategoryId, request.Name, request.Description, request.Price, request.DisplayOrder, request.ImageUrl, request.ImageAltText, request.Variants);
         if (errors.Count > 0)
         {
             return OperationResult<MenuItemResponse>.Failed(errors.ToArray());
@@ -53,7 +56,8 @@ public sealed class MenuItemService(IMenuItemRepository repository) : IMenuItemS
             request.IsActive,
             request.DisplayOrder,
             TextRules.CleanOptional(request.ImageUrl),
-            TextRules.CleanOptional(request.ImageAltText));
+            TextRules.CleanOptional(request.ImageAltText),
+            CleanVariants(request.Variants));
 
         var item = await repository.UpdateAsync(tenantId, branchId, menuItemId, cleaned, cancellationToken);
         return OperationResult<MenuItemResponse>.Success(item);
@@ -95,7 +99,8 @@ public sealed class MenuItemService(IMenuItemRepository repository) : IMenuItemS
                     row.Price,
                     row.ItemDisplayOrder,
                     row.ImageUrl,
-                    row.ImageAltText)).ToArray()))
+                    row.ImageAltText,
+                    ReadPublicVariants(row.VariantsJson))).ToArray()))
             .ToArray();
 
         return new PublicMenuResponse(first.BranchId, first.BranchName, categories);
@@ -108,7 +113,8 @@ public sealed class MenuItemService(IMenuItemRepository repository) : IMenuItemS
         decimal price,
         int displayOrder,
         string? imageUrl,
-        string? imageAltText)
+        string? imageAltText,
+        IReadOnlyCollection<MenuItemVariantRequest>? variants)
     {
         var errors = new List<ValidationFailure>();
         var cleanName = TextRules.CleanRequired(name);
@@ -149,6 +155,55 @@ public sealed class MenuItemService(IMenuItemRepository repository) : IMenuItemS
             errors.Add(new ValidationFailure(nameof(CreateMenuItemRequest.DisplayOrder), "Display order cannot be negative."));
         }
 
+        if (variants is { Count: > 0 })
+        {
+            if (variants.Count > 20)
+            {
+                errors.Add(new ValidationFailure(nameof(CreateMenuItemRequest.Variants), "A menu item cannot have more than 20 variants."));
+            }
+
+            foreach (var variant in variants)
+            {
+                var cleanVariantName = TextRules.CleanRequired(variant.Name);
+                if (cleanVariantName.Length is < 1 or > 80)
+                {
+                    errors.Add(new ValidationFailure(nameof(CreateMenuItemRequest.Variants), "Variant name must be between 1 and 80 characters."));
+                }
+
+                if (variant.Price is < 0 or > 99999999.99m)
+                {
+                    errors.Add(new ValidationFailure(nameof(CreateMenuItemRequest.Variants), "Variant price must be between 0 and 99999999.99."));
+                }
+
+                if (variant.DisplayOrder < 0)
+                {
+                    errors.Add(new ValidationFailure(nameof(CreateMenuItemRequest.Variants), "Variant display order cannot be negative."));
+                }
+            }
+        }
+
         return errors;
+    }
+
+    private static IReadOnlyCollection<MenuItemVariantRequest> CleanVariants(IReadOnlyCollection<MenuItemVariantRequest>? variants)
+    {
+        return variants?
+            .Select(variant => new MenuItemVariantRequest(
+                variant.MenuItemVariantId,
+                TextRules.CleanRequired(variant.Name),
+                variant.Price,
+                variant.IsAvailable,
+                variant.DisplayOrder))
+            .ToArray() ?? Array.Empty<MenuItemVariantRequest>();
+    }
+
+    private static IReadOnlyCollection<PublicMenuItemVariantResponse> ReadPublicVariants(string? variantsJson)
+    {
+        if (string.IsNullOrWhiteSpace(variantsJson))
+        {
+            return Array.Empty<PublicMenuItemVariantResponse>();
+        }
+
+        return JsonSerializer.Deserialize<PublicMenuItemVariantResponse[]>(variantsJson, JsonOptions) ?? Array.Empty<PublicMenuItemVariantResponse>();
     }
 }

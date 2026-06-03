@@ -136,7 +136,9 @@ public sealed class SqlAdminOrderRepository(ISqlConnectionFactory connectionFact
             reader.GetGuid(reader.GetOrdinal("OrderItemId")),
             reader.GetGuid(reader.GetOrdinal("OrderId")),
             reader.GetGuid(reader.GetOrdinal("MenuItemId")),
+            GetNullableGuid(reader, "MenuItemVariantId"),
             reader.GetString(reader.GetOrdinal("MenuItemName")),
+            GetNullableString(reader, "VariantName"),
             reader.GetDecimal(reader.GetOrdinal("UnitPrice")),
             reader.GetInt32(reader.GetOrdinal("Quantity")),
             reader.GetDecimal(reader.GetOrdinal("LineTotal")));
@@ -146,5 +148,11 @@ public sealed class SqlAdminOrderRepository(ISqlConnectionFactory connectionFact
     {
         var ordinal = reader.GetOrdinal(name);
         return reader.IsDBNull(ordinal) ? null : reader.GetString(ordinal);
+    }
+
+    private static Guid? GetNullableGuid(SqlDataReader reader, string name)
+    {
+        var ordinal = reader.GetOrdinal(name);
+        return reader.IsDBNull(ordinal) ? null : reader.GetGuid(ordinal);
     }
 }

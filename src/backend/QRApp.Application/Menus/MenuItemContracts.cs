@@ -8,7 +8,8 @@ public sealed record CreateMenuItemRequest(
     bool IsAvailable,
     int DisplayOrder,
     string? ImageUrl = null,
-    string? ImageAltText = null);
+    string? ImageAltText = null,
+    IReadOnlyCollection<MenuItemVariantRequest>? Variants = null);
 
 public sealed record UpdateMenuItemRequest(
     Guid MenuCategoryId,
@@ -19,7 +20,24 @@ public sealed record UpdateMenuItemRequest(
     bool IsActive,
     int DisplayOrder,
     string? ImageUrl = null,
-    string? ImageAltText = null);
+    string? ImageAltText = null,
+    IReadOnlyCollection<MenuItemVariantRequest>? Variants = null);
+
+public sealed record MenuItemVariantRequest(
+    Guid? MenuItemVariantId,
+    string Name,
+    decimal Price,
+    bool IsAvailable,
+    int DisplayOrder);
+
+public sealed record MenuItemVariantResponse(
+    Guid MenuItemVariantId,
+    Guid MenuItemId,
+    string Name,
+    decimal Price,
+    bool IsAvailable,
+    bool IsActive,
+    int DisplayOrder);
 
 public sealed record MenuItemResponse(
     Guid MenuItemId,
@@ -36,7 +54,8 @@ public sealed record MenuItemResponse(
     DateTime CreatedAtUtc,
     DateTime? UpdatedAtUtc,
     string? ImageUrl = null,
-    string? ImageAltText = null);
+    string? ImageAltText = null,
+    IReadOnlyCollection<MenuItemVariantResponse>? Variants = null);
 
 public sealed record PublicMenuResponse(
     Guid BranchId,
@@ -59,7 +78,14 @@ public sealed record PublicMenuItemResponse(
     decimal Price,
     int DisplayOrder,
     string? ImageUrl = null,
-    string? ImageAltText = null);
+    string? ImageAltText = null,
+    IReadOnlyCollection<PublicMenuItemVariantResponse>? Variants = null);
+
+public sealed record PublicMenuItemVariantResponse(
+    Guid MenuItemVariantId,
+    string Name,
+    decimal Price,
+    int DisplayOrder);
 
 public sealed record PublicMenuItemRecord(
     Guid BranchId,
@@ -73,7 +99,8 @@ public sealed record PublicMenuItemRecord(
     decimal Price,
     int ItemDisplayOrder,
     string? ImageUrl = null,
-    string? ImageAltText = null);
+    string? ImageAltText = null,
+    string? VariantsJson = null);
 
 public sealed record PublicMenuOfferResponse(
     Guid BranchOfferId,

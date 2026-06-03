@@ -2,6 +2,7 @@
 
 import {
   AlertCircle,
+  ArrowLeft,
   Bell,
   CheckCircle2,
   ChevronRight,
@@ -9,8 +10,10 @@ import {
   Minus,
   Plus,
   ReceiptText,
+  Search,
   Send,
   ShoppingCart,
+  SlidersHorizontal,
   Trash2,
   Utensils,
   X
@@ -30,8 +33,10 @@ import {
 } from "../../../lib/api";
 
 type CartLine = {
+  cartLineId: string;
   item: PublicQrMenuItem;
   categoryName: string;
+  variant: PublicQrMenuItem["variants"][number] | null;
   quantity: number;
 };
 
@@ -89,14 +94,22 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
   const [waiterCallState, setWaiterCallState] = useState<WaiterCallState>({ kind: "idle" });
   const [flyingItem, setFlyingItem] = useState<{ key: number; item: PublicQrMenuItem } | null>(null);
   const [recentItem, setRecentItem] = useState<PublicQrMenuItem | null>(null);
+  const [variantPicker, setVariantPicker] = useState<{ item: PublicQrMenuItem; categoryName: string } | null>(null);
   const [barPulseKey, setBarPulseKey] = useState(0);
 
   const cartLines = Object.values(cart);
   const cartCount = cartLines.reduce((total, line) => total + line.quantity, 0);
-  const cartTotal = cartLines.reduce((total, line) => total + line.item.price * line.quantity, 0);
+  const cartTotal = cartLines.reduce((total, line) => total + getCartLinePrice(line) * line.quantity, 0);
   const canOrder = currentMenu.orderSettings.enableDirectQrOrdering;
   const canCallWaiter = currentMenu.orderSettings.waiterCallEnabled;
   const itemCount = categories.reduce((total, category) => total + category.items.length, 0);
+  const menuItemById = useMemo(() => {
+    const lookup = new Map<string, PublicQrMenuItem>();
+    currentMenu.categories.forEach((category) => {
+      category.items.forEach((item) => lookup.set(item.menuItemId, item));
+    });
+    return lookup;
+  }, [currentMenu.categories]);
 
   useEffect(() => {
     setPreviousOrders(loadStoredOrders(currentMenu.qrToken));
@@ -135,7 +148,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
     return () => window.clearInterval(timer);
   }, [currentMenu.qrToken, previousOrders.length]);
 
-  function addItem(item: PublicQrMenuItem, categoryName: string) {
+  function addItem(item: PublicQrMenuItem, categoryName: string, variant: PublicQrMenuItem["variants"][number] | null = null) {
     if (!canOrder) {
       return;
     }
@@ -143,13 +156,17 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
     setSubmitState({ kind: "idle" });
     setFlyingItem({ key: Date.now(), item });
     setRecentItem(item);
+    setVariantPicker(null);
     setCart((current) => {
-      const existing = current[item.menuItemId];
+      const cartLineId = getCartLineId(item.menuItemId, variant?.menuItemVariantId ?? null);
+      const existing = current[cartLineId];
       return {
         ...current,
-        [item.menuItemId]: {
+        [cartLineId]: {
+          cartLineId,
           item,
           categoryName,
+          variant,
           quantity: existing ? existing.quantity + 1 : 1
         }
       };
@@ -160,19 +177,19 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
     }, 1120);
   }
 
-  function decrementItem(menuItemId: string) {
+  function decrementItem(cartLineId: string) {
     setSubmitState({ kind: "idle" });
     setCart((current) => {
-      const existing = current[menuItemId];
+      const existing = current[cartLineId];
       if (!existing) {
         return current;
       }
 
       if (existing.quantity <= 1) {
         const next = { ...current };
-        delete next[menuItemId];
+        delete next[cartLineId];
         setRecentItem((currentRecent) => {
-          if (currentRecent?.menuItemId !== menuItemId) {
+          if (currentRecent?.menuItemId !== existing.item.menuItemId) {
             return currentRecent;
           }
 
@@ -184,7 +201,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
 
       return {
         ...current,
-        [menuItemId]: {
+        [cartLineId]: {
           ...existing,
           quantity: existing.quantity - 1
         }
@@ -213,6 +230,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
       notes: valueOrNull(notes),
       items: cartLines.map((line) => ({
         menuItemId: line.item.menuItemId,
+        menuItemVariantId: line.variant?.menuItemVariantId ?? null,
         quantity: line.quantity
       }))
     };
@@ -240,6 +258,15 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
     }
 
     setActiveView("menu");
+  }
+
+  function handleHeaderBack() {
+    if (activeView === "menu") {
+      window.history.back();
+      return;
+    }
+
+    returnToMenu();
   }
 
   async function openPreviousOrders() {
@@ -305,11 +332,11 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
 
   return (
     <>
-      <HeaderOrdersButton orderCount={previousOrders.length} onOpen={() => void openPreviousOrders()} />
-      <HeaderCartButton cartCount={cartCount} onOpen={() => setActiveView("cart")} />
+      <QrPageHeader branchName={currentMenu.branchName} tableName={currentMenu.tableName} onBack={handleHeaderBack} />
 
       {activeView === "orders" ? (
         <PreviousOrdersPage
+          menuItemById={menuItemById}
           isRefreshing={isRefreshingOrders}
           orders={previousOrders}
           refreshError={ordersRefreshError}
@@ -318,6 +345,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
         />
       ) : activeView === "cart" ? (
         <CartPage
+          menuItemById={menuItemById}
           cartCount={cartCount}
           cartLines={cartLines}
           cartTotal={cartTotal}
@@ -337,6 +365,20 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
         <>
           {flyingItem ? <FlyingCartItem key={flyingItem.key} item={flyingItem.item} /> : null}
           {!canOrder ? <OrderingUnavailableNotice /> : null}
+
+          <MenuHero
+            cartCount={cartCount}
+            categories={categories}
+            itemCount={itemCount}
+            menu={currentMenu}
+            orderCount={previousOrders.length}
+            search={search}
+            onCartOpen={() => setActiveView("cart")}
+            onCategoryOpen={() => setIsCategoryOpen(true)}
+            onOrdersOpen={() => void openPreviousOrders()}
+            onSearchChange={setSearch}
+          />
+
           {canCallWaiter ? (
             <WaiterCallAction
               note={waiterCallNote}
@@ -351,9 +393,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
             />
           ) : null}
 
-          <MenuHero menu={currentMenu} categories={categories} itemCount={itemCount} search={search} onSearchChange={setSearch} />
-
-          <div className="flex-1 space-y-5 bg-[#f5faf8] px-4 pb-28">
+          <div className="flex-1 space-y-6 bg-[#f8f9fa] px-4 pb-28">
             {itemCount > 0 ? (
               categories.map((category) => (
                 <MenuCategorySection
@@ -362,6 +402,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
                   cart={cart}
                   category={category}
                   onAdd={addItem}
+                  onChooseVariant={(item, categoryName) => setVariantPicker({ item, categoryName })}
                   onDecrement={decrementItem}
                 />
               ))
@@ -381,6 +422,14 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
           ) : null}
 
           <FloatingMenuButton hasCheckoutBar={canOrder && cartCount > 0} onOpen={() => setIsCategoryOpen(true)} />
+          {variantPicker ? (
+            <VariantPickerSheet
+              categoryName={variantPicker.categoryName}
+              item={variantPicker.item}
+              onAdd={(variant) => addItem(variantPicker.item, variantPicker.categoryName, variant)}
+              onClose={() => setVariantPicker(null)}
+            />
+          ) : null}
         </>
       )}
 
@@ -397,6 +446,23 @@ function OrderingUnavailableNotice() {
   );
 }
 
+function QrPageHeader({ branchName, onBack, tableName }: { branchName: string; onBack: () => void; tableName: string }) {
+  return (
+    <header className="sticky top-0 z-30 border-b border-[#e6eeea] bg-white/95 px-4 py-3 backdrop-blur">
+      <div className="grid h-10 grid-cols-[40px_1fr_40px] items-center">
+        <button type="button" className="grid h-10 w-10 place-items-center rounded-full text-[#001c11]" onClick={onBack} aria-label="Back">
+          <ArrowLeft className="h-5 w-5" aria-hidden="true" />
+        </button>
+        <div className="min-w-0 text-center">
+          <h1 className="truncate text-[15px] font-black uppercase tracking-normal text-[#001c11]">{branchName}</h1>
+          <p className="mt-0.5 truncate text-[11px] font-semibold text-[#5a625e]">{tableName}</p>
+        </div>
+        <div aria-hidden="true" />
+      </div>
+    </header>
+  );
+}
+
 function WaiterCallAction({
   note,
   state,
@@ -409,27 +475,28 @@ function WaiterCallAction({
   onSubmit: () => void;
 }) {
   return (
-    <section className="border-b border-line bg-white px-4 py-3">
-      <div className="rounded-lg border border-line bg-surface-bright p-3">
+    <section className="bg-[#f8f9fa] px-4 pb-5">
+      <div className="rounded-2xl border border-[#cfe1d8] bg-white p-4 shadow-sm">
         <div className="flex items-start gap-3">
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary text-on-primary">
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#e7f8ee] text-[#006d36]">
             <Bell className="h-5 w-5" aria-hidden="true" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-extrabold text-ink">Need staff?</p>
+            <p className="text-sm font-extrabold text-ink">Call Waiter</p>
+            <p className="mt-0.5 text-xs font-medium text-on-surface-variant">Staff at your service</p>
             <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto]">
               <input
                 value={note}
                 onChange={(event) => onNoteChange(event.target.value)}
                 maxLength={500}
                 placeholder="Optional note"
-                className="h-10 min-w-0 rounded border border-line bg-white px-3 text-sm outline-none focus:border-primary"
+                className="h-11 min-w-0 rounded-xl border border-[#d9e4df] bg-[#f8f9fa] px-3 text-sm outline-none focus:border-[#006d36]"
               />
               <button
                 type="button"
                 disabled={state.kind === "submitting"}
                 onClick={onSubmit}
-                className="inline-flex h-10 items-center justify-center gap-2 rounded bg-primary px-4 text-sm font-extrabold text-on-primary disabled:opacity-50"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#001c11] px-4 text-sm font-extrabold text-white disabled:opacity-50"
               >
                 <Bell className="h-4 w-4" aria-hidden="true" />
                 {state.kind === "submitting" ? "Calling" : "Call waiter"}
@@ -463,23 +530,37 @@ function MenuEmptyState({ canOrder, search }: { canOrder: boolean; search?: stri
 }
 
 function MenuHero({
+  cartCount,
   categories,
   itemCount,
   menu,
+  orderCount,
+  onCartOpen,
+  onCategoryOpen,
+  onOrdersOpen,
   onSearchChange,
   search
 }: {
+  cartCount: number;
   categories: PublicQrMenuCategory[];
   itemCount: number;
   menu: PublicQrMenu;
+  orderCount: number;
+  onCartOpen: () => void;
+  onCategoryOpen: () => void;
+  onOrdersOpen: () => void;
   onSearchChange: (value: string) => void;
   search: string;
 }) {
   const availableCategories = categories.filter((category) => category.items.length > 0);
-  const featured = availableCategories.map((category) => ({ category, item: category.items[0] })).slice(0, 4);
+  const featured = availableCategories.map((category) => ({ category, item: category.items[0] })).slice(0, 3);
   const offers = (menu.offers ?? []).sort((left, right) => left.displayOrder - right.displayOrder);
   const [activeOfferIndex, setActiveOfferIndex] = useState(0);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const activeOffer = offers[activeOfferIndex] ?? null;
+  const fallbackFeature = featured[0]?.item ?? null;
+  const heroImageUrl = activeOffer?.imageUrl ?? fallbackFeature?.imageUrl ?? null;
+  const heroImageAlt = activeOffer?.imageAltText ?? activeOffer?.title ?? fallbackFeature?.imageAltText ?? fallbackFeature?.name ?? menu.branchName;
 
   useEffect(() => {
     if (offers.length <= 1) {
@@ -510,48 +591,80 @@ function MenuHero({
   }
 
   return (
-    <section className="bg-[#f5faf8] px-4 pb-5 pt-3">
+    <section className="bg-[#f8f9fa] px-4 pb-5 pt-5">
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase tracking-[0.24em] text-[#006d36]">{menu.tableName}</p>
+          <h1 className="mt-1 truncate text-2xl font-black leading-8 text-[#001c11]">{menu.branchName}</h1>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <button type="button" onClick={onOrdersOpen} className="relative grid h-12 w-12 place-items-center rounded-full bg-white text-[#001c11] shadow-sm" aria-label="Open previous orders">
+            <ReceiptText className="h-5 w-5" aria-hidden="true" />
+            {orderCount > 0 ? (
+              <span className="absolute right-1 top-1 grid h-5 min-w-5 place-items-center rounded-full bg-[#83fba5] px-1 text-[10px] font-black text-[#00210c]">{orderCount}</span>
+            ) : null}
+          </button>
+          <button type="button" onClick={onCartOpen} className="relative grid h-12 w-12 place-items-center rounded-full bg-[#001c11] text-white shadow-sm" aria-label="Open cart">
+            <ShoppingCart className="h-5 w-5" aria-hidden="true" />
+            {cartCount > 0 ? (
+              <span className="absolute right-1 top-1 grid h-5 min-w-5 place-items-center rounded-full bg-[#83fba5] px-1 text-[10px] font-black text-[#00210c]">{cartCount}</span>
+            ) : null}
+          </button>
+        </div>
+      </div>
+
+      <div className="mb-5 flex h-16 items-center gap-3 rounded-full border border-[#dce4df] bg-white px-5 shadow-sm">
+        <Search className="h-6 w-6 shrink-0 text-[#6b746f]" aria-hidden="true" />
+        <input
+          value={search}
+          onChange={(event) => onSearchChange(event.target.value)}
+          className="min-w-0 flex-1 bg-transparent text-base font-semibold text-[#191c1d] outline-none placeholder:text-[#a8afab]"
+          placeholder="What are you craving today?"
+          type="search"
+        />
+        {search ? (
+          <button type="button" onClick={() => onSearchChange("")} className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[#6b746f]" aria-label="Clear search">
+            <X className="h-5 w-5" aria-hidden="true" />
+          </button>
+        ) : (
+          <button type="button" onClick={onCategoryOpen} className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[#466155]" aria-label="Open categories">
+            <SlidersHorizontal className="h-5 w-5" aria-hidden="true" />
+          </button>
+        )}
+      </div>
+
       <div
-        className="overflow-hidden rounded-[28px] bg-gradient-to-br from-[#98efe2] via-[#62d8cd] to-[#28b7b1] text-[#102536] shadow-soft-saas"
+        className="relative min-h-[320px] overflow-hidden rounded-[28px] bg-[#0f3224] text-white shadow-soft-saas"
         onTouchStart={(event) => setTouchStartX(event.touches[0]?.clientX ?? null)}
         onTouchEnd={(event) => handleOfferTouchEnd(event.changedTouches[0]?.clientX ?? 0)}
       >
-        <div className="flex transition-transform duration-700 ease-out" style={{ transform: `translateX(-${offers.length > 0 ? activeOfferIndex * 100 : 0}%)` }}>
-          {(offers.length > 0 ? offers : [null]).map((offer) => (
-            <div key={offer?.branchOfferId ?? "default-offer"} className="min-w-full p-5">
-              <div className="flex items-start justify-between gap-4">
-                <div className="max-w-[62%]">
-                  <p className="text-xs font-extrabold uppercase tracking-wide text-[#102536]/60">{menu.tableName}</p>
-                  <h2 className="mt-3 text-[26px] font-black leading-[1.05]">{offer?.title ?? "Order fresh food today"}</h2>
-                  <p className="mt-3 text-sm font-semibold text-[#102536]/70">{offer?.subtitle ?? `${itemCount} dishes available`}</p>
-                  {offer?.discountText ? <div className="mt-4 inline-flex rounded-2xl bg-white/40 px-3 py-2 text-3xl font-black text-[#f5c84c]">{offer.discountText}</div> : null}
-                </div>
-                <div className="relative h-32 flex-1">
-                  <div className="absolute right-0 top-0 grid h-28 w-28 place-items-center rounded-full bg-white/65 shadow-soft-saas">
-                    {offer?.imageUrl ? (
-                      <img src={offer.imageUrl} alt={offer.imageAltText ?? offer.title} className="h-24 w-24 rounded-full object-cover" />
-                    ) : (
-                      <div className="grid h-24 w-24 place-items-center rounded-full bg-gradient-to-br from-orange-100 via-white to-emerald-100">
-                        <Utensils className="h-11 w-11 text-primary" aria-hidden="true" />
-                      </div>
-                    )}
-                  </div>
-                  <span className="absolute bottom-3 left-1 h-5 w-5 rounded-full bg-red-400" />
-                  <span className="absolute bottom-8 right-24 h-4 w-4 rounded-full bg-emerald-500" />
-                  <span className="absolute right-4 top-24 h-3 w-3 rounded-full bg-yellow-300" />
-                </div>
+        {heroImageUrl ? <img src={heroImageUrl} alt={heroImageAlt} className="absolute inset-0 h-full w-full object-cover" /> : <FoodPosterFallback name={menu.branchName} />}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-black/5" />
+        <div className="relative flex min-h-[320px] flex-col justify-end p-6">
+          <div className="mb-auto flex justify-end">
+            {activeOffer?.discountText ? (
+              <div className="rounded-[28px] border border-white/20 bg-white/20 px-5 py-4 text-center shadow-modal backdrop-blur-md">
+                <p className="text-xs font-black uppercase tracking-[0.12em] text-white/75">Promo</p>
+                <p className="mt-1 text-xl font-black">{activeOffer.discountText}</p>
               </div>
-            </div>
-          ))}
+            ) : null}
+          </div>
+          <div>
+            <span className="inline-flex rounded-lg bg-[#00743a] px-3 py-2 text-xs font-black uppercase tracking-wide text-white">
+              {activeOffer ? "Newbie Offer" : "Recommended"}
+            </span>
+            <h2 className="mt-4 max-w-[13rem] text-[40px] font-black leading-[1.08] tracking-normal">{activeOffer?.title ?? fallbackFeature?.name ?? "Explore Menu"}</h2>
+            <p className="mt-3 max-w-[18rem] text-base font-semibold leading-6 text-white/80">{activeOffer?.subtitle ?? `${itemCount} dishes available today`}</p>
+          </div>
         </div>
         {offers.length > 1 ? (
-          <div className="flex justify-center gap-1.5 pb-4">
+          <div className="absolute bottom-5 right-5 flex gap-1.5">
             {offers.map((offer, index) => (
               <button
                 key={offer.branchOfferId}
                 type="button"
                 onClick={() => setActiveOfferIndex(index)}
-                className={`h-1.5 rounded-full transition-all ${index === activeOfferIndex ? "w-6 bg-[#102536]" : "w-1.5 bg-[#102536]/30"}`}
+                className={`h-1.5 rounded-full transition-all ${index === activeOfferIndex ? "w-6 bg-white" : "w-1.5 bg-white/45"}`}
                 aria-label={`Show offer ${index + 1}`}
               />
             ))}
@@ -559,31 +672,13 @@ function MenuHero({
         ) : null}
       </div>
 
-      <div className="mt-4 grid grid-cols-[1fr_48px] gap-3">
-        <div className="flex h-12 items-center gap-3 rounded-2xl bg-white px-4 shadow-sm">
-          <span className="grid h-8 w-8 place-items-center rounded-xl bg-[#1bb7b5] text-white">
-            <ReceiptText className="h-4 w-4" aria-hidden="true" />
-          </span>
-          <input
-            value={search}
-            onChange={(event) => onSearchChange(event.target.value)}
-            className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-on-surface outline-none placeholder:text-on-surface-variant"
-            placeholder="Search menu..."
-            type="search"
-          />
-        </div>
-        <button type="button" className="grid h-12 w-12 place-items-center rounded-2xl bg-white text-on-surface-variant shadow-sm" aria-label="Filter">
-          <Menu className="h-5 w-5" aria-hidden="true" />
-        </button>
-      </div>
-
       <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
         {availableCategories.map((category, index) => (
           <a
             key={category.menuCategoryId}
             href={`#category-${category.menuCategoryId}`}
-            className={`shrink-0 rounded-2xl border px-4 py-2 text-sm font-extrabold ${
-              index === 0 ? "border-[#21bdb8] bg-white text-[#159f9b]" : "border-transparent bg-white text-on-surface"
+            className={`shrink-0 rounded-full border px-5 py-2.5 text-sm font-bold ${
+              index === 0 ? "border-[#66dd8b] bg-[#83fba5] text-[#00210c]" : "border-[#d9e4df] bg-white text-[#414844]"
             }`}
           >
             {category.name}
@@ -592,16 +687,20 @@ function MenuHero({
       </div>
 
       {featured.length > 0 ? (
-        <div className="mt-5">
+        <div className="mt-7">
           <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-base font-black text-on-surface">We Offer</h3>
-            <p className="text-sm font-extrabold text-[#1bb7b5]">View all</p>
+            <h3 className="text-2xl font-black text-[#001c11]">Explore Menu</h3>
+            <button type="button" onClick={onCategoryOpen} className="text-sm font-black text-[#006d36]">Full Gallery</button>
           </div>
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             {featured.map(({ category, item }) => (
-              <a key={category.menuCategoryId} href={`#category-${category.menuCategoryId}`} className="rounded-2xl bg-white p-2 text-center shadow-sm">
-                <FoodThumb imageAltText={item.imageAltText} imageUrl={item.imageUrl} name={item.name} compact />
-                <p className="mt-2 truncate text-[11px] font-bold text-on-surface">{category.name}</p>
+              <a key={category.menuCategoryId} href={`#category-${category.menuCategoryId}`} className="relative min-h-[142px] overflow-hidden rounded-[26px] bg-[#0f3224] p-4 text-white shadow-sm">
+                {item.imageUrl ? <img src={item.imageUrl} alt={item.imageAltText ?? item.name} className="absolute inset-0 h-full w-full object-cover" /> : <FoodPosterFallback name={category.name} />}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                <div className="relative flex h-full min-h-[110px] flex-col justify-end">
+                  <p className="text-lg font-black leading-5">{category.name}</p>
+                  <p className="mt-1 text-sm font-semibold text-white/75">{category.items.length} items</p>
+                </div>
               </a>
             ))}
           </div>
@@ -616,77 +715,88 @@ function MenuCategorySection({
   cart,
   category,
   onAdd,
+  onChooseVariant,
   onDecrement
 }: {
   canOrder: boolean;
   cart: Record<string, CartLine>;
   category: PublicQrMenuCategory;
-  onAdd: (item: PublicQrMenuItem, categoryName: string) => void;
-  onDecrement: (menuItemId: string) => void;
+  onAdd: (item: PublicQrMenuItem, categoryName: string, variant?: PublicQrMenuItem["variants"][number] | null) => void;
+  onChooseVariant: (item: PublicQrMenuItem, categoryName: string) => void;
+  onDecrement: (cartLineId: string) => void;
 }) {
   const items = [...category.items].sort((left, right) => left.displayOrder - right.displayOrder);
 
   return (
     <section id={`category-${category.menuCategoryId}`} className="scroll-mt-28">
       <div className="flex items-center justify-between pt-1">
-        <h2 className="text-lg font-black text-ink">{category.name}</h2>
-        <p className="text-sm font-bold text-[#1bb7b5]">{items.length} items</p>
+        <h2 className="text-2xl font-black text-[#001c11]">{category.name}</h2>
+        <p className="text-sm font-black text-[#006d36]">{items.length} items</p>
       </div>
 
-      <div className="mt-3 grid grid-cols-2 gap-3">
+      <div className="mt-3 grid gap-4">
         {items.map((item) => {
-          const quantity = cart[item.menuItemId]?.quantity ?? 0;
+          const variants = item.variants ?? [];
+          const hasVariants = variants.length > 0;
+          const singleCartLineId = getCartLineId(item.menuItemId, null);
+          const quantity = Object.values(cart)
+            .filter((line) => line.item.menuItemId === item.menuItemId)
+            .reduce((total, line) => total + line.quantity, 0);
+          const singleQuantity = cart[singleCartLineId]?.quantity ?? 0;
+          const displayPrice = hasVariants ? Math.min(...variants.map((variant) => variant.price)) : item.price;
 
           return (
-            <article key={item.menuItemId} className="relative overflow-hidden rounded-[22px] bg-white p-3 shadow-sm">
-              <FoodThumb imageAltText={item.imageAltText} imageUrl={item.imageUrl} name={item.name} />
+            <article key={item.menuItemId} className="grid min-h-[176px] grid-cols-[1fr_8.25rem] gap-4 rounded-xl border border-[#cfd8d3] bg-white p-4 shadow-sm">
+              <div className="flex min-w-0 flex-col">
+                <h3 className="line-clamp-2 break-words text-xl font-black leading-6 text-[#001c11]">{item.name}</h3>
+                <p className="mt-2 line-clamp-3 break-words text-sm font-medium leading-5 text-[#5a625e]">{item.description || "Freshly prepared by the kitchen."}</p>
+                <p className="mt-3 whitespace-nowrap text-lg font-black text-[#006d36]">{hasVariants ? `From ${formatPrice(displayPrice)}` : formatPrice(displayPrice)}</p>
 
-              <div className="mt-3 min-w-0">
-                <h3 className="line-clamp-2 min-h-10 break-words text-sm font-black leading-5 text-ink">{item.name}</h3>
-                {item.description ? (
-                  <p className="mt-1 line-clamp-1 break-words text-[11px] font-medium leading-4 text-on-surface-variant">
-                    {item.description}
-                  </p>
-                ) : null}
-                <p className="mt-2 whitespace-nowrap text-sm font-black text-ink">{formatPrice(item.price)}</p>
-              </div>
-
-              {canOrder ? (
-                quantity > 0 ? (
-                  <div className="mt-3 flex h-9 items-center justify-between overflow-hidden rounded-full border border-[#dcece8] bg-[#f5faf8]">
+                {canOrder ? (
+                  hasVariants ? (
                     <button
                       type="button"
-                      className="grid h-9 w-9 place-items-center text-[#159f9b]"
-                      onClick={() => onDecrement(item.menuItemId)}
-                      aria-label={`Remove one ${item.name}`}
+                      className="mt-auto inline-flex h-10 w-fit items-center justify-center gap-2 rounded-lg bg-[#83fba5] px-4 text-sm font-black uppercase tracking-normal text-[#00210c]"
+                      onClick={() => onChooseVariant(item, category.name)}
+                      aria-label={`Choose variant for ${item.name}`}
                     >
-                      <Minus className="h-4 w-4" aria-hidden="true" />
+                      {quantity > 0 ? `${quantity} Added` : "Choose"}
                     </button>
-                    <span className="grid h-9 w-7 place-items-center text-xs font-extrabold">
-                      {quantity}
-                    </span>
+                  ) : singleQuantity > 0 ? (
+                    <div className="mt-auto flex h-10 w-32 items-center justify-between overflow-hidden rounded-lg border border-[#cfe1d8] bg-[#f8f9fa]">
+                      <button
+                        type="button"
+                        className="grid h-10 w-10 place-items-center text-[#006d36]"
+                        onClick={() => onDecrement(singleCartLineId)}
+                        aria-label={`Remove one ${item.name}`}
+                      >
+                        <Minus className="h-4 w-4" aria-hidden="true" />
+                      </button>
+                      <span className="grid h-10 w-10 place-items-center text-sm font-black text-[#001c11]">{singleQuantity}</span>
+                      <button
+                        type="button"
+                        className="grid h-10 w-10 place-items-center text-[#006d36]"
+                        onClick={() => onAdd(item, category.name, null)}
+                        aria-label={`Add one ${item.name}`}
+                      >
+                        <Plus className="h-4 w-4" aria-hidden="true" />
+                      </button>
+                    </div>
+                  ) : (
                     <button
                       type="button"
-                      className="grid h-9 w-9 place-items-center text-[#159f9b]"
-                      onClick={() => onAdd(item, category.name)}
-                      aria-label={`Add one ${item.name}`}
+                      className="mt-auto inline-flex h-10 w-fit items-center justify-center gap-2 rounded-lg bg-[#83fba5] px-4 text-sm font-black uppercase tracking-normal text-[#00210c]"
+                      onClick={() => onAdd(item, category.name, null)}
+                      aria-label={`Add ${item.name}`}
                     >
                       <Plus className="h-4 w-4" aria-hidden="true" />
+                      Add
                     </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    className="absolute bottom-3 right-3 grid h-9 w-9 place-items-center rounded-full bg-[#e9fbf8] text-[#159f9b]"
-                    onClick={() => onAdd(item, category.name)}
-                    aria-label={`Add ${item.name}`}
-                  >
-                    <Plus className="h-4 w-4" aria-hidden="true" />
-                  </button>
-                )
-              ) : (
-                <span aria-hidden="true" />
-              )}
+                  )
+                ) : null}
+              </div>
+
+              <FoodThumb imageAltText={item.imageAltText} imageUrl={item.imageUrl} name={item.name} />
             </article>
           );
         })}
@@ -723,22 +833,24 @@ function CheckoutBar({
       <div className="mx-auto w-full max-w-md px-4 pb-5">
         <button
           type="button"
-          className="pointer-events-auto flex min-h-16 w-full items-center gap-3 rounded-[22px] bg-primary px-3 py-2 text-on-primary shadow-modal"
+          className="pointer-events-auto flex min-h-16 w-full items-center gap-3 rounded-[24px] bg-[#001c11] px-4 py-3 text-white shadow-modal"
           onClick={onOpen}
         >
-          <span key={pulseKey} className="relative grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-white shadow-sm animate-[pulse_650ms_ease-out_1]">
-            {recentItem ? <FoodThumb imageAltText={recentItem.imageAltText} imageUrl={recentItem.imageUrl} name={recentItem.name} compact /> : <ShoppingCart className="h-5 w-5 text-primary" aria-hidden="true" />}
-            <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-[#f4c542] px-1 text-[11px] font-black leading-none text-primary">
+          <span key={pulseKey} className="relative grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white/10 shadow-sm animate-[pulse_650ms_ease-out_1]">
+            {recentItem ? <FoodThumb imageAltText={recentItem.imageAltText} imageUrl={recentItem.imageUrl} name={recentItem.name} compact /> : <ShoppingCart className="h-5 w-5 text-white" aria-hidden="true" />}
+            <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-[#83fba5] px-1 text-[11px] font-black leading-none text-[#00210c]">
               {cartCount}
             </span>
           </span>
           <span className="min-w-0 flex-1 text-left">
-            <span className="block text-sm font-black">View cart</span>
-            <span className="mt-0.5 block truncate text-xs font-semibold text-white/65">{recentItem?.name ?? `${cartCount} selected items`}</span>
+            <span className="block text-lg font-black">View Cart</span>
+            <span className="mt-0.5 block truncate text-xs font-semibold uppercase tracking-[0.12em] text-white/55">{recentItem?.name ?? `${cartCount} selected items`}</span>
           </span>
-          <span className="flex shrink-0 items-center gap-2 text-sm font-black">
+          <span className="flex shrink-0 items-center gap-3 text-xl font-black">
             {formatPrice(cartTotal)}
-            <ChevronRight className="h-4 w-4" aria-hidden="true" />
+            <span className="grid h-11 w-11 place-items-center rounded-full bg-[#00743a]">
+              <ChevronRight className="h-6 w-6" aria-hidden="true" />
+            </span>
           </span>
         </button>
       </div>
@@ -754,6 +866,7 @@ function CartPage({
   customerWhatsApp,
   notes,
   orderSettings,
+  menuItemById,
   submitState,
   onCustomerNameChange,
   onCustomerWhatsAppChange,
@@ -769,38 +882,35 @@ function CartPage({
   customerWhatsApp: string;
   notes: string;
   orderSettings: PublicQrMenu["orderSettings"];
+  menuItemById: Map<string, PublicQrMenuItem>;
   submitState: SubmitState;
   onCustomerNameChange: (value: string) => void;
   onCustomerWhatsAppChange: (value: string) => void;
-  onDecrement: (menuItemId: string) => void;
+  onDecrement: (cartLineId: string) => void;
   onBackToMenu: () => void;
   onNotesChange: (value: string) => void;
   onSubmit: () => void;
 }) {
   if (submitState.kind === "success") {
-    return <OrderPlacedView order={submitState.order} onBackToMenu={onBackToMenu} />;
+    return <OrderPlacedView menuItemById={menuItemById} order={submitState.order} onBackToMenu={onBackToMenu} />;
   }
 
   return (
-    <section className="flex-1 bg-surface-bright px-4 py-4 pb-8">
-      <div className="mb-4 flex items-center justify-between gap-3">
+    <section className="min-h-dvh flex-1 bg-[#f8f9fa] px-4 py-5 pb-8">
+      <div className="mb-5 flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-extrabold text-ink">Cart</h2>
-          <p className="mt-1 text-sm text-on-surface-variant">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-[#006d36]">
             {cartCount} selected item{cartCount === 1 ? "" : "s"}
           </p>
+          <h1 className="mt-1 text-2xl font-black leading-8 text-[#001c11]">Cart</h1>
         </div>
-        <button
-          type="button"
-          className="rounded-full border border-line bg-white px-4 py-2 text-sm font-bold text-ink"
-          onClick={onBackToMenu}
-        >
+        <button type="button" className="rounded-full border border-[#d9e4df] bg-white px-4 py-2 text-sm font-black text-[#001c11] shadow-sm" onClick={onBackToMenu}>
           Menu
         </button>
       </div>
 
       {submitState.kind === "error" ? (
-        <div className="mb-4 flex items-start gap-3 rounded border border-red-200 bg-red-50 p-3 text-red-900">
+        <div className="mb-4 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-3 text-red-900">
           <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
           <p className="text-sm font-semibold">{submitState.message}</p>
         </div>
@@ -808,20 +918,21 @@ function CartPage({
 
       {cartLines.length > 0 ? (
         <div className="space-y-4">
-          <div className="space-y-2">
+          <div className="space-y-3">
             {cartLines.map((line) => (
-              <div key={line.item.menuItemId} className="grid grid-cols-[1fr_auto] gap-3 rounded-lg border border-line bg-white p-3">
+              <div key={line.cartLineId} className="grid grid-cols-[4.75rem_1fr_auto] gap-3 rounded-2xl border border-[#d9e4df] bg-white p-3 shadow-sm">
+                <FoodThumb imageAltText={line.item.imageAltText} imageUrl={line.item.imageUrl} name={line.item.name} compact />
                 <div className="min-w-0">
-                  <p className="break-words text-sm font-bold text-ink">{line.item.name}</p>
-                  <p className="mt-1 text-xs text-on-surface-variant">{line.categoryName}</p>
-                  <p className="mt-2 text-sm font-extrabold text-gold">{formatPrice(line.item.price)}</p>
+                  <p className="line-clamp-2 break-words text-sm font-black text-[#001c11]">{formatCartItemName(line)}</p>
+                  <p className="mt-1 text-xs font-semibold text-[#5a625e]">{line.categoryName}</p>
+                  <p className="mt-2 text-sm font-black text-[#006d36]">{formatPrice(getCartLinePrice(line))}</p>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-bold text-ink">x{line.quantity}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-black text-[#001c11]">x{line.quantity}</span>
                   <button
                     type="button"
-                    className="grid h-9 w-9 place-items-center rounded-full border border-line text-on-surface-variant"
-                    onClick={() => onDecrement(line.item.menuItemId)}
+                    className="grid h-10 w-10 place-items-center rounded-full border border-[#d9e4df] bg-[#f8f9fa] text-[#414844]"
+                    onClick={() => onDecrement(line.cartLineId)}
                     aria-label={`Remove one ${line.item.name}`}
                   >
                     {line.quantity === 1 ? (
@@ -835,14 +946,14 @@ function CartPage({
             ))}
           </div>
 
-          <div className="rounded-lg border border-line bg-white p-4">
-            <div className="flex items-center justify-between text-sm text-on-surface-variant">
+          <div className="rounded-2xl border border-[#d9e4df] bg-white p-4 shadow-sm">
+            <div className="flex items-center justify-between text-sm text-[#5a625e]">
               <span>Subtotal</span>
-              <span className="font-bold text-ink">{formatPrice(cartTotal)}</span>
+              <span className="font-black text-[#001c11]">{formatPrice(cartTotal)}</span>
             </div>
-            <div className="mt-3 flex items-center justify-between border-t border-line pt-3">
-              <span className="text-base font-extrabold text-ink">Total amount</span>
-              <span className="text-xl font-extrabold text-primary">{formatPrice(cartTotal)}</span>
+            <div className="mt-3 flex items-center justify-between border-t border-[#e6eeea] pt-3">
+              <span className="text-base font-black text-[#001c11]">Total amount</span>
+              <span className="text-xl font-black text-[#006d36]">{formatPrice(cartTotal)}</span>
             </div>
           </div>
 
@@ -852,7 +963,7 @@ function CartPage({
                 Name{orderSettings.requireCustomerName ? " *" : ""}
               </span>
               <input
-                className="mt-1 h-11 w-full rounded border border-line bg-white px-3 text-sm outline-none focus:border-primary"
+                className="mt-1 h-12 w-full rounded-xl border border-[#d9e4df] bg-white px-3 text-sm outline-none focus:border-[#006d36]"
                 value={customerName}
                 onChange={(event) => onCustomerNameChange(event.target.value)}
                 maxLength={120}
@@ -863,7 +974,7 @@ function CartPage({
                 WhatsApp{orderSettings.requireCustomerWhatsApp ? " *" : ""}
               </span>
               <input
-                className="mt-1 h-11 w-full rounded border border-line bg-white px-3 text-sm outline-none focus:border-primary"
+                className="mt-1 h-12 w-full rounded-xl border border-[#d9e4df] bg-white px-3 text-sm outline-none focus:border-[#006d36]"
                 value={customerWhatsApp}
                 onChange={(event) => onCustomerWhatsAppChange(event.target.value)}
                 inputMode="tel"
@@ -875,7 +986,7 @@ function CartPage({
           <label className="block">
             <span className="text-xs font-bold uppercase tracking-[0.12em] text-on-surface-variant">Notes</span>
             <textarea
-              className="mt-1 min-h-20 w-full resize-none rounded border border-line bg-white px-3 py-2 text-sm outline-none focus:border-primary"
+              className="mt-1 min-h-24 w-full resize-none rounded-xl border border-[#d9e4df] bg-white px-3 py-2 text-sm outline-none focus:border-[#006d36]"
               value={notes}
               onChange={(event) => onNotesChange(event.target.value)}
               maxLength={500}
@@ -884,7 +995,7 @@ function CartPage({
 
           <button
             type="button"
-            className="inline-flex h-12 w-full items-center justify-center gap-2 rounded bg-primary px-4 text-sm font-extrabold text-on-primary disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#001c11] px-4 text-sm font-black text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
             disabled={cartCount === 0 || submitState.kind === "submitting"}
             onClick={onSubmit}
           >
@@ -893,13 +1004,13 @@ function CartPage({
           </button>
           </div>
         ) : (
-          <div className="flex min-h-[280px] flex-col items-center justify-center rounded-lg border border-line bg-white p-5 text-center">
+          <div className="flex min-h-[280px] flex-col items-center justify-center rounded-2xl border border-[#d9e4df] bg-white p-5 text-center shadow-sm">
             <ReceiptText className="h-4 w-4 shrink-0" aria-hidden="true" />
             <p className="mt-3 text-sm font-bold text-ink">Your cart is empty</p>
             <p className="mt-1 text-sm text-on-surface-variant">Add menu items to see total amount and place an order.</p>
             <button
               type="button"
-              className="mt-4 rounded bg-primary px-4 py-2 text-sm font-bold text-on-primary"
+              className="mt-4 rounded-xl bg-[#001c11] px-4 py-2 text-sm font-bold text-white"
               onClick={onBackToMenu}
             >
               Back to menu
@@ -910,57 +1021,70 @@ function CartPage({
   );
 }
 
-function OrderPlacedView({ order, onBackToMenu }: { order: PublicQrOrder; onBackToMenu: () => void }) {
+function OrderPlacedView({
+  menuItemById,
+  order,
+  onBackToMenu
+}: {
+  menuItemById: Map<string, PublicQrMenuItem>;
+  order: PublicQrOrder;
+  onBackToMenu: () => void;
+}) {
   return (
-    <section className="flex-1 bg-surface-bright px-4 py-5 pb-8">
-      <div className="rounded-lg border border-line bg-white p-5 text-center">
+    <section className="min-h-dvh flex-1 bg-[#f8f9fa] px-4 py-5 pb-8">
+      <div className="mb-5">
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-[#006d36]">Order confirmed</p>
+        <h1 className="mt-1 text-2xl font-black leading-8 text-[#001c11]">Order placed</h1>
+      </div>
+      <div className="rounded-2xl border border-[#d9e4df] bg-white p-5 text-center shadow-sm">
         <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-emerald-50 text-emerald-700">
           <CheckCircle2 className="h-8 w-8" aria-hidden="true" />
         </div>
-        <h2 className="mt-4 text-2xl font-extrabold text-ink">Order placed</h2>
+        <h2 className="mt-4 text-2xl font-black text-[#001c11]">Order placed</h2>
         <p className="mt-2 text-sm leading-6 text-on-surface-variant">Staff received your order.</p>
 
         <div className="mt-5 grid grid-cols-2 gap-3 text-left">
-          <div className="rounded border border-line bg-surface-bright p-3">
+          <div className="rounded-xl border border-[#d9e4df] bg-[#f8f9fa] p-3">
             <p className="text-xs font-bold uppercase text-on-surface-variant">Order</p>
-            <p className="mt-1 text-lg font-extrabold text-ink">#{shortOrderCode(order.orderId)}</p>
+            <p className="mt-1 text-lg font-black text-[#001c11]">#{shortOrderCode(order.orderId)}</p>
           </div>
-          <div className="rounded border border-line bg-surface-bright p-3">
+          <div className="rounded-xl border border-[#d9e4df] bg-[#f8f9fa] p-3">
             <p className="text-xs font-bold uppercase text-on-surface-variant">Status</p>
-            <p className="mt-1 text-lg font-extrabold text-primary">{order.orderStatusCode}</p>
+            <p className="mt-1 text-lg font-black text-[#006d36]">{order.orderStatusCode}</p>
           </div>
         </div>
       </div>
 
-      <div className="mt-4 rounded-lg border border-line bg-white p-4">
-        <div className="flex items-center justify-between border-b border-line pb-3">
-          <h3 className="text-sm font-extrabold uppercase text-ink">Items</h3>
+      <div className="mt-4 rounded-2xl border border-[#d9e4df] bg-white p-4 shadow-sm">
+        <div className="flex items-center justify-between border-b border-[#e6eeea] pb-3">
+          <h3 className="text-sm font-black uppercase text-[#001c11]">Items</h3>
           <p className="text-sm font-bold text-on-surface-variant">{order.items.length} item{order.items.length === 1 ? "" : "s"}</p>
         </div>
 
-        <div className="divide-y divide-line">
+        <div className="divide-y divide-[#e6eeea]">
           {order.items.map((item) => (
-            <div key={item.orderItemId} className="grid grid-cols-[1fr_auto] gap-3 py-3">
+            <div key={item.orderItemId} className="grid grid-cols-[3.5rem_1fr_auto] gap-3 py-3">
+              <OrderItemThumb item={menuItemById.get(item.menuItemId)} name={item.menuItemName} />
               <div className="min-w-0">
-                <p className="break-words text-sm font-bold text-ink">{item.menuItemName}</p>
+                <p className="break-words text-sm font-black text-[#001c11]">{formatOrderItemName(item.menuItemName, item.variantName)}</p>
                 <p className="mt-1 text-xs text-on-surface-variant">
                   {item.quantity} x {formatPrice(item.unitPrice)}
                 </p>
               </div>
-              <p className="text-sm font-extrabold text-ink">{formatPrice(item.lineTotal)}</p>
+              <p className="text-sm font-black text-[#001c11]">{formatPrice(item.lineTotal)}</p>
             </div>
           ))}
         </div>
 
-        <div className="mt-2 flex items-center justify-between border-t border-line pt-3">
-          <span className="text-base font-extrabold text-ink">Total amount</span>
-          <span className="text-xl font-extrabold text-primary">{formatPrice(order.totalAmount)}</span>
+        <div className="mt-2 flex items-center justify-between border-t border-[#e6eeea] pt-3">
+          <span className="text-base font-black text-[#001c11]">Total amount</span>
+          <span className="text-xl font-black text-[#006d36]">{formatPrice(order.totalAmount)}</span>
         </div>
       </div>
 
       <button
         type="button"
-        className="mt-4 h-12 w-full rounded bg-primary px-4 text-sm font-extrabold text-on-primary"
+        className="mt-4 h-14 w-full rounded-2xl bg-[#001c11] px-4 text-sm font-black text-white"
         onClick={onBackToMenu}
       >
         Back to menu
@@ -969,125 +1093,80 @@ function OrderPlacedView({ order, onBackToMenu }: { order: PublicQrOrder; onBack
   );
 }
 
-function HeaderCartButton({ cartCount, onOpen }: { cartCount: number; onOpen: () => void }) {
-  return (
-    <div className="fixed inset-x-0 top-0 z-30 pointer-events-none">
-      <div className="mx-auto flex h-[65px] w-full max-w-md items-center justify-end px-4">
-        <button
-          type="button"
-          className="pointer-events-auto relative grid h-10 w-10 place-items-center text-ink"
-          onClick={onOpen}
-          aria-label="Open cart"
-        >
-          <ShoppingCart className="h-5 w-5" aria-hidden="true" />
-          {cartCount > 0 ? (
-            <span className="absolute right-0 top-1 grid h-4 min-w-4 place-items-center rounded-full bg-secondary-container px-1 text-[10px] font-extrabold leading-none text-on-secondary-container">
-              {cartCount}
-            </span>
-          ) : null}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function HeaderOrdersButton({ orderCount, onOpen }: { orderCount: number; onOpen: () => void }) {
-  return (
-    <div className="fixed inset-x-0 top-0 z-30 pointer-events-none">
-      <div className="mx-auto flex h-[65px] w-full max-w-md items-center justify-start px-4">
-        <button
-          type="button"
-          className="pointer-events-auto relative grid h-10 w-10 place-items-center text-ink"
-          onClick={onOpen}
-          aria-label="Open previous orders"
-        >
-          <ReceiptText className="h-5 w-5" aria-hidden="true" />
-          {orderCount > 0 ? (
-            <span className="absolute right-0 top-1 grid h-4 min-w-4 place-items-center rounded-full bg-secondary-container px-1 text-[10px] font-extrabold leading-none text-on-secondary-container">
-              {orderCount}
-            </span>
-          ) : null}
-        </button>
-      </div>
-    </div>
-  );
-}
-
 function PreviousOrdersPage({
   isRefreshing,
+  menuItemById,
   orders,
   refreshError,
   onBackToMenu,
   onRefresh
 }: {
   isRefreshing: boolean;
+  menuItemById: Map<string, PublicQrMenuItem>;
   orders: PublicQrOrder[];
   refreshError: string | null;
   onBackToMenu: () => void;
   onRefresh: () => void;
 }) {
   return (
-    <section className="flex-1 bg-surface-bright px-4 py-4 pb-8">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-extrabold text-ink">Previous orders</h2>
-          <p className="mt-1 text-sm text-on-surface-variant">
+    <section className="min-h-dvh flex-1 bg-[#f8f9fa] px-4 py-5 pb-8">
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-[#006d36]">
             {orders.length} order{orders.length === 1 ? "" : "s"} on this device
           </p>
+          <h1 className="mt-1 truncate text-2xl font-black leading-8 text-[#001c11]">Previous orders</h1>
         </div>
         <div className="flex shrink-0 gap-2">
           <button
             type="button"
-            className="rounded-full border border-line bg-white px-4 py-2 text-sm font-bold text-ink disabled:opacity-50"
+            className="rounded-full border border-[#d9e4df] bg-white px-4 py-2 text-sm font-black text-[#001c11] shadow-sm disabled:opacity-50"
             onClick={onRefresh}
             disabled={isRefreshing}
           >
             {isRefreshing ? "Updating" : "Refresh"}
           </button>
-          <button
-            type="button"
-            className="rounded-full border border-line bg-white px-4 py-2 text-sm font-bold text-ink"
-            onClick={onBackToMenu}
-          >
+          <button type="button" className="rounded-full border border-[#d9e4df] bg-white px-4 py-2 text-sm font-black text-[#001c11] shadow-sm" onClick={onBackToMenu}>
             Menu
           </button>
         </div>
       </div>
 
       {refreshError ? (
-        <div className="mb-4 flex items-start gap-3 rounded border border-amber-200 bg-amber-50 p-3 text-amber-950">
+        <div className="mb-4 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-amber-950">
           <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
           <p className="text-sm font-semibold">{refreshError}</p>
         </div>
       ) : null}
 
       {orders.length > 0 ? (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {orders.map((order) => (
-            <article key={order.orderId} className="rounded-lg border border-line bg-white p-4">
+            <article key={order.orderId} className="rounded-2xl border border-[#d9e4df] bg-white p-4 shadow-sm">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-xs font-bold uppercase text-on-surface-variant">Order</p>
-                  <h3 className="mt-1 text-lg font-extrabold text-ink">#{shortOrderCode(order.orderId)}</h3>
+                  <h3 className="mt-1 text-lg font-black text-[#001c11]">#{shortOrderCode(order.orderId)}</h3>
                   <p className="mt-1 text-xs text-on-surface-variant">{formatOrderDate(order.createdAtUtc)}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-xs font-bold uppercase text-on-surface-variant">Status</p>
-                  <p className="mt-1 text-sm font-extrabold text-primary">{order.orderStatusCode}</p>
-                  <p className="mt-2 text-base font-extrabold text-ink">{formatPrice(order.totalAmount)}</p>
+                  <p className="mt-1 text-sm font-black text-[#006d36]">{order.orderStatusCode}</p>
+                  <p className="mt-2 text-base font-black text-[#001c11]">{formatPrice(order.totalAmount)}</p>
                 </div>
               </div>
 
-              <div className="mt-3 divide-y divide-line border-t border-line">
+              <div className="mt-3 divide-y divide-[#e6eeea] border-t border-[#e6eeea]">
                 {order.items.map((item) => (
-                  <div key={item.orderItemId} className="grid grid-cols-[1fr_auto] gap-3 py-2">
+                  <div key={item.orderItemId} className="grid grid-cols-[3.5rem_1fr_auto] gap-3 py-3">
+                    <OrderItemThumb item={menuItemById.get(item.menuItemId)} name={item.menuItemName} />
                     <div className="min-w-0">
-                      <p className="break-words text-sm font-bold text-ink">{item.menuItemName}</p>
+                      <p className="break-words text-sm font-black text-[#001c11]">{formatOrderItemName(item.menuItemName, item.variantName)}</p>
                       <p className="mt-1 text-xs text-on-surface-variant">
                         {item.quantity} x {formatPrice(item.unitPrice)}
                       </p>
                     </div>
-                    <p className="text-sm font-extrabold text-ink">{formatPrice(item.lineTotal)}</p>
+                    <p className="text-sm font-black text-[#001c11]">{formatPrice(item.lineTotal)}</p>
                   </div>
                 ))}
               </div>
@@ -1095,15 +1174,15 @@ function PreviousOrdersPage({
           ))}
         </div>
       ) : (
-        <div className="flex min-h-[280px] flex-col items-center justify-center rounded-lg border border-line bg-white p-5 text-center">
+        <div className="flex min-h-[280px] flex-col items-center justify-center rounded-2xl border border-[#d9e4df] bg-white p-5 text-center shadow-sm">
           <ReceiptText className="h-8 w-8 text-gold" aria-hidden="true" />
-          <p className="mt-3 text-sm font-bold text-ink">No previous orders yet</p>
+          <p className="mt-3 text-sm font-black text-[#001c11]">No previous orders yet</p>
           <p className="mt-1 text-sm leading-6 text-on-surface-variant">
             Orders placed from this browser will appear here.
           </p>
           <button
             type="button"
-            className="mt-4 rounded bg-primary px-4 py-2 text-sm font-bold text-on-primary"
+            className="mt-4 rounded-xl bg-[#001c11] px-4 py-2 text-sm font-bold text-white"
             onClick={onBackToMenu}
           >
             Back to menu
@@ -1128,6 +1207,52 @@ function FloatingMenuButton({ hasCheckoutBar, onOpen }: { hasCheckoutBar: boolea
         </button>
       </div>
     </div>
+  );
+}
+
+function VariantPickerSheet({
+  categoryName,
+  item,
+  onAdd,
+  onClose
+}: {
+  categoryName: string;
+  item: PublicQrMenuItem;
+  onAdd: (variant: PublicQrMenuItem["variants"][number]) => void;
+  onClose: () => void;
+}) {
+  return (
+    <aside className="fixed inset-x-0 bottom-0 z-40">
+      <div className="mx-auto w-full max-w-md px-4 pb-5">
+        <div className="rounded-[24px] border border-[#d9e4df] bg-white p-4 shadow-modal">
+          <div className="flex items-start gap-3">
+            <FoodThumb imageAltText={item.imageAltText} imageUrl={item.imageUrl} name={item.name} compact />
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-[#006d36]">{categoryName}</p>
+              <h3 className="mt-1 text-lg font-black text-[#001c11]">{item.name}</h3>
+              <p className="mt-1 text-sm font-medium text-[#5a625e]">Choose a portion or size.</p>
+            </div>
+            <button type="button" className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-[#d9e4df] text-[#414844]" onClick={onClose} aria-label="Close variants">
+              <X className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
+
+          <div className="mt-4 grid gap-2">
+            {(item.variants ?? []).map((variant) => (
+              <button
+                key={variant.menuItemVariantId}
+                type="button"
+                className="flex min-h-14 items-center justify-between gap-3 rounded-2xl border border-[#d9e4df] bg-[#f8f9fa] px-4 py-3 text-left"
+                onClick={() => onAdd(variant)}
+              >
+                <span className="font-black text-[#001c11]">{variant.name}</span>
+                <span className="font-black text-[#006d36]">{formatPrice(variant.price)}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </aside>
   );
 }
 
@@ -1182,7 +1307,7 @@ function FoodThumb({ compact = false, imageAltText, imageUrl, name }: { compact?
     .join("");
 
   return (
-    <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-100 via-white to-emerald-100 ${compact ? "mx-auto h-12 w-12" : "h-28 w-full"}`}>
+    <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-100 via-white to-emerald-100 ${compact ? "mx-auto h-12 w-12" : "h-full min-h-[144px] w-full"}`}>
       {imageUrl ? (
         <img src={imageUrl} alt={imageAltText ?? name} className="absolute inset-0 h-full w-full object-cover" />
       ) : (
@@ -1201,9 +1326,64 @@ function FoodThumb({ compact = false, imageAltText, imageUrl, name }: { compact?
   );
 }
 
+function OrderItemThumb({ item, name }: { item?: PublicQrMenuItem; name: string }) {
+  const initials = name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
+
+  return (
+    <div className="relative grid h-14 w-14 place-items-center overflow-hidden rounded-2xl bg-gradient-to-br from-[#dff5e8] via-white to-[#759b89] text-[#001c11]">
+      {item?.imageUrl ? (
+        <img src={item.imageUrl} alt={item.imageAltText ?? name} className="absolute inset-0 h-full w-full object-cover" />
+      ) : (
+        <>
+          <div className="absolute -right-4 -top-4 h-10 w-10 rounded-full bg-[#83fba5]/40" />
+          <div className="absolute -bottom-3 left-1 h-8 w-8 rounded-full bg-[#006d36]/15" />
+          <span className="relative text-sm font-black">{initials || <Utensils className="h-4 w-4" aria-hidden="true" />}</span>
+        </>
+      )}
+      <span className="sr-only">{name}</span>
+    </div>
+  );
+}
+
+function FoodPosterFallback({ name }: { name: string }) {
+  return (
+    <div className="absolute inset-0 overflow-hidden bg-gradient-to-br from-[#dff5e8] via-[#759b89] to-[#001c11]">
+      <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/20" />
+      <div className="absolute bottom-8 left-8 h-32 w-32 rounded-full bg-[#83fba5]/30" />
+      <div className="absolute inset-0 grid place-items-center">
+        <div className="grid h-28 w-28 place-items-center rounded-full bg-white/80 text-[#001c11] shadow-modal">
+          <Utensils className="h-12 w-12" aria-hidden="true" />
+        </div>
+      </div>
+      <span className="sr-only">{name}</span>
+    </div>
+  );
+}
+
 function valueOrNull(value: string): string | null {
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function getCartLineId(menuItemId: string, menuItemVariantId: string | null): string {
+  return `${menuItemId}:${menuItemVariantId ?? "base"}`;
+}
+
+function getCartLinePrice(line: CartLine): number {
+  return line.variant?.price ?? line.item.price;
+}
+
+function formatCartItemName(line: CartLine): string {
+  return line.variant ? `${line.item.name} - ${line.variant.name}` : line.item.name;
+}
+
+function formatOrderItemName(itemName: string, variantName: string | null): string {
+  return variantName ? `${itemName} - ${variantName}` : itemName;
 }
 
 function filterCategories(categories: PublicQrMenuCategory[], search: string): PublicQrMenuCategory[] {

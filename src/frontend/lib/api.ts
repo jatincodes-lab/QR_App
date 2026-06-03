@@ -79,6 +79,17 @@ export type MenuItem = {
   updatedAtUtc: string | null;
   imageUrl: string | null;
   imageAltText: string | null;
+  variants: MenuItemVariant[];
+};
+
+export type MenuItemVariant = {
+  menuItemVariantId: string;
+  menuItemId: string;
+  name: string;
+  price: number;
+  isAvailable: boolean;
+  isActive: boolean;
+  displayOrder: number;
 };
 
 export type BranchOffer = {
@@ -137,6 +148,14 @@ export type PublicQrMenuItem = {
   displayOrder: number;
   imageUrl: string | null;
   imageAltText: string | null;
+  variants: PublicQrMenuItemVariant[];
+};
+
+export type PublicQrMenuItemVariant = {
+  menuItemVariantId: string;
+  name: string;
+  price: number;
+  displayOrder: number;
 };
 
 export type PublicQrMenuOffer = {
@@ -169,6 +188,7 @@ export type PublicQrMenu = {
 
 export type CreatePublicQrOrderItemInput = {
   menuItemId: string;
+  menuItemVariantId: string | null;
   quantity: number;
 };
 
@@ -183,7 +203,9 @@ export type PublicQrOrderItem = {
   orderItemId: string;
   orderId: string;
   menuItemId: string;
+  menuItemVariantId: string | null;
   menuItemName: string;
+  variantName: string | null;
   unitPrice: number;
   quantity: number;
   lineTotal: number;
@@ -209,7 +231,9 @@ export type AdminOrderItem = {
   orderItemId: string;
   orderId: string;
   menuItemId: string;
+  menuItemVariantId: string | null;
   menuItemName: string;
+  variantName: string | null;
   unitPrice: number;
   quantity: number;
   lineTotal: number;
@@ -297,6 +321,15 @@ export type CreateMenuItemInput = {
   displayOrder: number;
   imageUrl: string | null;
   imageAltText: string | null;
+  variants: MenuItemVariantInput[];
+};
+
+export type MenuItemVariantInput = {
+  menuItemVariantId: string | null;
+  name: string;
+  price: number;
+  isAvailable: boolean;
+  displayOrder: number;
 };
 
 export type UpdateMenuItemInput = CreateMenuItemInput & {

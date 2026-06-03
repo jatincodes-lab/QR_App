@@ -4,7 +4,9 @@ public sealed record AdminOrderItemResponse(
     Guid OrderItemId,
     Guid OrderId,
     Guid MenuItemId,
+    Guid? MenuItemVariantId,
     string MenuItemName,
+    string? VariantName,
     decimal UnitPrice,
     int Quantity,
     decimal LineTotal);

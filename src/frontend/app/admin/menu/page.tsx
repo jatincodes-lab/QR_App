@@ -34,6 +34,15 @@ type ItemForm = {
   price: string;
   displayOrder: string;
   isAvailable: boolean;
+  variants: ItemVariantForm[];
+};
+
+type ItemVariantForm = {
+  menuItemVariantId: string | null;
+  name: string;
+  price: string;
+  displayOrder: string;
+  isAvailable: boolean;
 };
 
 type CategoryForm = {
@@ -49,7 +58,8 @@ const EmptyItemForm: ItemForm = {
   imageAltText: "",
   price: "",
   displayOrder: "1",
-  isAvailable: true
+  isAvailable: true,
+  variants: []
 };
 
 const EmptyCategoryForm: CategoryForm = {
@@ -168,11 +178,12 @@ export default function AdminMenuPage() {
         menuCategoryId: itemForm.menuCategoryId,
         name: itemForm.name.trim(),
         description: optional(itemForm.description),
-        price: Number(itemForm.price),
+        price: getItemFormPrice(itemForm),
         isAvailable: itemForm.isAvailable,
         displayOrder: toPositiveNumber(itemForm.displayOrder),
         imageUrl: optional(itemForm.imageUrl),
-        imageAltText: optional(itemForm.imageAltText)
+        imageAltText: optional(itemForm.imageAltText),
+        variants: toVariantInput(itemForm.variants)
       });
 
       setItems((current) => [...current, item]);
@@ -281,7 +292,14 @@ export default function AdminMenuPage() {
       imageAltText: item.imageAltText ?? "",
       price: String(item.price),
       displayOrder: String(item.displayOrder),
-      isAvailable: item.isAvailable
+      isAvailable: item.isAvailable,
+      variants: (item.variants ?? []).map((variant) => ({
+        menuItemVariantId: variant.menuItemVariantId,
+        name: variant.name,
+        price: String(variant.price),
+        displayOrder: String(variant.displayOrder),
+        isAvailable: variant.isAvailable
+      }))
     });
     setIsItemDialogOpen(true);
   }
@@ -302,12 +320,13 @@ export default function AdminMenuPage() {
         menuCategoryId: editingItemForm.menuCategoryId,
         name: editingItemForm.name.trim(),
         description: optional(editingItemForm.description),
-        price: Number(editingItemForm.price),
+        price: getItemFormPrice(editingItemForm),
         isAvailable: editingItemForm.isAvailable,
         isActive: item.isActive,
         displayOrder: toPositiveNumber(editingItemForm.displayOrder),
         imageUrl: optional(editingItemForm.imageUrl),
-        imageAltText: optional(editingItemForm.imageAltText)
+        imageAltText: optional(editingItemForm.imageAltText),
+        variants: toVariantInput(editingItemForm.variants)
       });
 
       setItems((current) => current.map((currentItem) => (currentItem.menuItemId === updated.menuItemId ? updated : currentItem)));
@@ -339,6 +358,9 @@ export default function AdminMenuPage() {
   const editingItem = editingItemId ? items.find((item) => item.menuItemId === editingItemId) ?? null : null;
   const isEditingCategory = Boolean(editingCategory);
   const isEditingItem = Boolean(editingItem);
+  const activeItemForm = isEditingItem ? editingItemForm : itemForm;
+  const activeItemHasVariants = activeItemForm.variants.length > 0;
+  const activeItemDerivedPrice = activeItemHasVariants ? getItemFormPrice(activeItemForm) : null;
 
   return (
     <AdminShell
@@ -653,17 +675,21 @@ export default function AdminMenuPage() {
                       />
                     </Field>
                     <div className="grid gap-3 sm:grid-cols-[1fr_7rem]">
-                      <Field label="Price">
+                      <Field label={activeItemHasVariants ? "Base price" : "Price"}>
                         <Input
                           type="number"
-                          min="0.01"
+                          min="0"
                           step="0.01"
-                          value={isEditingItem ? editingItemForm.price : itemForm.price}
+                          value={activeItemHasVariants ? formatFormPrice(activeItemDerivedPrice ?? 0) : activeItemForm.price}
                           onChange={(event) =>
                             isEditingItem ? setEditingItemForm({ ...editingItemForm, price: event.target.value }) : setItemForm({ ...itemForm, price: event.target.value })
                           }
-                          required
+                          required={!activeItemHasVariants}
+                          disabled={activeItemHasVariants}
                         />
+                        {activeItemHasVariants ? (
+                          <p className="text-xs font-semibold text-on-surface-variant">Auto set from the lowest variant price.</p>
+                        ) : null}
                       </Field>
                       <Field label="Order">
                         <Input
@@ -692,6 +718,10 @@ export default function AdminMenuPage() {
                       />
                       Available
                     </label>
+                    <ItemVariantsEditor
+                      form={isEditingItem ? editingItemForm : itemForm}
+                      onChange={(nextForm) => (isEditingItem ? setEditingItemForm(nextForm) : setItemForm(nextForm))}
+                    />
                     <div className="flex flex-wrap justify-end gap-2 lg:col-span-2">
                       <Button type="button" variant="outline" onClick={handleCancelEditItem}>
                         Cancel
@@ -727,6 +757,89 @@ function Field({ children, label }: { children: ReactNode; label: string }) {
   );
 }
 
+function ItemVariantsEditor({ form, onChange }: { form: ItemForm; onChange: (form: ItemForm) => void }) {
+  function updateVariant(index: number, patch: Partial<ItemVariantForm>) {
+    onChange({
+      ...form,
+      variants: form.variants.map((variant, currentIndex) => (currentIndex === index ? { ...variant, ...patch } : variant))
+    });
+  }
+
+  function addVariant() {
+    onChange({
+      ...form,
+      variants: [
+        ...form.variants,
+        {
+          menuItemVariantId: null,
+          name: "",
+          price: "",
+          displayOrder: String(form.variants.length + 1),
+          isAvailable: true
+        }
+      ]
+    });
+  }
+
+  function removeVariant(index: number) {
+    onChange({
+      ...form,
+      variants: form.variants.filter((_, currentIndex) => currentIndex !== index)
+    });
+  }
+
+  return (
+    <section className="grid gap-3 rounded-lg border border-outline-variant/40 bg-surface-container-low p-3 lg:col-span-2">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-extrabold text-on-surface">Portions / sizes</p>
+          <p className="mt-1 text-xs text-on-surface-variant">Use for Half, Full, Quarter, Regular, 300ml, Large, and similar options.</p>
+        </div>
+        <Button type="button" size="sm" variant="outline" onClick={addVariant}>
+          <Plus size={14} />
+          Add Variant
+        </Button>
+      </div>
+
+      {form.variants.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-outline-variant/60 bg-white px-3 py-3 text-sm font-semibold text-on-surface-variant">
+          No variants. Customers will order this item at the single price above.
+        </p>
+      ) : (
+        <div className="grid gap-3">
+          {form.variants.map((variant, index) => (
+            <div key={`${variant.menuItemVariantId ?? "new"}-${index}`} className="grid gap-3 rounded-lg border border-outline-variant/30 bg-white p-3 lg:grid-cols-[1fr_8rem_6rem_auto]">
+              <Field label="Variant">
+                <Input value={variant.name} onChange={(event) => updateVariant(index, { name: event.target.value })} placeholder="Half, Full, 300ml" required />
+              </Field>
+              <Field label="Price">
+                <Input type="number" min="0" step="0.01" value={variant.price} onChange={(event) => updateVariant(index, { price: event.target.value })} required />
+              </Field>
+              <Field label="Order">
+                <Input type="number" min="1" value={variant.displayOrder} onChange={(event) => updateVariant(index, { displayOrder: event.target.value })} required />
+              </Field>
+              <div className="flex items-end gap-2">
+                <label className="flex h-10 items-center gap-2 text-sm font-semibold text-on-surface">
+                  <input
+                    type="checkbox"
+                    checked={variant.isAvailable}
+                    onChange={(event) => updateVariant(index, { isAvailable: event.target.checked })}
+                    className="h-4 w-4 rounded border-outline-variant text-primary"
+                  />
+                  Available
+                </label>
+                <Button type="button" size="sm" variant="outline" onClick={() => removeVariant(index)} className="border-destructive/30 text-destructive">
+                  Remove
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function MenuItemImage({ imageAltText, imageUrl, name }: { imageAltText: string | null; imageUrl: string | null; name: string }) {
   const initials = name
     .split(/\s+/)
@@ -747,7 +860,36 @@ function toPositiveNumber(value: string): number {
   return Number.isFinite(number) && number > 0 ? number : 1;
 }
 
+function getItemFormPrice(form: ItemForm): number {
+  const variantPrices = form.variants
+    .map((variant) => Number(variant.price))
+    .filter((price) => Number.isFinite(price) && price >= 0);
+
+  if (variantPrices.length > 0) {
+    return Math.min(...variantPrices);
+  }
+
+  const price = Number(form.price);
+  return Number.isFinite(price) && price >= 0 ? price : 0;
+}
+
+function formatFormPrice(price: number): string {
+  return Number.isInteger(price) ? String(price) : price.toFixed(2);
+}
+
 function optional(value: string): string | null {
   const cleaned = value.trim();
   return cleaned.length === 0 ? null : cleaned;
+}
+
+function toVariantInput(variants: ItemVariantForm[]) {
+  return variants
+    .filter((variant) => variant.name.trim().length > 0)
+    .map((variant) => ({
+      menuItemVariantId: variant.menuItemVariantId,
+      name: variant.name.trim(),
+      price: Number(variant.price),
+      isAvailable: variant.isAvailable,
+      displayOrder: toPositiveNumber(variant.displayOrder)
+    }));
 }

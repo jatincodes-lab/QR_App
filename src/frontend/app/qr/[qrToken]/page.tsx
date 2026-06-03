@@ -1,4 +1,4 @@
-import { AlertCircle, ArrowLeft, Clock3, ReceiptText } from "lucide-react";
+import { AlertCircle, Clock3, ReceiptText } from "lucide-react";
 import { ApiError, getPublicQrMenu, type PublicQrMenu } from "../../../lib/api";
 import { QrMenuClient } from "./qr-menu-client";
 
@@ -43,23 +43,6 @@ export default async function QrMenuPage({ params }: QrMenuPageProps) {
   return (
     <main className="min-h-screen bg-surface text-ink">
       <section className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-white shadow-soft-saas">
-        <header className="sticky top-0 z-20 border-b border-line bg-white px-4 py-3">
-          <div className="grid h-10 grid-cols-[40px_1fr_40px] items-center">
-            <button
-              type="button"
-              className="grid h-10 w-10 place-items-center text-ink"
-              aria-label="Back"
-            >
-              <ArrowLeft className="h-5 w-5" aria-hidden="true" />
-            </button>
-            <div className="min-w-0 text-center">
-              <h1 className="truncate text-[15px] font-extrabold uppercase tracking-normal">{menu.branchName}</h1>
-              <p className="mt-0.5 truncate text-[11px] font-semibold text-on-surface-variant">{menu.tableName}</p>
-            </div>
-            <div aria-hidden="true" />
-          </div>
-        </header>
-
         {hasItems ? (
           <QrMenuClient menu={menu} />
         ) : (

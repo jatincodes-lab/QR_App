@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.Text.Json;
 using QRApp.Application.Common;
 using QRApp.Application.Menus;
 using QRApp.Shared.Results;
@@ -7,6 +8,7 @@ namespace QRApp.Application.Tables;
 
 public sealed class BranchTableService(IBranchTableRepository repository, IBranchOfferRepository offerRepository) : IBranchTableService
 {
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private const int MinQrTokenLength = 8;
     private const int MaxQrTokenLength = 80;
 
@@ -117,7 +119,8 @@ public sealed class BranchTableService(IBranchTableRepository repository, IBranc
                     row.Price!.Value,
                     row.ItemDisplayOrder!.Value,
                     row.ImageUrl,
-                    row.ImageAltText)).ToArray()))
+                    row.ImageAltText,
+                    ReadPublicVariants(row.VariantsJson))).ToArray()))
             .ToArray();
 
         return new PublicQrMenuResponse(
@@ -158,5 +161,15 @@ public sealed class BranchTableService(IBranchTableRepository repository, IBranc
     private static string CreateQrToken()
     {
         return Convert.ToHexString(RandomNumberGenerator.GetBytes(24)).ToLowerInvariant();
+    }
+
+    private static IReadOnlyCollection<PublicMenuItemVariantResponse> ReadPublicVariants(string? variantsJson)
+    {
+        if (string.IsNullOrWhiteSpace(variantsJson))
+        {
+            return Array.Empty<PublicMenuItemVariantResponse>();
+        }
+
+        return JsonSerializer.Deserialize<PublicMenuItemVariantResponse[]>(variantsJson, JsonOptions) ?? Array.Empty<PublicMenuItemVariantResponse>();
     }
 }

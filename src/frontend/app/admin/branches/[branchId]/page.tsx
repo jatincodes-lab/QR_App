@@ -511,7 +511,8 @@ export default function AdminBranchDetailPage() {
         isAvailable: itemForm.isAvailable,
         displayOrder: toPositiveNumber(itemForm.displayOrder),
         imageUrl: optional(itemForm.imageUrl),
-        imageAltText: optional(itemForm.imageAltText)
+        imageAltText: optional(itemForm.imageAltText),
+        variants: []
       });
       setItems((current) => [...current, item]);
       setItemForm((current) => ({
@@ -688,7 +689,8 @@ export default function AdminBranchDetailPage() {
         isActive: item.isActive,
         displayOrder: toPositiveNumber(editingItemForm.displayOrder),
         imageUrl: optional(editingItemForm.imageUrl),
-        imageAltText: optional(editingItemForm.imageAltText)
+        imageAltText: optional(editingItemForm.imageAltText),
+        variants: []
       });
       setItems((current) => current.map((currentItem) => (currentItem.menuItemId === updated.menuItemId ? updated : currentItem)));
       setEditingItemId(null);
@@ -1944,7 +1946,7 @@ function KitchenOrderCard({
       <div className="mt-3 divide-y divide-outline-variant/30 border-t border-outline-variant/30">
         {order.items.map((item) => (
           <div key={item.orderItemId} className="flex items-center justify-between gap-3 py-2 text-sm">
-            <span className="min-w-0 break-words font-semibold text-on-surface">{item.menuItemName}</span>
+            <span className="min-w-0 break-words font-semibold text-on-surface">{formatAdminOrderItemName(item.menuItemName, item.variantName)}</span>
             <span className="shrink-0 text-on-surface-variant">x{item.quantity}</span>
           </div>
         ))}
@@ -2677,6 +2679,10 @@ function formatClockTime(value: Date): string {
 
 function formatMoney(value: number): string {
   return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(value);
+}
+
+function formatAdminOrderItemName(name: string, variantName: string | null): string {
+  return variantName ? `${name} - ${variantName}` : name;
 }
 
 function parseUtcDate(value: string): Date {

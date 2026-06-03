@@ -1,4 +1,5 @@
 using System.Data;
+using System.Text.Json;
 using Microsoft.Data.SqlClient;
 using QRApp.Application.Menus;
 using QRApp.Infrastructure.Data;
@@ -7,6 +8,7 @@ namespace QRApp.Infrastructure.Menus;
 
 public sealed class SqlMenuItemRepository(ISqlConnectionFactory connectionFactory) : IMenuItemRepository
 {
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     public async Task<MenuItemResponse> CreateAsync(
         Guid tenantId,
         Guid branchId,
@@ -59,6 +61,7 @@ public sealed class SqlMenuItemRepository(ISqlConnectionFactory connectionFactor
         command.AddInt("@DisplayOrder", request.DisplayOrder);
         command.AddString("@ImageUrl", request.ImageUrl, 1000);
         command.AddString("@ImageAltText", request.ImageAltText, 200);
+        command.AddString("@VariantsJson", JsonSerializer.Serialize(request.Variants ?? Array.Empty<MenuItemVariantRequest>(), JsonOptions), -1);
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         if (await reader.ReadAsync(cancellationToken))
@@ -141,7 +144,8 @@ public sealed class SqlMenuItemRepository(ISqlConnectionFactory connectionFactor
                 reader.GetDecimal(reader.GetOrdinal("Price")),
                 reader.GetInt32(reader.GetOrdinal("ItemDisplayOrder")),
                 reader.IsDBNull(reader.GetOrdinal("ImageUrl")) ? null : reader.GetString(reader.GetOrdinal("ImageUrl")),
-                reader.IsDBNull(reader.GetOrdinal("ImageAltText")) ? null : reader.GetString(reader.GetOrdinal("ImageAltText"))));
+                reader.IsDBNull(reader.GetOrdinal("ImageAltText")) ? null : reader.GetString(reader.GetOrdinal("ImageAltText")),
+                reader.IsDBNull(reader.GetOrdinal("VariantsJson")) ? null : reader.GetString(reader.GetOrdinal("VariantsJson"))));
         }
 
         return items;
@@ -159,6 +163,7 @@ public sealed class SqlMenuItemRepository(ISqlConnectionFactory connectionFactor
         command.AddInt("@DisplayOrder", request.DisplayOrder);
         command.AddString("@ImageUrl", request.ImageUrl, 1000);
         command.AddString("@ImageAltText", request.ImageAltText, 200);
+        command.AddString("@VariantsJson", JsonSerializer.Serialize(request.Variants ?? Array.Empty<MenuItemVariantRequest>(), JsonOptions), -1);
     }
 
     private static MenuItemResponse ReadItem(SqlDataReader reader)
@@ -178,6 +183,18 @@ public sealed class SqlMenuItemRepository(ISqlConnectionFactory connectionFactor
             reader.GetDateTime(reader.GetOrdinal("CreatedAtUtc")),
             reader.IsDBNull(reader.GetOrdinal("UpdatedAtUtc")) ? null : reader.GetDateTime(reader.GetOrdinal("UpdatedAtUtc")),
             reader.IsDBNull(reader.GetOrdinal("ImageUrl")) ? null : reader.GetString(reader.GetOrdinal("ImageUrl")),
-            reader.IsDBNull(reader.GetOrdinal("ImageAltText")) ? null : reader.GetString(reader.GetOrdinal("ImageAltText")));
+            reader.IsDBNull(reader.GetOrdinal("ImageAltText")) ? null : reader.GetString(reader.GetOrdinal("ImageAltText")),
+            ReadVariants(reader));
+    }
+
+    private static IReadOnlyCollection<MenuItemVariantResponse> ReadVariants(SqlDataReader reader)
+    {
+        var ordinal = reader.GetOrdinal("VariantsJson");
+        if (reader.IsDBNull(ordinal))
+        {
+            return Array.Empty<MenuItemVariantResponse>();
+        }
+
+        return JsonSerializer.Deserialize<MenuItemVariantResponse[]>(reader.GetString(ordinal), JsonOptions) ?? Array.Empty<MenuItemVariantResponse>();
     }
 }

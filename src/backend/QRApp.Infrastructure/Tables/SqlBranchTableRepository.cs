@@ -197,7 +197,8 @@ public sealed class SqlBranchTableRepository(ISqlConnectionFactory connectionFac
             GetNullableDecimal(reader, "Price"),
             GetNullableInt(reader, "ItemDisplayOrder"),
             GetNullableString(reader, "ImageUrl"),
-            GetNullableString(reader, "ImageAltText"));
+            GetNullableString(reader, "ImageAltText"),
+            GetNullableString(reader, "VariantsJson"));
     }
 
     private static Guid? GetNullableGuid(SqlDataReader reader, string name)
