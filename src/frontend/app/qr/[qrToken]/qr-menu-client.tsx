@@ -25,7 +25,6 @@ import {
   createWaiterCall,
   createPublicQrOrder,
   getPublicQrMenu,
-  getPublicQrOrder,
   lookupPublicCustomer,
   type CreatePublicQrOrderInput,
   type PublicCustomerLookup,
@@ -46,7 +45,7 @@ type CartLine = {
   quantity: number;
 };
 
-type ActiveView = "menu" | "cart" | "orders";
+type ActiveView = "menu" | "cart" | "customerOrders";
 
 type SubmitState =
   | {
@@ -97,9 +96,6 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
   const [notes, setNotes] = useState("");
   const [activeView, setActiveView] = useState<ActiveView>("menu");
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
-  const [previousOrders, setPreviousOrders] = useState<PublicQrOrder[]>([]);
-  const [isRefreshingOrders, setIsRefreshingOrders] = useState(false);
-  const [ordersRefreshError, setOrdersRefreshError] = useState<string | null>(null);
   const [submitState, setSubmitState] = useState<SubmitState>({ kind: "idle" });
   const [waiterCallNote, setWaiterCallNote] = useState("");
   const [waiterCallState, setWaiterCallState] = useState<WaiterCallState>({ kind: "idle" });
@@ -130,10 +126,6 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
   }, [currentMenu.categories]);
 
   useEffect(() => {
-    setPreviousOrders(loadStoredOrders(currentMenu.qrToken));
-  }, [currentMenu.qrToken]);
-
-  useEffect(() => {
     const timer = window.setInterval(async () => {
       if (document.hidden) {
         return;
@@ -149,22 +141,6 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
 
     return () => window.clearInterval(timer);
   }, [currentMenu.qrToken]);
-
-  useEffect(() => {
-    if (previousOrders.length === 0) {
-      return;
-    }
-
-    const timer = window.setInterval(() => {
-      if (document.hidden) {
-        return;
-      }
-
-      void refreshPreviousOrders({ silent: true });
-    }, 15_000);
-
-    return () => window.clearInterval(timer);
-  }, [currentMenu.qrToken, previousOrders.length]);
 
   useEffect(() => {
     const cleanWhatsApp = customerWhatsApp.trim();
@@ -292,16 +268,11 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
   }
 
   function addRecentOrderToCart(order: PublicCustomerRecentOrder) {
-    let addedCount = 0;
-
-    setSubmitState({ kind: "idle" });
-    setCart((current) => {
-      const next = { ...current };
-
-      order.items.forEach((recentItem) => {
+    const reorderLines = order.items
+      .map((recentItem) => {
         const item = menuItemById.get(recentItem.menuItemId);
         if (!item) {
-          return;
+          return null;
         }
 
         const variant = recentItem.menuItemVariantId
@@ -309,30 +280,42 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
           : null;
 
         if (recentItem.menuItemVariantId && !variant) {
-          return;
+          return null;
         }
 
-        const cartLineId = getCartLineId(item.menuItemId, variant?.menuItemVariantId ?? null);
-        const existing = next[cartLineId];
-        addedCount += recentItem.quantity;
-        next[cartLineId] = {
-          cartLineId,
+        return {
+          cartLineId: getCartLineId(item.menuItemId, variant?.menuItemVariantId ?? null),
           item,
           categoryName: categoryNameByMenuItemId.get(item.menuItemId) ?? "Menu",
           variant,
-          itemNote: existing?.itemNote ?? recentItem.itemNote ?? "",
-          quantity: (existing?.quantity ?? 0) + recentItem.quantity
+          itemNote: recentItem.itemNote ?? "",
+          quantity: recentItem.quantity
+        };
+      })
+      .filter((line): line is CartLine => line !== null);
+
+    setSubmitState({ kind: "idle" });
+    if (reorderLines.length === 0) {
+      setSubmitState({ kind: "error", message: "Items from this order are not available right now." });
+      return;
+    }
+
+    setCart((current) => {
+      const next = { ...current };
+
+      reorderLines.forEach((line) => {
+        const existing = next[line.cartLineId];
+        next[line.cartLineId] = {
+          ...line,
+          itemNote: existing?.itemNote ?? line.itemNote,
+          quantity: (existing?.quantity ?? 0) + line.quantity
         };
       });
 
       return next;
     });
 
-    if (addedCount === 0) {
-      setSubmitState({ kind: "error", message: "Items from this order are not available right now." });
-    } else {
-      setBarPulseKey((current) => current + 1);
-    }
+    setBarPulseKey((current) => current + 1);
   }
 
   async function submitOrder() {
@@ -374,7 +357,6 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
       setCart({});
       setNotes("");
       setMarketingConsent(false);
-      setPreviousOrders(saveStoredOrder(currentMenu.qrToken, order));
       setActiveView("cart");
       setSubmitState({ kind: "success", order });
     } catch (caught) {
@@ -399,46 +381,12 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
       return;
     }
 
-    returnToMenu();
-  }
-
-  async function openPreviousOrders() {
-    setActiveView("orders");
-    await refreshPreviousOrders();
-  }
-
-  async function refreshPreviousOrders(options: { silent?: boolean } = {}) {
-    const storedOrders = loadStoredOrders(currentMenu.qrToken);
-    if (storedOrders.length === 0) {
-      setPreviousOrders([]);
-      setOrdersRefreshError(null);
+    if (activeView === "customerOrders") {
+      setActiveView("cart");
       return;
     }
 
-    if (!options.silent) {
-      setIsRefreshingOrders(true);
-    }
-
-    try {
-      let hasRefreshFailure = false;
-      const refreshed = await Promise.all(
-        storedOrders.map(async (order) => {
-          try {
-            return await getPublicQrOrder(currentMenu.qrToken, order.orderId);
-          } catch {
-            hasRefreshFailure = true;
-            return order;
-          }
-        })
-      );
-
-      setPreviousOrders(saveStoredOrders(currentMenu.qrToken, refreshed));
-      setOrdersRefreshError(hasRefreshFailure ? "Some order statuses could not be refreshed. Check that the backend database is up to date." : null);
-    } finally {
-      if (!options.silent) {
-        setIsRefreshingOrders(false);
-      }
-    }
+    returnToMenu();
   }
 
   async function submitWaiterCall() {
@@ -473,14 +421,15 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
     <>
       <QrPageHeader branchName={currentMenu.branchName} tableName={currentMenu.tableName} onBack={handleHeaderBack} />
 
-      {activeView === "orders" ? (
-        <PreviousOrdersPage
+      {activeView === "customerOrders" ? (
+        <CustomerPreviousOrdersPage
+          customer={recognizedCustomer}
           menuItemById={menuItemById}
-          isRefreshing={isRefreshingOrders}
-          orders={previousOrders}
-          refreshError={ordersRefreshError}
-          onBackToMenu={() => setActiveView("menu")}
-          onRefresh={() => void refreshPreviousOrders()}
+          onBackToCart={() => setActiveView("cart")}
+          onReorder={(order) => {
+            addRecentOrderToCart(order);
+            setActiveView("cart");
+          }}
         />
       ) : activeView === "cart" ? (
         <CartPage
@@ -504,8 +453,8 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
           onItemNoteChange={updateCartLineNote}
           onMarketingConsentChange={setMarketingConsent}
           onBackToMenu={returnToMenu}
+          onCheckPreviousOrders={() => setActiveView("customerOrders")}
           onNotesChange={setNotes}
-          onReorder={addRecentOrderToCart}
           onSubmit={submitOrder}
         />
       ) : (
@@ -518,11 +467,9 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
             categories={categories}
             itemCount={itemCount}
             menu={currentMenu}
-            orderCount={previousOrders.length}
             search={search}
             onCartOpen={() => setActiveView("cart")}
             onCategoryOpen={() => setIsCategoryOpen(true)}
-            onOrdersOpen={() => void openPreviousOrders()}
             onSearchChange={setSearch}
           />
 
@@ -681,10 +628,8 @@ function MenuHero({
   categories,
   itemCount,
   menu,
-  orderCount,
   onCartOpen,
   onCategoryOpen,
-  onOrdersOpen,
   onSearchChange,
   search
 }: {
@@ -692,10 +637,8 @@ function MenuHero({
   categories: PublicQrMenuCategory[];
   itemCount: number;
   menu: PublicQrMenu;
-  orderCount: number;
   onCartOpen: () => void;
   onCategoryOpen: () => void;
-  onOrdersOpen: () => void;
   onSearchChange: (value: string) => void;
   search: string;
 }) {
@@ -745,12 +688,6 @@ function MenuHero({
           <h1 className="mt-1 truncate text-2xl font-black leading-8 text-[#001c11]">{menu.branchName}</h1>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <button type="button" onClick={onOrdersOpen} className="relative grid h-12 w-12 place-items-center rounded-full bg-white text-[#001c11] shadow-sm" aria-label="Open previous orders">
-            <ReceiptText className="h-5 w-5" aria-hidden="true" />
-            {orderCount > 0 ? (
-              <span className="absolute right-1 top-1 grid h-5 min-w-5 place-items-center rounded-full bg-[#83fba5] px-1 text-[10px] font-black text-[#00210c]">{orderCount}</span>
-            ) : null}
-          </button>
           <button type="button" onClick={onCartOpen} className="relative grid h-12 w-12 place-items-center rounded-full bg-[#001c11] text-white shadow-sm" aria-label="Open cart">
             <ShoppingCart className="h-5 w-5" aria-hidden="true" />
             {cartCount > 0 ? (
@@ -1026,8 +963,8 @@ function CartPage({
   onItemNoteChange,
   onMarketingConsentChange,
   onBackToMenu,
+  onCheckPreviousOrders,
   onNotesChange,
-  onReorder,
   onSubmit
 }: {
   cartCount: number;
@@ -1050,8 +987,8 @@ function CartPage({
   onItemNoteChange: (cartLineId: string, value: string) => void;
   onMarketingConsentChange: (value: boolean) => void;
   onBackToMenu: () => void;
+  onCheckPreviousOrders: () => void;
   onNotesChange: (value: string) => void;
-  onReorder: (order: PublicCustomerRecentOrder) => void;
   onSubmit: () => void;
 }) {
   if (submitState.kind === "success") {
@@ -1132,7 +1069,38 @@ function CartPage({
             </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          {isCustomerLookupLoading ? (
+            <div className="rounded-2xl border border-[#d9e4df] bg-white p-4 text-sm font-semibold text-[#5a625e] shadow-sm">
+              Checking customer history...
+            </div>
+          ) : recognizedCustomer ? (
+            <div className="rounded-2xl border border-[#bfe6cf] bg-[#f1fbf5] p-4 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs font-black uppercase tracking-[0.12em] text-[#006d36]">Welcome back</p>
+                  <h2 className="mt-1 truncate text-lg font-black text-[#001c11]">
+                    {recognizedCustomer.name ?? "Customer"}
+                  </h2>
+                  <p className="mt-1 text-xs font-semibold text-[#5a625e]">
+                    {recognizedCustomer.totalOrderCount} previous order{recognizedCustomer.totalOrderCount === 1 ? "" : "s"}
+                  </p>
+                </div>
+                {recognizedCustomer.marketingConsent ? (
+                  <span className="shrink-0 rounded-full bg-white px-3 py-1 text-xs font-black text-[#006d36]">Opted in</span>
+                ) : null}
+              </div>
+
+              <button
+                type="button"
+                className="mt-3 inline-flex h-11 w-full items-center justify-center rounded-xl bg-[#001c11] px-4 text-sm font-black text-white"
+                onClick={onCheckPreviousOrders}
+              >
+                Check previous orders
+              </button>
+            </div>
+          ) : null}
+
+          <div className="grid gap-3">
             <label className="block">
               <span className="text-xs font-bold uppercase tracking-[0.12em] text-on-surface-variant">
                 Name{orderSettings.requireCustomerName ? " *" : ""}
@@ -1156,48 +1124,6 @@ function CartPage({
               }}
             />
           </div>
-
-          {isCustomerLookupLoading ? (
-            <div className="rounded-2xl border border-[#d9e4df] bg-white p-4 text-sm font-semibold text-[#5a625e] shadow-sm">
-              Checking customer history...
-            </div>
-          ) : recognizedCustomer ? (
-            <div className="rounded-2xl border border-[#bfe6cf] bg-[#f1fbf5] p-4 shadow-sm">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-xs font-black uppercase tracking-[0.12em] text-[#006d36]">Welcome back</p>
-                  <h2 className="mt-1 truncate text-lg font-black text-[#001c11]">
-                    {recognizedCustomer.name ?? "Customer"}
-                  </h2>
-                  <p className="mt-1 text-xs font-semibold text-[#5a625e]">
-                    {recognizedCustomer.totalOrderCount} previous order{recognizedCustomer.totalOrderCount === 1 ? "" : "s"}
-                  </p>
-                </div>
-                {recognizedCustomer.marketingConsent ? (
-                  <span className="shrink-0 rounded-full bg-white px-3 py-1 text-xs font-black text-[#006d36]">Opted in</span>
-                ) : null}
-              </div>
-
-              {recognizedCustomer.recentOrders.length > 0 ? (
-                <div className="mt-3 grid gap-2">
-                  {recognizedCustomer.recentOrders.map((order) => (
-                    <button
-                      key={order.orderId}
-                      type="button"
-                      className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-[#cfe1d8] bg-white px-3 py-2 text-left text-sm font-bold text-[#001c11]"
-                      onClick={() => onReorder(order)}
-                    >
-                      <span className="min-w-0">
-                        <span className="block truncate">{order.items.length} item{order.items.length === 1 ? "" : "s"} from last visit</span>
-                        <span className="mt-0.5 block text-xs font-semibold text-[#5a625e]">{formatOrderDate(order.createdAtUtc)}</span>
-                      </span>
-                      <span className="shrink-0 text-[#006d36]">Reorder</span>
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-          ) : null}
 
           <label className="block">
             <span className="text-xs font-bold uppercase tracking-[0.12em] text-on-surface-variant">Notes</span>
@@ -1322,49 +1248,44 @@ function OrderPlacedView({
   );
 }
 
-function PreviousOrdersPage({
-  isRefreshing,
+function CustomerPreviousOrdersPage({
+  customer,
   menuItemById,
-  orders,
-  refreshError,
-  onBackToMenu,
-  onRefresh
+  onBackToCart,
+  onReorder
 }: {
-  isRefreshing: boolean;
+  customer: PublicCustomerLookup | null;
   menuItemById: Map<string, PublicQrMenuItem>;
-  orders: PublicQrOrder[];
-  refreshError: string | null;
-  onBackToMenu: () => void;
-  onRefresh: () => void;
+  onBackToCart: () => void;
+  onReorder: (order: PublicCustomerRecentOrder) => void;
 }) {
+  const orders = customer?.recentOrders ?? [];
+
   return (
     <section className="min-h-dvh flex-1 bg-[#f8f9fa] px-4 py-5 pb-8">
       <div className="mb-5 flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-[#006d36]">
-            {orders.length} order{orders.length === 1 ? "" : "s"} on this device
+            {orders.length} previous order{orders.length === 1 ? "" : "s"}
           </p>
-          <h1 className="mt-1 truncate text-2xl font-black leading-8 text-[#001c11]">Previous orders</h1>
+          <h1 className="mt-1 truncate text-2xl font-black leading-8 text-[#001c11]">
+            {customer?.name ? `${customer.name}'s orders` : "Previous orders"}
+          </h1>
         </div>
-        <div className="flex shrink-0 gap-2">
-          <button
-            type="button"
-            className="rounded-full border border-[#d9e4df] bg-white px-4 py-2 text-sm font-black text-[#001c11] shadow-sm disabled:opacity-50"
-            onClick={onRefresh}
-            disabled={isRefreshing}
-          >
-            {isRefreshing ? "Updating" : "Refresh"}
-          </button>
-          <button type="button" className="rounded-full border border-[#d9e4df] bg-white px-4 py-2 text-sm font-black text-[#001c11] shadow-sm" onClick={onBackToMenu}>
-            Menu
-          </button>
-        </div>
+        <button
+          type="button"
+          className="rounded-full border border-[#d9e4df] bg-white px-4 py-2 text-sm font-black text-[#001c11] shadow-sm"
+          onClick={onBackToCart}
+        >
+          Cart
+        </button>
       </div>
 
-      {refreshError ? (
-        <div className="mb-4 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-amber-950">
-          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
-          <p className="text-sm font-semibold">{refreshError}</p>
+      {customer ? (
+        <div className="mb-4 rounded-2xl border border-[#bfe6cf] bg-[#f1fbf5] p-4 shadow-sm">
+          <p className="text-xs font-black uppercase tracking-[0.12em] text-[#006d36]">Welcome back</p>
+          <p className="mt-1 text-lg font-black text-[#001c11]">{customer.name ?? "Customer"}</p>
+          <p className="mt-1 text-sm font-semibold text-[#5a625e]">{customer.whatsAppNumber}</p>
         </div>
       ) : null}
 
@@ -1379,43 +1300,47 @@ function PreviousOrdersPage({
                   <p className="mt-1 text-xs text-on-surface-variant">{formatOrderDate(order.createdAtUtc)}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs font-bold uppercase text-on-surface-variant">Status</p>
-                  <p className="mt-1 text-sm font-black text-[#006d36]">{order.orderStatusCode}</p>
-                  <p className="mt-2 text-base font-black text-[#001c11]">{formatPrice(order.totalAmount)}</p>
+                  <p className="text-xs font-bold uppercase text-on-surface-variant">Total</p>
+                  <p className="mt-1 text-base font-black text-[#006d36]">{formatPrice(order.totalAmount)}</p>
                 </div>
               </div>
 
               <div className="mt-3 divide-y divide-[#e6eeea] border-t border-[#e6eeea]">
-                {order.items.map((item) => (
-                  <div key={item.orderItemId} className="grid grid-cols-[3.5rem_1fr_auto] gap-3 py-3">
+                {order.items.map((item, index) => (
+                  <div key={`${order.orderId}:${item.menuItemId}:${item.menuItemVariantId ?? "base"}:${index}`} className="grid grid-cols-[3.5rem_1fr_auto] gap-3 py-3">
                     <OrderItemThumb item={menuItemById.get(item.menuItemId)} name={item.menuItemName} />
                     <div className="min-w-0">
                       <p className="break-words text-sm font-black text-[#001c11]">{formatOrderItemName(item.menuItemName, item.variantName)}</p>
-                      <p className="mt-1 text-xs text-on-surface-variant">
-                        {item.quantity} x {formatPrice(item.unitPrice)}
-                      </p>
                       {item.itemNote ? <p className="mt-1 rounded-lg bg-[#f8f9fa] px-2 py-1 text-xs font-semibold text-[#5a625e]">{item.itemNote}</p> : null}
                     </div>
-                    <p className="text-sm font-black text-[#001c11]">{formatPrice(item.lineTotal)}</p>
+                    <p className="text-sm font-black text-[#001c11]">x{item.quantity}</p>
                   </div>
                 ))}
               </div>
+
+              <button
+                type="button"
+                className="mt-3 h-12 w-full rounded-xl bg-[#001c11] px-4 text-sm font-black text-white"
+                onClick={() => onReorder(order)}
+              >
+                Reorder
+              </button>
             </article>
           ))}
         </div>
       ) : (
         <div className="flex min-h-[280px] flex-col items-center justify-center rounded-2xl border border-[#d9e4df] bg-white p-5 text-center shadow-sm">
           <ReceiptText className="h-8 w-8 text-gold" aria-hidden="true" />
-          <p className="mt-3 text-sm font-black text-[#001c11]">No previous orders yet</p>
+          <p className="mt-3 text-sm font-black text-[#001c11]">No previous orders found</p>
           <p className="mt-1 text-sm leading-6 text-on-surface-variant">
-            Orders placed from this browser will appear here.
+            Orders linked to this WhatsApp number will appear here.
           </p>
           <button
             type="button"
             className="mt-4 rounded-xl bg-[#001c11] px-4 py-2 text-sm font-bold text-white"
-            onClick={onBackToMenu}
+            onClick={onBackToCart}
           >
-            Back to menu
+            Back to cart
           </button>
         </div>
       )}
@@ -1643,64 +1568,6 @@ function filterCategories(categories: PublicQrMenuCategory[], search: string): P
 
 function shortOrderCode(orderId: string): string {
   return orderId.replaceAll("-", "").slice(0, 8).toUpperCase();
-}
-
-function orderStorageKey(qrToken: string): string {
-  return `qrapp.public.orders.${qrToken}`;
-}
-
-function loadStoredOrders(qrToken: string): PublicQrOrder[] {
-  if (typeof window === "undefined") {
-    return [];
-  }
-
-  const raw = window.localStorage.getItem(orderStorageKey(qrToken));
-  if (!raw) {
-    return [];
-  }
-
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.filter(isPublicQrOrder).slice(0, 20) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveStoredOrder(qrToken: string, order: PublicQrOrder): PublicQrOrder[] {
-  if (typeof window === "undefined") {
-    return [order];
-  }
-
-  const existing = loadStoredOrders(qrToken).filter((stored) => stored.orderId !== order.orderId);
-  const next = [order, ...existing].slice(0, 20);
-  window.localStorage.setItem(orderStorageKey(qrToken), JSON.stringify(next));
-  return next;
-}
-
-function saveStoredOrders(qrToken: string, orders: PublicQrOrder[]): PublicQrOrder[] {
-  const next = orders.filter(isPublicQrOrder).slice(0, 20);
-
-  if (typeof window !== "undefined") {
-    window.localStorage.setItem(orderStorageKey(qrToken), JSON.stringify(next));
-  }
-
-  return next;
-}
-
-function isPublicQrOrder(value: unknown): value is PublicQrOrder {
-  if (typeof value !== "object" || value === null) {
-    return false;
-  }
-
-  const candidate = value as Partial<PublicQrOrder>;
-  return (
-    typeof candidate.orderId === "string" &&
-    typeof candidate.orderStatusCode === "string" &&
-    typeof candidate.totalAmount === "number" &&
-    typeof candidate.createdAtUtc === "string" &&
-    Array.isArray(candidate.items)
-  );
 }
 
 function formatOrderDate(value: string): string {

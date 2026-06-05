@@ -56,7 +56,7 @@ BEGIN
     IF @CustomerId IS NOT NULL
     BEGIN
         INSERT INTO @RecentOrders (OrderId, CreatedAtUtc, TotalAmount)
-        SELECT TOP (3) o.OrderId, o.CreatedAtUtc, o.TotalAmount
+        SELECT o.OrderId, o.CreatedAtUtc, o.TotalAmount
         FROM dbo.Orders o
         WHERE o.TenantId = @TenantId
           AND o.CustomerId = @CustomerId
