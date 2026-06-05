@@ -198,6 +198,7 @@ export type CreatePublicQrOrderInput = {
   customerWhatsApp: string | null;
   notes: string | null;
   items: CreatePublicQrOrderItemInput[];
+  marketingConsent: boolean;
 };
 
 export type PublicQrOrderItem = {

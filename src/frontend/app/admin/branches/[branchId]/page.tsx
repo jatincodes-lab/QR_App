@@ -30,6 +30,7 @@ import type { LucideIcon } from "lucide-react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import QRCode from "qrcode";
 import { AdminShell } from "../../../../components/admin-shell";
+import { CountryPhoneInput } from "../../../../components/country-phone-input";
 import { Alert, AlertDescription } from "../../../../components/ui/alert";
 import { Badge } from "../../../../components/ui/badge";
 import { Button } from "../../../../components/ui/button";
@@ -78,6 +79,16 @@ import {
 } from "../../../../lib/api";
 import { clearAccessToken, getAccessToken } from "../../../../lib/auth";
 import { AdminOrderRealtimeEvent, AdminWaiterCallRealtimeEvent, createAdminOrderConnection, stopConnection } from "../../../../lib/realtime";
+import {
+  firstInvalid,
+  validateCountryCode,
+  validateMoney,
+  validateOptionalText,
+  validateOptionalUrl,
+  validatePhone,
+  validatePositiveInteger,
+  validateRequired
+} from "../../../../lib/validation";
 
 type CategoryForm = {
   name: string;
@@ -489,6 +500,12 @@ export default function AdminBranchDetailPage() {
 
   async function handleCreateCategory(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const validation = validateCategoryForm(categoryForm);
+    if (!validation.isValid) {
+      showError(validation.message ?? "Category form is invalid.");
+      return;
+    }
+
     await runSaving("category", async () => {
       const category = await createMenuCategory(branchId, {
         name: categoryForm.name.trim(),
@@ -502,6 +519,12 @@ export default function AdminBranchDetailPage() {
 
   async function handleCreateItem(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const validation = validateItemForm(itemForm);
+    if (!validation.isValid) {
+      showError(validation.message ?? "Item form is invalid.");
+      return;
+    }
+
     await runSaving("item", async () => {
       const item = await createMenuItem(branchId, {
         menuCategoryId: itemForm.menuCategoryId,
@@ -526,6 +549,12 @@ export default function AdminBranchDetailPage() {
 
   async function handleCreateTable(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const validation = validateTableForm(tableForm);
+    if (!validation.isValid) {
+      showError(validation.message ?? "Table form is invalid.");
+      return;
+    }
+
     await runSaving("table", async () => {
       const table = await createBranchTable(branchId, {
         name: tableForm.name.trim(),
@@ -539,6 +568,12 @@ export default function AdminBranchDetailPage() {
 
   async function handleCreateOffer(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const validation = validateOfferForm(offerForm);
+    if (!validation.isValid) {
+      showError(validation.message ?? "Offer form is invalid.");
+      return;
+    }
+
     await runSaving("offer", async () => {
       const offer = await createBranchOffer(branchId, toOfferInput(offerForm));
       setOffers((current) => [...current, offer]);
@@ -615,6 +650,12 @@ export default function AdminBranchDetailPage() {
       return;
     }
 
+    const validation = validateBranchProfileForm(branchProfileForm);
+    if (!validation.isValid) {
+      showError(validation.message ?? "Branch profile form is invalid.");
+      return;
+    }
+
     await runSaving("branch-profile", async () => {
       const updated = await updateBranch(branchId, {
         name: branchProfileForm.name.trim(),
@@ -651,6 +692,12 @@ export default function AdminBranchDetailPage() {
   }
 
   async function handleSaveCategory(category: MenuCategory) {
+    const validation = validateCategoryForm(editingCategoryForm);
+    if (!validation.isValid) {
+      showError(validation.message ?? "Category form is invalid.");
+      return;
+    }
+
     await runSaving(`category-edit-${category.menuCategoryId}`, async () => {
       const updated = await updateMenuCategory(branchId, category.menuCategoryId, {
         name: editingCategoryForm.name.trim(),
@@ -679,6 +726,12 @@ export default function AdminBranchDetailPage() {
   }
 
   async function handleSaveItem(item: MenuItem) {
+    const validation = validateItemForm(editingItemForm);
+    if (!validation.isValid) {
+      showError(validation.message ?? "Item form is invalid.");
+      return;
+    }
+
     await runSaving(`item-edit-${item.menuItemId}`, async () => {
       const updated = await updateMenuItem(branchId, item.menuItemId, {
         menuCategoryId: editingItemForm.menuCategoryId,
@@ -705,6 +758,12 @@ export default function AdminBranchDetailPage() {
   }
 
   async function handleSaveOffer(offer: BranchOffer) {
+    const validation = validateOfferForm(editingOfferForm);
+    if (!validation.isValid) {
+      showError(validation.message ?? "Offer form is invalid.");
+      return;
+    }
+
     await runSaving(`offer-edit-${offer.branchOfferId}`, async () => {
       const updated = await updateBranchOffer(branchId, offer.branchOfferId, {
         ...toOfferInput(editingOfferForm),
@@ -1417,9 +1476,13 @@ function BranchProfilePanel({
           <Field label="Branch name">
             <Input value={branchProfileForm.name} onChange={(event) => onBranchProfileChange({ ...branchProfileForm, name: event.target.value })} required />
           </Field>
-          <Field label="Phone">
-            <Input value={branchProfileForm.phoneNumber} onChange={(event) => onBranchProfileChange({ ...branchProfileForm, phoneNumber: event.target.value })} />
-          </Field>
+          <CountryPhoneInput
+            countryCode={branchProfileForm.countryCode}
+            label="Phone"
+            value={branchProfileForm.phoneNumber}
+            onChange={(phoneNumber) => onBranchProfileChange({ ...branchProfileForm, phoneNumber })}
+            onCountryChange={(countryCode, phoneNumber) => onBranchProfileChange({ ...branchProfileForm, countryCode, phoneNumber })}
+          />
           <Field label="Address line 1">
             <Input value={branchProfileForm.addressLine1} onChange={(event) => onBranchProfileChange({ ...branchProfileForm, addressLine1: event.target.value })} />
           </Field>
@@ -1434,9 +1497,6 @@ function BranchProfilePanel({
           </Field>
           <Field label="Postal code">
             <Input value={branchProfileForm.postalCode} onChange={(event) => onBranchProfileChange({ ...branchProfileForm, postalCode: event.target.value })} />
-          </Field>
-          <Field label="Country code">
-            <Input value={branchProfileForm.countryCode} maxLength={2} onChange={(event) => onBranchProfileChange({ ...branchProfileForm, countryCode: event.target.value.toUpperCase() })} required />
           </Field>
           <Button type="submit" disabled={isSavingProfile} className="md:col-span-2">
             {isSavingProfile ? <Loader2 size={17} className="animate-spin" /> : <Save size={17} />}
@@ -1479,9 +1539,13 @@ function SettingsPanel({
             <Field label="Branch name">
               <Input value={branchProfileForm.name} onChange={(event) => onBranchProfileChange({ ...branchProfileForm, name: event.target.value })} required />
             </Field>
-            <Field label="Phone">
-              <Input value={branchProfileForm.phoneNumber} onChange={(event) => onBranchProfileChange({ ...branchProfileForm, phoneNumber: event.target.value })} />
-            </Field>
+            <CountryPhoneInput
+              countryCode={branchProfileForm.countryCode}
+              label="Phone"
+              value={branchProfileForm.phoneNumber}
+              onChange={(phoneNumber) => onBranchProfileChange({ ...branchProfileForm, phoneNumber })}
+              onCountryChange={(countryCode, phoneNumber) => onBranchProfileChange({ ...branchProfileForm, countryCode, phoneNumber })}
+            />
             <Field label="Address line 1">
               <Input value={branchProfileForm.addressLine1} onChange={(event) => onBranchProfileChange({ ...branchProfileForm, addressLine1: event.target.value })} />
             </Field>
@@ -1496,9 +1560,6 @@ function SettingsPanel({
             </Field>
             <Field label="Postal code">
               <Input value={branchProfileForm.postalCode} onChange={(event) => onBranchProfileChange({ ...branchProfileForm, postalCode: event.target.value })} />
-            </Field>
-            <Field label="Country code">
-              <Input value={branchProfileForm.countryCode} maxLength={2} onChange={(event) => onBranchProfileChange({ ...branchProfileForm, countryCode: event.target.value.toUpperCase() })} required />
             </Field>
             <Button type="submit" disabled={isSavingProfile} className="md:col-span-2">
               {isSavingProfile ? <Loader2 size={17} className="animate-spin" /> : <Save size={17} />}
@@ -2318,6 +2379,56 @@ function toOfferForm(offer: BranchOffer): OfferForm {
     imageAltText: offer.imageAltText ?? "",
     displayOrder: String(offer.displayOrder)
   };
+}
+
+function validateCategoryForm(form: CategoryForm) {
+  return firstInvalid(
+    validateRequired(form.name, "Category name"),
+    validatePositiveInteger(form.displayOrder, "Order")
+  );
+}
+
+function validateItemForm(form: ItemForm) {
+  return firstInvalid(
+    validateRequired(form.menuCategoryId, "Category"),
+    validateRequired(form.name, "Item name"),
+    validateOptionalText(form.description, "Description", 500),
+    validateOptionalUrl(form.imageUrl, "Item image URL"),
+    validateOptionalText(form.imageAltText, "Image alt text", 200),
+    validateMoney(form.price, "Price"),
+    validatePositiveInteger(form.displayOrder, "Order")
+  );
+}
+
+function validateOfferForm(form: OfferForm) {
+  return firstInvalid(
+    validateRequired(form.title, "Offer title"),
+    validateOptionalText(form.subtitle, "Subtitle", 200),
+    validateOptionalText(form.discountText, "Discount text", 120),
+    validateOptionalUrl(form.imageUrl, "Offer image URL"),
+    validateOptionalText(form.imageAltText, "Image alt text", 200),
+    validatePositiveInteger(form.displayOrder, "Order")
+  );
+}
+
+function validateTableForm(form: TableForm) {
+  return firstInvalid(
+    validateRequired(form.name, "Table name"),
+    validatePositiveInteger(form.displayOrder, "Order")
+  );
+}
+
+function validateBranchProfileForm(form: BranchProfileForm) {
+  return firstInvalid(
+    validateRequired(form.name, "Branch name"),
+    validatePhone(form.phoneNumber, "Phone number"),
+    validateOptionalText(form.addressLine1, "Address line 1"),
+    validateOptionalText(form.addressLine2, "Address line 2"),
+    validateOptionalText(form.city, "City", 120),
+    validateOptionalText(form.state, "State", 120),
+    validateOptionalText(form.postalCode, "Postal code", 20),
+    validateCountryCode(form.countryCode)
+  );
 }
 
 function toPositiveNumber(value: string): number {

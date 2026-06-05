@@ -200,8 +200,8 @@ BEGIN
     )
     SELECT
         COUNT(1) AS TotalOrders,
-        SUM(CASE WHEN OrderStatusCode IN (N'Completed', N'Served') THEN 1 ELSE 0 END) AS CompletedOrders,
-        SUM(CASE WHEN OrderStatusCode = N'Cancelled' THEN 1 ELSE 0 END) AS CancelledOrders,
+        COALESCE(SUM(CASE WHEN OrderStatusCode IN (N'Completed', N'Served') THEN 1 ELSE 0 END), 0) AS CompletedOrders,
+        COALESCE(SUM(CASE WHEN OrderStatusCode = N'Cancelled' THEN 1 ELSE 0 END), 0) AS CancelledOrders,
         COALESCE(SUM(CASE WHEN OrderStatusCode <> N'Cancelled' THEN TotalAmount ELSE 0 END), 0) AS TotalOrderValue,
         COALESCE(AVG(CASE WHEN OrderStatusCode <> N'Cancelled' THEN TotalAmount END), 0) AS AverageOrderValue,
         COALESCE((SELECT AVG(CAST(ReadyMinutes AS DECIMAL(10, 2))) FROM ReadyDurations WHERE ReadyMinutes IS NOT NULL AND ReadyMinutes >= 0), 0) AS AverageReadyMinutes

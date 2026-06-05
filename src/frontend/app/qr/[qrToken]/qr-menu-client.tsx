@@ -19,6 +19,7 @@ import {
   X
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { CountryPhoneInput } from "../../../components/country-phone-input";
 import {
   ApiError,
   createWaiterCall,
@@ -31,6 +32,7 @@ import {
   type PublicQrMenuItem,
   type PublicQrOrder
 } from "../../../lib/api";
+import { firstInvalid, validateOptionalText, validatePhone, validateRequired } from "../../../lib/validation";
 
 type CartLine = {
   cartLineId: string;
@@ -84,6 +86,8 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
   const [cart, setCart] = useState<Record<string, CartLine>>({});
   const [customerName, setCustomerName] = useState("");
   const [customerWhatsApp, setCustomerWhatsApp] = useState("");
+  const [customerPhoneCountryCode, setCustomerPhoneCountryCode] = useState("IN");
+  const [marketingConsent, setMarketingConsent] = useState(false);
   const [notes, setNotes] = useState("");
   const [activeView, setActiveView] = useState<ActiveView>("menu");
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
@@ -234,13 +238,17 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
       return;
     }
 
-    if (menu.orderSettings.requireCustomerName && customerName.trim().length === 0) {
-      setSubmitState({ kind: "error", message: "Please enter your name." });
-      return;
-    }
-
-    if (menu.orderSettings.requireCustomerWhatsApp && customerWhatsApp.trim().length === 0) {
-      setSubmitState({ kind: "error", message: "Please enter your WhatsApp number." });
+    const validation = firstInvalid(
+      menu.orderSettings.requireCustomerName ? validateRequired(customerName, "Name") : validateOptionalText(customerName, "Name", 120),
+      validatePhone(customerWhatsApp, "WhatsApp number", menu.orderSettings.requireCustomerWhatsApp),
+      marketingConsent && !customerWhatsApp.trim()
+        ? { isValid: false, message: "Enter WhatsApp number to receive updates." }
+        : { isValid: true, message: null },
+      validateOptionalText(notes, "Notes", 500),
+      ...cartLines.map((line) => validateOptionalText(line.itemNote, `${line.item.name} note`, 200))
+    );
+    if (!validation.isValid) {
+      setSubmitState({ kind: "error", message: validation.message ?? "Order details are invalid." });
       return;
     }
 
@@ -248,6 +256,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
       customerName: valueOrNull(customerName),
       customerWhatsApp: valueOrNull(customerWhatsApp),
       notes: valueOrNull(notes),
+      marketingConsent,
       items: cartLines.map((line) => ({
         menuItemId: line.item.menuItemId,
         menuItemVariantId: line.variant?.menuItemVariantId ?? null,
@@ -262,6 +271,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
       const order = await createPublicQrOrder(currentMenu.qrToken, input);
       setCart({});
       setNotes("");
+      setMarketingConsent(false);
       setPreviousOrders(saveStoredOrder(currentMenu.qrToken, order));
       setActiveView("cart");
       setSubmitState({ kind: "success", order });
@@ -334,6 +344,12 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
       return;
     }
 
+    const validation = validateOptionalText(waiterCallNote, "Waiter-call note", 500);
+    if (!validation.isValid) {
+      setWaiterCallState({ kind: "error", message: validation.message ?? "Waiter-call note is invalid." });
+      return;
+    }
+
     setWaiterCallState({ kind: "submitting" });
 
     try {
@@ -371,14 +387,18 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
           cartLines={cartLines}
           cartTotal={cartTotal}
           customerName={customerName}
+          customerPhoneCountryCode={customerPhoneCountryCode}
           customerWhatsApp={customerWhatsApp}
+          marketingConsent={marketingConsent}
           notes={notes}
           orderSettings={currentMenu.orderSettings}
           submitState={submitState}
           onCustomerNameChange={setCustomerName}
+          onCustomerPhoneCountryChange={setCustomerPhoneCountryCode}
           onCustomerWhatsAppChange={setCustomerWhatsApp}
           onDecrement={decrementItem}
           onItemNoteChange={updateCartLineNote}
+          onMarketingConsentChange={setMarketingConsent}
           onBackToMenu={returnToMenu}
           onNotesChange={setNotes}
           onSubmit={submitOrder}
@@ -885,15 +905,19 @@ function CartPage({
   cartLines,
   cartTotal,
   customerName,
+  customerPhoneCountryCode,
   customerWhatsApp,
+  marketingConsent,
   notes,
   orderSettings,
   menuItemById,
   submitState,
   onCustomerNameChange,
+  onCustomerPhoneCountryChange,
   onCustomerWhatsAppChange,
   onDecrement,
   onItemNoteChange,
+  onMarketingConsentChange,
   onBackToMenu,
   onNotesChange,
   onSubmit
@@ -902,15 +926,19 @@ function CartPage({
   cartLines: CartLine[];
   cartTotal: number;
   customerName: string;
+  customerPhoneCountryCode: string;
   customerWhatsApp: string;
+  marketingConsent: boolean;
   notes: string;
   orderSettings: PublicQrMenu["orderSettings"];
   menuItemById: Map<string, PublicQrMenuItem>;
   submitState: SubmitState;
   onCustomerNameChange: (value: string) => void;
+  onCustomerPhoneCountryChange: (value: string) => void;
   onCustomerWhatsAppChange: (value: string) => void;
   onDecrement: (cartLineId: string) => void;
   onItemNoteChange: (cartLineId: string, value: string) => void;
+  onMarketingConsentChange: (value: boolean) => void;
   onBackToMenu: () => void;
   onNotesChange: (value: string) => void;
   onSubmit: () => void;
@@ -1005,18 +1033,17 @@ function CartPage({
                 maxLength={120}
               />
             </label>
-            <label className="block">
-              <span className="text-xs font-bold uppercase tracking-[0.12em] text-on-surface-variant">
-                WhatsApp{orderSettings.requireCustomerWhatsApp ? " *" : ""}
-              </span>
-              <input
-                className="mt-1 h-12 w-full rounded-xl border border-[#d9e4df] bg-white px-3 text-sm outline-none focus:border-[#006d36]"
-                value={customerWhatsApp}
-                onChange={(event) => onCustomerWhatsAppChange(event.target.value)}
-                inputMode="tel"
-                maxLength={32}
-              />
-            </label>
+            <CountryPhoneInput
+              countryCode={customerPhoneCountryCode}
+              label="WhatsApp"
+              required={orderSettings.requireCustomerWhatsApp}
+              value={customerWhatsApp}
+              onChange={onCustomerWhatsAppChange}
+              onCountryChange={(countryCode, value) => {
+                onCustomerPhoneCountryChange(countryCode);
+                onCustomerWhatsAppChange(value);
+              }}
+            />
           </div>
 
           <label className="block">
@@ -1027,6 +1054,18 @@ function CartPage({
               onChange={(event) => onNotesChange(event.target.value)}
               maxLength={500}
             />
+          </label>
+
+          <label className="flex items-start gap-3 rounded-2xl border border-[#d9e4df] bg-white p-4 shadow-sm">
+            <input
+              type="checkbox"
+              checked={marketingConsent}
+              onChange={(event) => onMarketingConsentChange(event.target.checked)}
+              className="mt-1 h-4 w-4 rounded border-[#b9c8c0] text-[#006d36] focus:ring-[#006d36]"
+            />
+            <span className="text-sm font-semibold leading-5 text-[#414844]">
+              Send me WhatsApp updates and offers from this restaurant.
+            </span>
           </label>
 
           <button

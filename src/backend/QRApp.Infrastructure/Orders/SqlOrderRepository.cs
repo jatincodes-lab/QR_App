@@ -29,6 +29,8 @@ public sealed class SqlOrderRepository(ISqlConnectionFactory connectionFactory) 
         command.AddString("@CustomerWhatsApp", request.CustomerWhatsApp, 32);
         command.AddString("@Notes", request.Notes, 500);
         command.AddString("@ItemsJson", JsonSerializer.Serialize(request.Items, JsonOptions), -1);
+        command.AddBool("@MarketingConsent", request.MarketingConsent);
+        command.AddString("@MarketingConsentSource", "qr_checkout", 80);
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         if (!await reader.ReadAsync(cancellationToken))

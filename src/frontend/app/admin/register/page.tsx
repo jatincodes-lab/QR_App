@@ -12,6 +12,7 @@ import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
 import { ApiError, registerOwner } from "../../../lib/api";
 import { getAccessToken, setAccessToken } from "../../../lib/auth";
+import { firstInvalid, validateEmail, validatePassword, validateRequired, validateSlug } from "../../../lib/validation";
 
 export default function AdminRegisterPage() {
   const router = useRouter();
@@ -42,6 +43,19 @@ export default function AdminRegisterPage() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+
+    const validation = firstInvalid(
+      validateRequired(tenantName, "Restaurant name"),
+      validateSlug(tenantSlug),
+      validateRequired(ownerDisplayName, "Owner name"),
+      validateEmail(ownerEmail, "Owner email"),
+      validatePassword(password)
+    );
+    if (!validation.isValid) {
+      setError(validation.message);
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {

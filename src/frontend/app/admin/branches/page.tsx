@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { AdminShell } from "../../../components/admin-shell";
+import { CountryPhoneInput } from "../../../components/country-phone-input";
 import { Alert, AlertDescription } from "../../../components/ui/alert";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
@@ -42,6 +43,7 @@ import {
   turnOffBranch
 } from "../../../lib/api";
 import { clearAccessToken, getAccessToken } from "../../../lib/auth";
+import { firstInvalid, validateCountryCode, validateOptionalText, validatePhone, validateRequired } from "../../../lib/validation";
 
 type BranchFormState = {
   name: string;
@@ -121,6 +123,12 @@ export default function AdminBranchesPage() {
     setNotice(null);
 
     try {
+      const validation = validateBranchForm(form);
+      if (!validation.isValid) {
+        setError(validation.message);
+        return;
+      }
+
       const branch = await createBranch(toCreateInput(form));
       const isFirstBranch = activeBranches.length === 0;
       setBranches((current) => [branch, ...current]);
@@ -457,18 +465,18 @@ function BranchDialog({
 
           <div className="grid gap-4 p-5 sm:grid-cols-2">
             <TextInput label="Branch name" value={form.name} onChange={(value) => onChange({ ...form, name: value })} required />
-            <TextInput label="Phone number" value={form.phoneNumber} onChange={(value) => onChange({ ...form, phoneNumber: value })} />
+            <CountryPhoneInput
+              countryCode={form.countryCode}
+              label="Phone number"
+              value={form.phoneNumber}
+              onChange={(value) => onChange({ ...form, phoneNumber: value })}
+              onCountryChange={(countryCode, phoneNumber) => onChange({ ...form, countryCode, phoneNumber })}
+            />
             <TextInput label="Address line 1" value={form.addressLine1} onChange={(value) => onChange({ ...form, addressLine1: value })} />
             <TextInput label="Address line 2" value={form.addressLine2} onChange={(value) => onChange({ ...form, addressLine2: value })} />
             <TextInput label="City" value={form.city} onChange={(value) => onChange({ ...form, city: value })} />
             <TextInput label="State" value={form.state} onChange={(value) => onChange({ ...form, state: value })} />
             <TextInput label="Postal code" value={form.postalCode} onChange={(value) => onChange({ ...form, postalCode: value })} />
-            <TextInput
-              label="Country code"
-              value={form.countryCode}
-              onChange={(value) => onChange({ ...form, countryCode: value.toUpperCase().slice(0, 2) })}
-              required
-            />
           </div>
 
           <div className="flex justify-end gap-2 border-t bg-muted/40 p-5">
@@ -545,6 +553,19 @@ function toCreateInput(form: BranchFormState): CreateBranchInput {
     postalCode: optional(form.postalCode),
     countryCode: form.countryCode
   };
+}
+
+function validateBranchForm(form: BranchFormState) {
+  return firstInvalid(
+    validateRequired(form.name, "Branch name"),
+    validatePhone(form.phoneNumber, "Phone number"),
+    validateOptionalText(form.addressLine1, "Address line 1"),
+    validateOptionalText(form.addressLine2, "Address line 2"),
+    validateOptionalText(form.city, "City", 120),
+    validateOptionalText(form.state, "State", 120),
+    validateOptionalText(form.postalCode, "Postal code", 20),
+    validateCountryCode(form.countryCode)
+  );
 }
 
 function optional(value: string): string | null {

@@ -20,12 +20,12 @@ public sealed class SqlReportRepository(ISqlConnectionFactory connectionFactory)
         }
 
         return new OrderReportSummaryResponse(
-            reader.GetInt32(reader.GetOrdinal("TotalOrders")),
-            reader.GetInt32(reader.GetOrdinal("CompletedOrders")),
-            reader.GetInt32(reader.GetOrdinal("CancelledOrders")),
-            reader.GetDecimal(reader.GetOrdinal("TotalOrderValue")),
-            reader.GetDecimal(reader.GetOrdinal("AverageOrderValue")),
-            reader.GetDecimal(reader.GetOrdinal("AverageReadyMinutes")));
+            GetInt32OrZero(reader, "TotalOrders"),
+            GetInt32OrZero(reader, "CompletedOrders"),
+            GetInt32OrZero(reader, "CancelledOrders"),
+            GetDecimalOrZero(reader, "TotalOrderValue"),
+            GetDecimalOrZero(reader, "AverageOrderValue"),
+            GetDecimalOrZero(reader, "AverageReadyMinutes"));
     }
 
     public async Task<IReadOnlyCollection<OrderReportListItemResponse>> GetOrdersAsync(Guid tenantId, OrderReportFilter filter, CancellationToken cancellationToken)
@@ -200,6 +200,18 @@ public sealed class SqlReportRepository(ISqlConnectionFactory connectionFactory)
     {
         var ordinal = reader.GetOrdinal(name);
         return reader.IsDBNull(ordinal) ? null : reader.GetString(ordinal);
+    }
+
+    private static int GetInt32OrZero(SqlDataReader reader, string name)
+    {
+        var ordinal = reader.GetOrdinal(name);
+        return reader.IsDBNull(ordinal) ? 0 : reader.GetInt32(ordinal);
+    }
+
+    private static decimal GetDecimalOrZero(SqlDataReader reader, string name)
+    {
+        var ordinal = reader.GetOrdinal(name);
+        return reader.IsDBNull(ordinal) ? 0 : reader.GetDecimal(ordinal);
     }
 
     private static Guid? GetNullableGuid(SqlDataReader reader, string name)

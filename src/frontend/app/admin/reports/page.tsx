@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { BarChart3, ClipboardList, RefreshCw, Search, Users } from "lucide-react";
+import { BarChart3, CalendarDays, ClipboardList, RefreshCw, Search, SlidersHorizontal, Users } from "lucide-react";
 import { AdminShell } from "../../../components/admin-shell";
 import { EmptyBranchState, MetricCard, PageError, PageLoading } from "../../../components/admin-page-common";
 import { Badge } from "../../../components/ui/badge";
@@ -21,6 +21,7 @@ import {
   type ReportFilterInput
 } from "../../../lib/api";
 import { formatMoney, useAdminWorkspace } from "../../../lib/admin-workspace";
+import { firstInvalid, validateDateRange, validateOptionalText } from "../../../lib/validation";
 
 type ReportForm = {
   dateFrom: string;
@@ -90,6 +91,15 @@ export default function AdminReportsPage() {
 
   function applyFilters(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const validation = firstInvalid(
+      validateDateRange(form.dateFrom, form.dateTo),
+      validateOptionalText(form.search, "Search", 120)
+    );
+    if (!validation.isValid) {
+      workspace.setWorkspaceError(validation.message);
+      return;
+    }
+
     void loadReports(filter);
   }
 
@@ -126,30 +136,42 @@ export default function AdminReportsPage() {
           <EmptyBranchState />
         ) : (
           <>
-            <Card>
-              <CardContent className="p-4">
-                <form onSubmit={applyFilters} className="grid gap-3 lg:grid-cols-[repeat(4,minmax(0,1fr))_auto] lg:items-end">
+            <Card className="bg-surface-container-low/70">
+              <CardContent className="flex min-h-[6.75rem] items-center px-5 py-6 sm:px-6">
+                <form onSubmit={applyFilters} className="grid w-full gap-x-3 gap-y-4 sm:grid-cols-2 xl:grid-cols-[minmax(10rem,1fr)_minmax(10rem,1fr)_minmax(12rem,1fr)_minmax(15rem,1.3fr)_auto] xl:items-end">
                   <label className="grid gap-2">
-                    <span className="text-xs font-bold uppercase text-on-surface-variant">From</span>
-                    <Input type="date" value={form.dateFrom} onChange={(event) => setForm({ ...form, dateFrom: event.target.value })} />
+                    <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-on-surface-variant">
+                      <CalendarDays size={13} />
+                      From
+                    </span>
+                    <Input className="h-11 bg-white" type="date" value={form.dateFrom} onChange={(event) => setForm({ ...form, dateFrom: event.target.value })} />
                   </label>
                   <label className="grid gap-2">
-                    <span className="text-xs font-bold uppercase text-on-surface-variant">To</span>
-                    <Input type="date" value={form.dateTo} onChange={(event) => setForm({ ...form, dateTo: event.target.value })} />
+                    <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-on-surface-variant">
+                      <CalendarDays size={13} />
+                      To
+                    </span>
+                    <Input className="h-11 bg-white" type="date" value={form.dateTo} onChange={(event) => setForm({ ...form, dateTo: event.target.value })} />
                   </label>
                   <label className="grid gap-2">
-                    <span className="text-xs font-bold uppercase text-on-surface-variant">Status</span>
-                    <select value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value })} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
+                    <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-on-surface-variant">
+                      <SlidersHorizontal size={13} />
+                      Status
+                    </span>
+                    <select value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value })} className="h-11 w-full rounded-lg border border-input bg-white px-3 text-sm font-semibold text-on-surface outline-none transition-colors focus:border-primary/30 focus:ring-2 focus:ring-ring/20">
                       {StatusOptions.map((status) => (
                         <option key={status || "all"} value={status}>{status || "All statuses"}</option>
                       ))}
                     </select>
                   </label>
                   <label className="grid gap-2">
-                    <span className="text-xs font-bold uppercase text-on-surface-variant">Search</span>
-                    <Input value={form.search} onChange={(event) => setForm({ ...form, search: event.target.value })} placeholder="Order, table, phone" />
+                    <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-on-surface-variant">
+                      <Search size={13} />
+                      Search
+                    </span>
+                    <Input className="h-11 bg-white" value={form.search} onChange={(event) => setForm({ ...form, search: event.target.value })} placeholder="Order, table, phone" />
                   </label>
-                  <Button type="submit" disabled={isLoading}>
+                  <Button type="submit" disabled={isLoading} className="h-11 px-5 sm:col-span-2 xl:col-span-1">
                     {isLoading ? <RefreshCw size={17} className="animate-spin" /> : <Search size={17} />}
                     Apply
                   </Button>

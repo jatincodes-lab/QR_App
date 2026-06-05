@@ -1,5 +1,6 @@
 using QRApp.Application.Common;
 using QRApp.Shared.Results;
+using System.Text.RegularExpressions;
 
 namespace QRApp.Application.Orders;
 
@@ -7,6 +8,7 @@ public sealed class OrderService(IOrderRepository repository) : IOrderService
 {
     private const int MinQrTokenLength = 8;
     private const int MaxQrTokenLength = 80;
+    private static readonly Regex AllowedPhoneCharacters = new(@"^[0-9+\-().\s]+$", RegexOptions.Compiled);
 
     public async Task<OperationResult<PublicOrderResponse>> CreateFromQrTokenAsync(
         string qrToken,
@@ -28,7 +30,8 @@ public sealed class OrderService(IOrderRepository repository) : IOrderService
                 .Select(item => item with { ItemNote = CleanOptional(item.ItemNote) })
                 .GroupBy(item => new { item.MenuItemId, item.MenuItemVariantId, item.ItemNote })
                 .Select(group => new CreatePublicQrOrderItemRequest(group.Key.MenuItemId, group.Sum(item => item.Quantity), group.Key.MenuItemVariantId, group.Key.ItemNote))
-                .ToArray());
+                .ToArray(),
+            request.MarketingConsent);
 
         var order = await repository.CreateFromQrTokenAsync(cleanToken, Guid.NewGuid(), cleaned, cancellationToken);
         return OperationResult<PublicOrderResponse>.Success(order);
@@ -75,9 +78,24 @@ public sealed class OrderService(IOrderRepository repository) : IOrderService
             errors.Add(new ValidationFailure(nameof(CreatePublicQrOrderRequest.CustomerName), "Customer name cannot exceed 120 characters."));
         }
 
-        if (CleanOptional(request.CustomerWhatsApp)?.Length > 32)
+        var cleanWhatsApp = CleanOptional(request.CustomerWhatsApp);
+        if (cleanWhatsApp?.Length > 32)
         {
             errors.Add(new ValidationFailure(nameof(CreatePublicQrOrderRequest.CustomerWhatsApp), "Customer WhatsApp cannot exceed 32 characters."));
+        }
+
+        if (cleanWhatsApp is not null)
+        {
+            var phoneDigits = PhoneDigits(cleanWhatsApp);
+            if (!AllowedPhoneCharacters.IsMatch(cleanWhatsApp) || phoneDigits.Length is < 10 or > 15)
+            {
+                errors.Add(new ValidationFailure(nameof(CreatePublicQrOrderRequest.CustomerWhatsApp), "Customer WhatsApp must be a valid phone number."));
+            }
+        }
+
+        if (request.MarketingConsent && cleanWhatsApp is null)
+        {
+            errors.Add(new ValidationFailure(nameof(CreatePublicQrOrderRequest.MarketingConsent), "WhatsApp number is required for marketing consent."));
         }
 
         if (CleanOptional(request.Notes)?.Length > 500)
@@ -115,5 +133,10 @@ public sealed class OrderService(IOrderRepository repository) : IOrderService
     {
         var clean = TextRules.CleanOptional(value);
         return string.IsNullOrWhiteSpace(clean) ? null : clean;
+    }
+
+    private static string PhoneDigits(string value)
+    {
+        return new string(value.Where(char.IsDigit).ToArray());
     }
 }

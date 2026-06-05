@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { BarChart3, ChefHat, ClipboardList, QrCode, Store, Users } from "lucide-react";
+import { Activity, BarChart3, BellRing, ChefHat, ClipboardList, Store, Table2 } from "lucide-react";
 import { AdminShell } from "../../../components/admin-shell";
 import { EmptyBranchState, MetricCard, PageError, PageLoading } from "../../../components/admin-page-common";
 import { Badge } from "../../../components/ui/badge";
@@ -100,10 +100,10 @@ export default function AdminAnalyticsPage() {
               <MetricCard icon={<ChefHat size={20} />} label="Menu items" value={isLoadingStats ? "..." : String(stats?.menuItems ?? 0)} />
             </section>
 
-            <section className="grid gap-4 lg:grid-cols-3">
-              <InsightCard title="Kitchen pressure" value={`${openOrders.length} open`} text="Orders not completed or cancelled." />
-              <InsightCard title="Service requests" value={`${activeCalls.length} active`} text="Waiter calls still requiring staff attention." />
-              <InsightCard title="Setup coverage" value={`${stats?.tables ?? 0} tables`} text="Tables currently available for QR menu links." />
+            <section className="grid gap-4 md:grid-cols-3">
+              <InsightCard icon={<Activity size={20} />} title="Kitchen pressure" value={`${openOrders.length} open`} text="Orders not completed or cancelled." tone="warning" />
+              <InsightCard icon={<BellRing size={20} />} title="Service requests" value={`${activeCalls.length} active`} text="Waiter calls still requiring staff attention." tone="primary" />
+              <InsightCard icon={<Table2 size={20} />} title="Setup coverage" value={`${stats?.tables ?? 0} tables`} text="Tables currently available for QR menu links." tone="neutral" />
             </section>
 
             <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
@@ -122,13 +122,36 @@ export default function AdminAnalyticsPage() {
   );
 }
 
-function InsightCard({ text, title, value }: { text: string; title: string; value: string }) {
+function InsightCard({
+  icon,
+  text,
+  title,
+  tone,
+  value
+}: {
+  icon: ReactNode;
+  text: string;
+  title: string;
+  tone: "neutral" | "primary" | "warning";
+  value: string;
+}) {
+  const toneClass = {
+    neutral: "bg-white text-primary ring-outline-variant/80",
+    primary: "bg-secondary-container text-primary ring-primary/10",
+    warning: "bg-[#fff4d8] text-[#8a5600] ring-[#f3d485]"
+  }[tone];
+
   return (
-    <Card>
-      <CardContent className="p-5">
-        <p className="text-xs font-bold uppercase tracking-wide text-on-surface-variant">{title}</p>
-        <p className="mt-2 text-2xl font-extrabold text-primary">{value}</p>
-        <p className="mt-2 text-sm leading-6 text-on-surface-variant">{text}</p>
+    <Card className="overflow-hidden">
+      <CardContent className="flex min-h-32 items-center p-5">
+        <div className="flex w-full items-center justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-xs font-bold uppercase tracking-wide text-on-surface-variant">{title}</p>
+            <p className="mt-2 text-2xl font-extrabold leading-none text-on-surface">{value}</p>
+            <p className="mt-3 text-sm leading-5 text-on-surface-variant">{text}</p>
+          </div>
+          <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ring-1 ${toneClass}`}>{icon}</div>
+        </div>
       </CardContent>
     </Card>
   );

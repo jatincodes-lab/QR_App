@@ -18,6 +18,7 @@ import {
   type CreateBranchOfferInput
 } from "../../../lib/api";
 import { useAdminWorkspace } from "../../../lib/admin-workspace";
+import { firstInvalid, validateOptionalText, validateOptionalUrl, validatePositiveInteger, validateRequired } from "../../../lib/validation";
 
 type OfferForm = {
   title: string;
@@ -74,6 +75,12 @@ export default function AdminOffersPage() {
 
     setSavingKey("offer");
     try {
+      const validation = validateOfferForm(form);
+      if (!validation.isValid) {
+        workspace.setWorkspaceError(validation.message);
+        return;
+      }
+
       const offer = await createBranchOffer(workspace.selectedBranch.branchId, toOfferInput(form));
       setOffers((current) => [...current, offer]);
       setForm({ ...EmptyOfferForm, displayOrder: String(offers.length + 2) });
@@ -237,6 +244,17 @@ function toOfferInput(form: OfferForm): CreateBranchOfferInput {
     startsAtUtc: null,
     endsAtUtc: null
   };
+}
+
+function validateOfferForm(form: OfferForm) {
+  return firstInvalid(
+    validateRequired(form.title, "Title"),
+    validateOptionalText(form.subtitle, "Subtitle", 200),
+    validateOptionalText(form.discountText, "Discount text", 120),
+    validateOptionalUrl(form.imageUrl, "Image URL"),
+    validateOptionalText(form.imageAltText, "Image alt text", 200),
+    validatePositiveInteger(form.displayOrder, "Order")
+  );
 }
 
 function optional(value: string): string | null {

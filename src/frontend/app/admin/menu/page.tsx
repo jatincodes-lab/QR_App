@@ -24,6 +24,7 @@ import {
   type MenuItem
 } from "../../../lib/api";
 import { formatMoney, useAdminWorkspace } from "../../../lib/admin-workspace";
+import { firstInvalid, validateMoney, validateOptionalText, validateOptionalUrl, validatePositiveInteger, validateRequired } from "../../../lib/validation";
 
 type ItemForm = {
   menuCategoryId: string;
@@ -149,6 +150,12 @@ export default function AdminMenuPage() {
       return;
     }
 
+    const validation = validateCategoryForm(categoryForm);
+    if (!validation.isValid) {
+      workspace.setWorkspaceError(validation.message);
+      return;
+    }
+
     await runSaving("category", async () => {
       const category = await createMenuCategory(workspace.selectedBranch!.branchId, {
         name: categoryForm.name.trim(),
@@ -170,6 +177,12 @@ export default function AdminMenuPage() {
     event.preventDefault();
 
     if (!workspace.selectedBranch) {
+      return;
+    }
+
+    const validation = validateItemForm(itemForm);
+    if (!validation.isValid) {
+      workspace.setWorkspaceError(validation.message);
       return;
     }
 
@@ -223,6 +236,12 @@ export default function AdminMenuPage() {
 
   async function handleSaveCategory(category: MenuCategory) {
     if (!workspace.selectedBranch) {
+      return;
+    }
+
+    const validation = validateCategoryForm(editingCategoryForm);
+    if (!validation.isValid) {
+      workspace.setWorkspaceError(validation.message);
       return;
     }
 
@@ -312,6 +331,12 @@ export default function AdminMenuPage() {
 
   async function handleSaveItem(item: MenuItem) {
     if (!workspace.selectedBranch) {
+      return;
+    }
+
+    const validation = validateItemForm(editingItemForm);
+    if (!validation.isValid) {
+      workspace.setWorkspaceError(validation.message);
       return;
     }
 
@@ -858,6 +883,45 @@ function MenuItemImage({ imageAltText, imageUrl, name }: { imageAltText: string 
 function toPositiveNumber(value: string): number {
   const number = Number(value);
   return Number.isFinite(number) && number > 0 ? number : 1;
+}
+
+function validateCategoryForm(form: CategoryForm) {
+  return firstInvalid(
+    validateRequired(form.name, "Category name"),
+    validatePositiveInteger(form.displayOrder, "Order")
+  );
+}
+
+function validateItemForm(form: ItemForm) {
+  return firstInvalid(
+    validateRequired(form.menuCategoryId, "Category"),
+    validateRequired(form.name, "Item name"),
+    validateOptionalText(form.description, "Description", 500),
+    validateOptionalUrl(form.imageUrl, "Item image URL"),
+    validateOptionalText(form.imageAltText, "Image alt text", 200),
+    form.variants.length > 0 ? validItemVariants(form.variants) : validateMoney(form.price, "Price"),
+    validatePositiveInteger(form.displayOrder, "Order")
+  );
+}
+
+function validItemVariants(variants: ItemVariantForm[]) {
+  if (variants.length === 0) {
+    return { isValid: true, message: null };
+  }
+
+  for (const [index, variant] of variants.entries()) {
+    const validation = firstInvalid(
+      validateRequired(variant.name, `Variant ${index + 1} name`),
+      validateMoney(variant.price, `Variant ${index + 1} price`),
+      validatePositiveInteger(variant.displayOrder, `Variant ${index + 1} order`)
+    );
+
+    if (!validation.isValid) {
+      return validation;
+    }
+  }
+
+  return { isValid: true, message: null };
 }
 
 function getItemFormPrice(form: ItemForm): number {

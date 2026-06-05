@@ -12,6 +12,7 @@ import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
 import { ApiError, login } from "../../../lib/api";
 import { getAccessToken, setAccessToken } from "../../../lib/auth";
+import { firstInvalid, validateEmail, validatePassword } from "../../../lib/validation";
 
 export default function AdminLoginPage() {
   return (
@@ -51,10 +52,17 @@ function AdminLoginContent() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+
+    const validation = firstInvalid(validateEmail(email), validatePassword(password, 1));
+    if (!validation.isValid) {
+      setError(validation.message);
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      const response = await login(email, password);
+      const response = await login(email.trim(), password);
       setAccessToken(response.accessToken);
       router.replace("/admin/dashboard");
     } catch (caught) {
