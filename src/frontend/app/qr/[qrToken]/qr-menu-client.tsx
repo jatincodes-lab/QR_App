@@ -26,7 +26,10 @@ import {
   createPublicQrOrder,
   getPublicQrMenu,
   getPublicQrOrder,
+  lookupPublicCustomer,
   type CreatePublicQrOrderInput,
+  type PublicCustomerLookup,
+  type PublicCustomerRecentOrder,
   type PublicQrMenu,
   type PublicQrMenuCategory,
   type PublicQrMenuItem,
@@ -88,6 +91,9 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
   const [customerWhatsApp, setCustomerWhatsApp] = useState("");
   const [customerPhoneCountryCode, setCustomerPhoneCountryCode] = useState("IN");
   const [marketingConsent, setMarketingConsent] = useState(false);
+  const [recognizedCustomer, setRecognizedCustomer] = useState<PublicCustomerLookup | null>(null);
+  const [isCustomerLookupLoading, setIsCustomerLookupLoading] = useState(false);
+  const [lastLookupWhatsApp, setLastLookupWhatsApp] = useState("");
   const [notes, setNotes] = useState("");
   const [activeView, setActiveView] = useState<ActiveView>("menu");
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
@@ -112,6 +118,13 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
     const lookup = new Map<string, PublicQrMenuItem>();
     currentMenu.categories.forEach((category) => {
       category.items.forEach((item) => lookup.set(item.menuItemId, item));
+    });
+    return lookup;
+  }, [currentMenu.categories]);
+  const categoryNameByMenuItemId = useMemo(() => {
+    const lookup = new Map<string, string>();
+    currentMenu.categories.forEach((category) => {
+      category.items.forEach((item) => lookup.set(item.menuItemId, category.name));
     });
     return lookup;
   }, [currentMenu.categories]);
@@ -152,6 +165,51 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
 
     return () => window.clearInterval(timer);
   }, [currentMenu.qrToken, previousOrders.length]);
+
+  useEffect(() => {
+    const cleanWhatsApp = customerWhatsApp.trim();
+    const phoneValidation = validatePhone(cleanWhatsApp, "WhatsApp number", false);
+
+    if (!cleanWhatsApp || !phoneValidation.isValid) {
+      setRecognizedCustomer(null);
+      setIsCustomerLookupLoading(false);
+      return;
+    }
+
+    if (cleanWhatsApp === lastLookupWhatsApp) {
+      return;
+    }
+
+    let isActive = true;
+    const timer = window.setTimeout(async () => {
+      setIsCustomerLookupLoading(true);
+      try {
+        const customer = await lookupPublicCustomer(currentMenu.qrToken, cleanWhatsApp);
+        if (!isActive) {
+          return;
+        }
+
+        setRecognizedCustomer(customer);
+        setLastLookupWhatsApp(cleanWhatsApp);
+        if (customer?.name && customerName.trim().length === 0) {
+          setCustomerName(customer.name);
+        }
+      } catch {
+        if (isActive) {
+          setRecognizedCustomer(null);
+        }
+      } finally {
+        if (isActive) {
+          setIsCustomerLookupLoading(false);
+        }
+      }
+    }, 450);
+
+    return () => {
+      isActive = false;
+      window.clearTimeout(timer);
+    };
+  }, [currentMenu.qrToken, customerName, customerWhatsApp, lastLookupWhatsApp]);
 
   function addItem(item: PublicQrMenuItem, categoryName: string, variant: PublicQrMenuItem["variants"][number] | null = null) {
     if (!canOrder) {
@@ -231,6 +289,50 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
         }
       };
     });
+  }
+
+  function addRecentOrderToCart(order: PublicCustomerRecentOrder) {
+    let addedCount = 0;
+
+    setSubmitState({ kind: "idle" });
+    setCart((current) => {
+      const next = { ...current };
+
+      order.items.forEach((recentItem) => {
+        const item = menuItemById.get(recentItem.menuItemId);
+        if (!item) {
+          return;
+        }
+
+        const variant = recentItem.menuItemVariantId
+          ? item.variants.find((candidate) => candidate.menuItemVariantId === recentItem.menuItemVariantId) ?? null
+          : null;
+
+        if (recentItem.menuItemVariantId && !variant) {
+          return;
+        }
+
+        const cartLineId = getCartLineId(item.menuItemId, variant?.menuItemVariantId ?? null);
+        const existing = next[cartLineId];
+        addedCount += recentItem.quantity;
+        next[cartLineId] = {
+          cartLineId,
+          item,
+          categoryName: categoryNameByMenuItemId.get(item.menuItemId) ?? "Menu",
+          variant,
+          itemNote: existing?.itemNote ?? recentItem.itemNote ?? "",
+          quantity: (existing?.quantity ?? 0) + recentItem.quantity
+        };
+      });
+
+      return next;
+    });
+
+    if (addedCount === 0) {
+      setSubmitState({ kind: "error", message: "Items from this order are not available right now." });
+    } else {
+      setBarPulseKey((current) => current + 1);
+    }
   }
 
   async function submitOrder() {
@@ -389,9 +491,11 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
           customerName={customerName}
           customerPhoneCountryCode={customerPhoneCountryCode}
           customerWhatsApp={customerWhatsApp}
+          isCustomerLookupLoading={isCustomerLookupLoading}
           marketingConsent={marketingConsent}
           notes={notes}
           orderSettings={currentMenu.orderSettings}
+          recognizedCustomer={recognizedCustomer}
           submitState={submitState}
           onCustomerNameChange={setCustomerName}
           onCustomerPhoneCountryChange={setCustomerPhoneCountryCode}
@@ -401,6 +505,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
           onMarketingConsentChange={setMarketingConsent}
           onBackToMenu={returnToMenu}
           onNotesChange={setNotes}
+          onReorder={addRecentOrderToCart}
           onSubmit={submitOrder}
         />
       ) : (
@@ -907,10 +1012,12 @@ function CartPage({
   customerName,
   customerPhoneCountryCode,
   customerWhatsApp,
+  isCustomerLookupLoading,
   marketingConsent,
   notes,
   orderSettings,
   menuItemById,
+  recognizedCustomer,
   submitState,
   onCustomerNameChange,
   onCustomerPhoneCountryChange,
@@ -920,6 +1027,7 @@ function CartPage({
   onMarketingConsentChange,
   onBackToMenu,
   onNotesChange,
+  onReorder,
   onSubmit
 }: {
   cartCount: number;
@@ -928,10 +1036,12 @@ function CartPage({
   customerName: string;
   customerPhoneCountryCode: string;
   customerWhatsApp: string;
+  isCustomerLookupLoading: boolean;
   marketingConsent: boolean;
   notes: string;
   orderSettings: PublicQrMenu["orderSettings"];
   menuItemById: Map<string, PublicQrMenuItem>;
+  recognizedCustomer: PublicCustomerLookup | null;
   submitState: SubmitState;
   onCustomerNameChange: (value: string) => void;
   onCustomerPhoneCountryChange: (value: string) => void;
@@ -941,6 +1051,7 @@ function CartPage({
   onMarketingConsentChange: (value: boolean) => void;
   onBackToMenu: () => void;
   onNotesChange: (value: string) => void;
+  onReorder: (order: PublicCustomerRecentOrder) => void;
   onSubmit: () => void;
 }) {
   if (submitState.kind === "success") {
@@ -1045,6 +1156,48 @@ function CartPage({
               }}
             />
           </div>
+
+          {isCustomerLookupLoading ? (
+            <div className="rounded-2xl border border-[#d9e4df] bg-white p-4 text-sm font-semibold text-[#5a625e] shadow-sm">
+              Checking customer history...
+            </div>
+          ) : recognizedCustomer ? (
+            <div className="rounded-2xl border border-[#bfe6cf] bg-[#f1fbf5] p-4 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs font-black uppercase tracking-[0.12em] text-[#006d36]">Welcome back</p>
+                  <h2 className="mt-1 truncate text-lg font-black text-[#001c11]">
+                    {recognizedCustomer.name ?? "Customer"}
+                  </h2>
+                  <p className="mt-1 text-xs font-semibold text-[#5a625e]">
+                    {recognizedCustomer.totalOrderCount} previous order{recognizedCustomer.totalOrderCount === 1 ? "" : "s"}
+                  </p>
+                </div>
+                {recognizedCustomer.marketingConsent ? (
+                  <span className="shrink-0 rounded-full bg-white px-3 py-1 text-xs font-black text-[#006d36]">Opted in</span>
+                ) : null}
+              </div>
+
+              {recognizedCustomer.recentOrders.length > 0 ? (
+                <div className="mt-3 grid gap-2">
+                  {recognizedCustomer.recentOrders.map((order) => (
+                    <button
+                      key={order.orderId}
+                      type="button"
+                      className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-[#cfe1d8] bg-white px-3 py-2 text-left text-sm font-bold text-[#001c11]"
+                      onClick={() => onReorder(order)}
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate">{order.items.length} item{order.items.length === 1 ? "" : "s"} from last visit</span>
+                        <span className="mt-0.5 block text-xs font-semibold text-[#5a625e]">{formatOrderDate(order.createdAtUtc)}</span>
+                      </span>
+                      <span className="shrink-0 text-[#006d36]">Reorder</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
 
           <label className="block">
             <span className="text-xs font-bold uppercase tracking-[0.12em] text-on-surface-variant">Notes</span>

@@ -156,6 +156,7 @@ app.MapAdminOrderEndpoints();
 app.MapAdminReportEndpoints();
 app.MapPublicMenuEndpoints();
 app.MapPublicQrEndpoints();
+app.MapPublicCustomerEndpoints();
 app.MapPublicOrderEndpoints();
 app.MapTenantBranchEndpoints();
 app.MapWaiterCallEndpoints();

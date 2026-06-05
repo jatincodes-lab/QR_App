@@ -230,6 +230,35 @@ export type PublicQrOrder = {
   items: PublicQrOrderItem[];
 };
 
+export type PublicCustomerRecentOrderItem = {
+  orderId: string;
+  menuItemId: string;
+  menuItemVariantId: string | null;
+  menuItemName: string;
+  variantName: string | null;
+  itemNote: string | null;
+  quantity: number;
+};
+
+export type PublicCustomerRecentOrder = {
+  orderId: string;
+  createdAtUtc: string;
+  totalAmount: number;
+  items: PublicCustomerRecentOrderItem[];
+};
+
+export type PublicCustomerLookup = {
+  customerId: string;
+  name: string | null;
+  whatsAppNumber: string;
+  marketingConsent: boolean;
+  visitCount: number;
+  totalOrderCount: number;
+  totalOrderValue: number;
+  lastVisitAtUtc: string;
+  recentOrders: PublicCustomerRecentOrder[];
+};
+
 export type AdminOrderItem = {
   orderItemId: string;
   orderId: string;
@@ -460,6 +489,15 @@ export async function getPublicQrOrder(qrToken: string, orderId: string): Promis
     method: "GET",
     requireAuth: false
   });
+}
+
+export async function lookupPublicCustomer(qrToken: string, whatsapp: string): Promise<PublicCustomerLookup | null> {
+  const customer = await request<PublicCustomerLookup | undefined>(`/api/v1/public/qr/${encodeURIComponent(qrToken)}/customers/lookup?whatsapp=${encodeURIComponent(whatsapp)}`, {
+    method: "GET",
+    requireAuth: false
+  });
+
+  return customer ?? null;
 }
 
 export async function createWaiterCall(qrToken: string, input: CreateWaiterCallInput): Promise<WaiterCall> {

@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using QRApp.Application.Auth;
 using QRApp.Application.Branches;
 using QRApp.Application.BranchOrderSettings;
+using QRApp.Application.Customers;
 using QRApp.Application.Menus;
 using QRApp.Application.Orders;
 using QRApp.Application.Reports;
@@ -24,6 +25,7 @@ public static class DependencyInjection
         services.AddScoped<IMenuItemService, MenuItemService>();
         services.AddScoped<IBranchOfferService, BranchOfferService>();
         services.AddScoped<IBranchTableService, BranchTableService>();
+        services.AddScoped<ICustomerService, CustomerService>();
         services.AddScoped<IOrderService, OrderService>();
         services.AddScoped<IAdminOrderService, AdminOrderService>();
         services.AddScoped<IReportService, ReportService>();

@@ -50,20 +50,20 @@ Update this file whenever a feature is completed.
 
 ## Phase 2: Repeat Customer Experience
 
-- [ ] Recognize repeat customer by WhatsApp.
+- [x] Recognize repeat customer by WhatsApp.
   - When WhatsApp is entered, find previous customer profile.
   - Auto-fill known customer name if available.
   - Suggested paths:
     - `src/backend/QRApp.Api/Endpoints/PublicQrEndpoints.cs`
     - `src/frontend/app/qr/[qrToken]/qr-menu-client.tsx`
 
-- [ ] Show simple repeat-customer message.
+- [x] Show simple repeat-customer message.
   - Example: `Welcome back, Priya`.
   - Keep it subtle and not complicated for customers.
   - Suggested path:
     - `src/frontend/app/qr/[qrToken]/qr-menu-client.tsx`
 
-- [ ] Add reorder from previous order.
+- [x] Add reorder from previous order.
   - Customer can quickly add previous items to cart.
   - Suggested paths:
     - `src/frontend/app/qr/[qrToken]/qr-menu-client.tsx`
