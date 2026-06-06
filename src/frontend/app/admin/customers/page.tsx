@@ -207,8 +207,8 @@ export default function AdminCustomersPage() {
             </section>
 
             <Card className="bg-surface-container-low/70">
-              <CardContent className="grid gap-4 px-5 py-5 sm:px-6 lg:grid-cols-[minmax(15rem,0.7fr)_minmax(18rem,1fr)_auto] lg:items-center">
-                <label className="grid gap-2">
+              <CardContent className="grid min-h-[7.5rem] gap-5 px-5 py-6 sm:px-6 sm:py-7 lg:grid-cols-[minmax(15rem,0.7fr)_minmax(18rem,1fr)_auto] lg:items-center">
+                <label className="grid gap-2.5">
                   <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-on-surface-variant">
                     <MessageCircle size={13} />
                     WhatsApp message
@@ -223,13 +223,13 @@ export default function AdminCustomersPage() {
                     ))}
                   </select>
                 </label>
-                <div className="min-w-0">
+                <div className="min-w-0 rounded-lg border border-outline-variant/70 bg-white px-3 py-3">
                   <p className="text-xs font-bold uppercase tracking-wide text-on-surface-variant">Preview</p>
                   <p className="mt-1 truncate text-sm font-semibold text-on-surface">
                     {selectedTemplate.buildMessage(customers[0] ?? EmptyPreviewCustomer, branchName)}
                   </p>
                 </div>
-                <Badge variant="outline" className="justify-center">{optedInCustomers} can message</Badge>
+                <Badge variant="outline" className="h-10 justify-center px-3">{optedInCustomers} can message</Badge>
               </CardContent>
             </Card>
 
