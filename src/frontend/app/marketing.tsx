@@ -71,9 +71,9 @@ export function MarketingHeader() {
   return (
     <header className="sticky top-0 z-30 border-b border-outline-variant/70 bg-surface/95 backdrop-blur">
       <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <Link href="/" className="flex items-center gap-2" aria-label="Qrave home">
+        <Link href="/" className="flex items-center gap-3" aria-label="Qrave home">
           <QraveMark />
-          <span className="text-lg font-extrabold text-primary">Qrave</span>
+          <span className="text-2xl font-extrabold tracking-normal text-primary">Qrave</span>
         </Link>
         <div className="hidden items-center gap-7 text-sm font-semibold text-on-surface-variant md:flex">
           <Link href="/#features" className="hover:text-primary">Features</Link>
@@ -94,9 +94,9 @@ export function MarketingFooter() {
     <footer className="border-t border-outline-variant/70 bg-white">
       <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 md:grid-cols-[1.2fr_0.8fr_0.8fr] lg:px-8">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <QraveMark />
-            <span className="text-lg font-extrabold text-primary">Qrave</span>
+            <span className="text-2xl font-extrabold tracking-normal text-primary">Qrave</span>
           </div>
           <p className="mt-3 max-w-md text-sm leading-6 text-on-surface-variant">
             QR menu ordering and customer follow-up software for restaurants, cafes, cloud kitchens, and quick-service teams.
@@ -125,14 +125,17 @@ export function MarketingFooter() {
 
 export function QraveMark() {
   return (
-    <span className="grid h-9 w-9 place-items-center rounded-md bg-primary text-white">
-      <span className="relative h-5 w-5 rounded-full border-2 border-brand-mint">
-        <span className="absolute -right-1 bottom-0 h-2 w-2 rounded-sm bg-accent" />
-        <span className="absolute left-1 top-1 h-1.5 w-1.5 rounded-[2px] bg-white" />
-        <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-[2px] bg-white" />
-        <span className="absolute bottom-1 left-1 h-1.5 w-1.5 rounded-[2px] bg-white" />
-      </span>
-    </span>
+    <svg className="h-11 w-11 shrink-0" viewBox="0 0 120 120" role="img" aria-label="Qrave logo mark" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M18 82c16 11 41 12 60 1" stroke="#ffb978" strokeWidth="8" strokeLinecap="round" />
+      <circle cx="55" cy="52" r="42" stroke="#006241" strokeWidth="9" />
+      <circle cx="55" cy="52" r="28" stroke="#006241" strokeWidth="9" />
+      <path d="M54 24c-14 2-25 14-25 29 0 9 4 18 11 23" stroke="#ffffff" strokeWidth="13" strokeLinecap="round" />
+      <path d="M46 56l45 45c6 6 17 6 23 0L67 54" stroke="#006241" strokeWidth="11" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M43 42l28 28" stroke="#006241" strokeWidth="8" strokeLinecap="round" />
+      <path d="M55 35l28 28" stroke="#006241" strokeWidth="8" strokeLinecap="round" />
+      <path d="M67 28l28 28" stroke="#006241" strokeWidth="8" strokeLinecap="round" />
+      <path d="M35 40c3-10 12-17 23-17 9 0 17 5 21 12" stroke="#ffffff" strokeWidth="9" strokeLinecap="round" />
+    </svg>
   );
 }
 
