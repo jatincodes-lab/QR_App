@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CheckList, ClockNote, FaqItems, FeatureGrid, HowItWorks, PageShell, ProductVisual, SectionHeader, SiteUrl, TrustStrip, UseCases } from "./marketing";
+import { CheckList, ClockNote, FaqItems, FeatureGrid, HeroCollage, HowItWorks, PageShell, SectionHeader, SiteUrl, TrustStrip, UseCases } from "./marketing";
 
 export const metadata: Metadata = {
   title: "QR Menu Ordering Software for Restaurants and Cafes | Qrave",
@@ -58,31 +58,33 @@ export default function LandingPage() {
   return (
     <PageShell>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareSchema) }} />
-      <section className="overflow-hidden bg-surface-bright">
-        <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 md:py-16 lg:grid-cols-[0.92fr_1.08fr] lg:items-center lg:px-8">
+      <section className="relative overflow-hidden bg-[#080604]">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(255,107,53,0.32),transparent_28%),radial-gradient(circle_at_88%_12%,rgba(255,185,120,0.22),transparent_30%),linear-gradient(135deg,rgba(255,107,53,0.18),transparent_42%)]" />
+        <div className="absolute left-0 top-24 h-48 w-48 rounded-full border border-white/10 opacity-35" />
+        <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:px-6 md:py-20 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:px-8">
           <div>
-            <div className="inline-flex rounded-md border border-outline-variant bg-white px-3 py-2 text-sm font-extrabold text-primary">
+            <div className="inline-flex rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm font-extrabold text-[#ffb978]">
               QR menu + orders + repeat customers
             </div>
-            <h1 className="mt-6 max-w-3xl text-4xl font-extrabold leading-tight text-primary md:text-6xl">
+            <h1 className="mt-6 max-w-3xl text-4xl font-extrabold leading-tight text-white md:text-6xl">
               QR menu ordering for restaurants and cafes
             </h1>
-            <p className="mt-5 max-w-2xl text-lg leading-8 text-on-surface-variant">
+            <p className="mt-5 max-w-2xl text-lg leading-8 text-white/68">
               Qrave helps restaurants take QR orders, manage live menus, remember customers, and bring them back with WhatsApp messages.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link href="/admin/register" className="rounded-md bg-primary px-5 py-3 text-center text-sm font-extrabold text-white hover:bg-primary-container">
+              <Link href="/admin/register" className="rounded-md bg-[#ff6b35] px-5 py-3 text-center text-sm font-extrabold text-white hover:bg-[#ff7f4f]">
                 Start free
               </Link>
-              <Link href="/admin/login" className="rounded-md border border-outline-variant bg-white px-5 py-3 text-center text-sm font-extrabold text-primary hover:bg-secondary-container">
+              <Link href="/admin/login" className="rounded-md border border-white/15 bg-white/5 px-5 py-3 text-center text-sm font-extrabold text-white hover:bg-white/10">
                 View demo
               </Link>
             </div>
-            <div className="mt-6">
+            <div className="mt-6 max-w-md">
               <ClockNote />
             </div>
           </div>
-          <ProductVisual />
+          <HeroCollage />
         </div>
       </section>
 
@@ -103,13 +105,13 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section id="features" className="bg-white">
+      <section id="features" className="bg-[#0d0907]">
         <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-          <SectionHeader
-            eyebrow="Features"
-            title="Everything a restaurant needs after the QR scan"
-            text="Qrave is built for practical restaurant workflows: update menus, accept table orders, track customers, and send simple follow-up messages."
-          />
+          <div className="mx-auto max-w-3xl text-center">
+            <p className="text-sm font-extrabold uppercase text-[#ffb978]">Features</p>
+            <h2 className="mt-3 text-3xl font-extrabold text-white md:text-4xl">Everything a restaurant needs after the QR scan</h2>
+            <p className="mt-4 text-base leading-7 text-white/60">Qrave is built for practical restaurant workflows: update menus, accept table orders, track customers, and send simple follow-up messages.</p>
+          </div>
           <div className="mt-10">
             <FeatureGrid />
           </div>

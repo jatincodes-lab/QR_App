@@ -69,19 +69,19 @@ export const FaqItems = [
 
 export function MarketingHeader() {
   return (
-    <header className="sticky top-0 z-30 border-b border-outline-variant/70 bg-surface/95 backdrop-blur">
+    <header className="sticky top-0 z-30 border-b border-white/10 bg-[#080604]/95 backdrop-blur">
       <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link href="/" className="flex items-center gap-3" aria-label="Qrave home">
           <QraveMark />
-          <span className="text-2xl font-extrabold tracking-normal text-primary">Qrave</span>
+          <span className="text-2xl font-extrabold tracking-normal text-white">Qrave</span>
         </Link>
-        <div className="hidden items-center gap-7 text-sm font-semibold text-on-surface-variant md:flex">
-          <Link href="/#features" className="hover:text-primary">Features</Link>
-          <Link href="/pricing" className="hover:text-primary">Pricing</Link>
-          <Link href="/faq" className="hover:text-primary">FAQ</Link>
-          <Link href="/contact" className="hover:text-primary">Contact</Link>
+        <div className="hidden items-center gap-7 text-sm font-semibold text-white/70 md:flex">
+          <Link href="/#features" className="hover:text-white">Features</Link>
+          <Link href="/pricing" className="hover:text-white">Pricing</Link>
+          <Link href="/faq" className="hover:text-white">FAQ</Link>
+          <Link href="/contact" className="hover:text-white">Contact</Link>
         </div>
-        <Link href="/admin/register" className="rounded-md bg-primary px-4 py-2 text-sm font-bold text-white hover:bg-primary-container">
+        <Link href="/admin/register" className="rounded-md bg-[#ff6b35] px-4 py-2 text-sm font-bold text-white hover:bg-[#ff7f4f]">
           Start free
         </Link>
       </nav>
@@ -171,7 +171,7 @@ export function ProductVisual() {
             <p className="mt-4 text-center text-sm font-bold">Scan. Order. Return.</p>
             <div className="mt-4 rounded-md bg-white/10 p-3">
               <p className="text-xs text-white/75">Customer saved</p>
-              <p className="mt-1 text-sm font-bold">Priya · 4 visits · WhatsApp opt-in</p>
+              <p className="mt-1 text-sm font-bold">Priya - 4 visits - WhatsApp opt-in</p>
             </div>
           </div>
         </div>
@@ -180,6 +180,78 @@ export function ProductVisual() {
         <div className="flex items-center gap-2 text-sm font-bold text-primary">
           <MessageCircle size={16} />
           Come back offer ready
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function HeroCollage() {
+  return (
+    <div className="relative mx-auto h-[30rem] w-full max-w-2xl overflow-visible">
+      <div className="absolute right-0 top-0 w-[86%] rounded-md border border-white/10 bg-[#100b08] p-4 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-white/10 pb-3">
+          <div className="flex items-center gap-2">
+            <QraveMark />
+            <span className="text-sm font-extrabold text-white">Qrave</span>
+          </div>
+          <div className="hidden gap-5 text-[11px] font-bold text-white/55 sm:flex">
+            <span>Orders</span>
+            <span>Menu</span>
+            <span>Customers</span>
+            <span>Reports</span>
+          </div>
+        </div>
+        <div className="grid gap-4 pt-5 md:grid-cols-[1fr_0.72fr]">
+          <div>
+            <p className="text-xs font-extrabold uppercase text-[#ffb978]">Restaurant command center</p>
+            <h3 className="mt-2 text-3xl font-extrabold leading-tight text-white">Orders, menu and customers in one view</h3>
+            <div className="mt-5 grid gap-3">
+              {["Table 4", "Table 8", "Pickup"].map((table, index) => (
+                <div key={table} className="rounded-md border border-white/10 bg-white/[0.04] p-3">
+                  <div className="flex items-center justify-between">
+                    <p className="font-extrabold text-white">{table}</p>
+                    <span className={index === 1 ? "text-xs font-bold text-[#ff6b35]" : "text-xs font-bold text-[#44d18d]"}>{index === 0 ? "Preparing" : index === 1 ? "New" : "Ready"}</span>
+                  </div>
+                  <p className="mt-2 text-sm text-white/60">{index === 0 ? "2 masala dosa, 1 cold coffee" : index === 1 ? "Paneer wrap, fries" : "Veg burger combo"}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="rounded-md border border-white/10 bg-[#1a100b] p-4">
+            <p className="text-xs font-bold uppercase text-white/50">Table QR</p>
+            <div className="mx-auto mt-4 grid h-32 w-32 grid-cols-5 gap-1 rounded-md bg-white p-2">
+              {Array.from({ length: 25 }).map((_, index) => (
+                <span key={index} className={index % 3 === 0 || index === 6 || index === 18 ? "rounded-[2px] bg-[#006241]" : "rounded-[2px] bg-[#fde5d2]"} />
+              ))}
+            </div>
+            <p className="mt-4 text-center text-sm font-extrabold text-white">Scan. Order. Return.</p>
+            <div className="mt-4 rounded-md bg-white/[0.06] p-3">
+              <p className="text-xs text-white/45">Customer saved</p>
+              <p className="mt-1 text-sm font-bold text-white">Priya - 4 visits - WhatsApp opt-in</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="absolute bottom-7 left-0 hidden w-[54%] rounded-md border border-white/10 bg-[#0d0907] p-4 shadow-2xl sm:block">
+        <p className="text-xs font-extrabold uppercase text-[#ffb978]">Customer CRM</p>
+        <div className="mt-4 grid gap-3">
+          {["Repeat customers", "Can message", "Total spent"].map((label, index) => (
+            <div key={label} className="flex items-center justify-between rounded-md bg-white/[0.05] px-3 py-2">
+              <span className="text-xs font-bold text-white/60">{label}</span>
+              <span className="text-sm font-extrabold text-white">{index === 0 ? "184" : index === 1 ? "96" : "Rs.42k"}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="absolute -right-2 bottom-0 hidden w-56 rounded-md border border-white/10 bg-[#130c09] p-4 shadow-2xl md:block">
+        <div className="flex items-center gap-2 text-sm font-bold text-white">
+          <MessageCircle size={16} className="text-[#ff6b35]" />
+          Come back offer
+        </div>
+        <p className="mt-3 text-xs leading-5 text-white/55">Send a WhatsApp reminder to customers who ordered last week.</p>
+        <div className="mt-4 h-2 rounded-full bg-white/10">
+          <div className="h-2 w-2/3 rounded-full bg-[#ff6b35]" />
         </div>
       </div>
     </div>
@@ -202,12 +274,12 @@ export function FeatureGrid() {
       {Features.map((feature) => {
         const Icon = feature.icon;
         return (
-          <article key={feature.title} className="rounded-lg border border-outline-variant bg-white p-5 shadow-soft-saas">
-            <div className="grid h-10 w-10 place-items-center rounded-md bg-secondary-container text-primary">
+          <article key={feature.title} className="rounded-md border border-white/10 bg-white/[0.04] p-5 shadow-2xl">
+            <div className="grid h-10 w-10 place-items-center rounded-md bg-[#ff6b35]/15 text-[#ffb978]">
               <Icon size={20} />
             </div>
-            <h3 className="mt-4 text-lg font-extrabold text-on-surface">{feature.title}</h3>
-            <p className="mt-2 text-sm leading-6 text-on-surface-variant">{feature.text}</p>
+            <h3 className="mt-4 text-lg font-extrabold text-white">{feature.title}</h3>
+            <p className="mt-2 text-sm leading-6 text-white/58">{feature.text}</p>
           </article>
         );
       })}
@@ -240,18 +312,18 @@ export function PageShell({ children }: { children: React.ReactNode }) {
 
 export function TrustStrip() {
   return (
-    <section className="border-y border-outline-variant/70 bg-white">
+    <section className="border-y border-white/10 bg-[#0d0907]">
       <div className="mx-auto grid max-w-7xl gap-4 px-4 py-5 sm:px-6 md:grid-cols-3 lg:px-8">
-        <div className="flex items-center gap-3 text-sm font-bold text-on-surface">
-          <ScanLine className="text-secondary" size={20} />
+        <div className="flex items-center gap-3 text-sm font-bold text-white">
+          <ScanLine className="text-[#ffb978]" size={20} />
           Built for table QR ordering
         </div>
-        <div className="flex items-center gap-3 text-sm font-bold text-on-surface">
-          <Smartphone className="text-secondary" size={20} />
+        <div className="flex items-center gap-3 text-sm font-bold text-white">
+          <Smartphone className="text-[#ffb978]" size={20} />
           No customer app needed
         </div>
-        <div className="flex items-center gap-3 text-sm font-bold text-on-surface">
-          <ShieldCheck className="text-secondary" size={20} />
+        <div className="flex items-center gap-3 text-sm font-bold text-white">
+          <ShieldCheck className="text-[#ffb978]" size={20} />
           Consent-first WhatsApp follow-up
         </div>
       </div>
