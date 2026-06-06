@@ -111,6 +111,12 @@ Update this file whenever a feature is completed.
 
 ## Phase 5: WhatsApp Campaigns
 
+- [x] Add basic one-customer WhatsApp send action.
+  - Admin can choose a message template from the customer CRM list.
+  - Opted-in customers with saved WhatsApp numbers can be opened in WhatsApp with a prefilled message.
+  - Suggested path:
+    - `src/frontend/app/admin/customers/page.tsx`
+
 - [ ] Create campaign draft flow.
   - Campaign name, target segment, message text, optional offer.
   - Suggested paths:
