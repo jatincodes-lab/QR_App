@@ -70,9 +70,20 @@ public sealed record ItemReportResponse(
     decimal TotalValue);
 
 public sealed record CustomerReportResponse(
+    Guid? CustomerId,
     string CustomerKey,
     string? CustomerName,
     string? CustomerWhatsApp,
+    bool MarketingConsent,
+    int VisitCount,
     int OrderCount,
     decimal TotalValue,
-    DateTime LastOrderAtUtc);
+    DateTime? FirstVisitAtUtc,
+    DateTime? LastVisitAtUtc,
+    DateTime? LastOrderAtUtc,
+    int BranchesVisited,
+    string? FirstBranchName,
+    string? LastBranchName,
+    string? FavoriteItemName,
+    string? FavoriteVariantName,
+    int FavoriteItemQuantity);

@@ -433,12 +433,23 @@ export type ItemReport = {
 };
 
 export type CustomerReport = {
+  customerId: string | null;
   customerKey: string;
   customerName: string | null;
   customerWhatsApp: string | null;
+  marketingConsent: boolean;
+  visitCount: number;
   orderCount: number;
   totalValue: number;
-  lastOrderAtUtc: string;
+  firstVisitAtUtc: string | null;
+  lastVisitAtUtc: string | null;
+  lastOrderAtUtc: string | null;
+  branchesVisited: number;
+  firstBranchName: string | null;
+  lastBranchName: string | null;
+  favoriteItemName: string | null;
+  favoriteVariantName: string | null;
+  favoriteItemQuantity: number;
 };
 
 export type CreateBranchTableInput = {

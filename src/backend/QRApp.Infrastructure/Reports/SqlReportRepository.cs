@@ -116,13 +116,7 @@ public sealed class SqlReportRepository(ISqlConnectionFactory connectionFactory)
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
         {
-            customers.Add(new CustomerReportResponse(
-                reader.GetString(reader.GetOrdinal("CustomerKey")),
-                GetNullableString(reader, "CustomerName"),
-                GetNullableString(reader, "CustomerWhatsApp"),
-                reader.GetInt32(reader.GetOrdinal("OrderCount")),
-                reader.GetDecimal(reader.GetOrdinal("TotalValue")),
-                reader.GetDateTime(reader.GetOrdinal("LastOrderAtUtc"))));
+            customers.Add(ReadCustomer(reader));
         }
 
         return customers;
@@ -168,6 +162,36 @@ public sealed class SqlReportRepository(ISqlConnectionFactory connectionFactory)
             GetNullableDateTime(reader, "CompletedAtUtc"),
             GetNullableDateTime(reader, "CancelledAtUtc"),
             GetNullableString(reader, "LatestReason"));
+    }
+
+    private static CustomerReportResponse ReadCustomer(SqlDataReader reader)
+    {
+        var customerId = HasColumn(reader, "CustomerId") ? GetNullableGuid(reader, "CustomerId") : null;
+        var customerKey = HasColumn(reader, "CustomerKey")
+            ? reader.GetString(reader.GetOrdinal("CustomerKey"))
+            : customerId?.ToString() ?? GetNullableString(reader, "CustomerWhatsApp") ?? GetNullableString(reader, "CustomerName") ?? "Guest";
+        var orderCount = reader.GetInt32(reader.GetOrdinal("OrderCount"));
+        var totalValue = reader.GetDecimal(reader.GetOrdinal("TotalValue"));
+        var lastOrderAtUtc = GetNullableDateTime(reader, "LastOrderAtUtc");
+
+        return new CustomerReportResponse(
+            customerId,
+            customerKey,
+            GetNullableString(reader, "CustomerName"),
+            GetNullableString(reader, "CustomerWhatsApp"),
+            HasColumn(reader, "MarketingConsent") && reader.GetBoolean(reader.GetOrdinal("MarketingConsent")),
+            HasColumn(reader, "VisitCount") ? reader.GetInt32(reader.GetOrdinal("VisitCount")) : orderCount,
+            orderCount,
+            totalValue,
+            HasColumn(reader, "FirstVisitAtUtc") ? GetNullableDateTime(reader, "FirstVisitAtUtc") : null,
+            HasColumn(reader, "LastVisitAtUtc") ? GetNullableDateTime(reader, "LastVisitAtUtc") : lastOrderAtUtc,
+            lastOrderAtUtc,
+            HasColumn(reader, "BranchesVisited") ? reader.GetInt32(reader.GetOrdinal("BranchesVisited")) : 0,
+            HasColumn(reader, "FirstBranchName") ? GetNullableString(reader, "FirstBranchName") : null,
+            HasColumn(reader, "LastBranchName") ? GetNullableString(reader, "LastBranchName") : null,
+            HasColumn(reader, "FavoriteItemName") ? GetNullableString(reader, "FavoriteItemName") : null,
+            HasColumn(reader, "FavoriteVariantName") ? GetNullableString(reader, "FavoriteVariantName") : null,
+            HasColumn(reader, "FavoriteItemQuantity") ? reader.GetInt32(reader.GetOrdinal("FavoriteItemQuantity")) : 0);
     }
 
     private static OrderReportItemResponse ReadItem(SqlDataReader reader)
@@ -224,5 +248,18 @@ public sealed class SqlReportRepository(ISqlConnectionFactory connectionFactory)
     {
         var ordinal = reader.GetOrdinal(name);
         return reader.IsDBNull(ordinal) ? null : reader.GetDateTime(ordinal);
+    }
+
+    private static bool HasColumn(SqlDataReader reader, string name)
+    {
+        for (var index = 0; index < reader.FieldCount; index++)
+        {
+            if (string.Equals(reader.GetName(index), name, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

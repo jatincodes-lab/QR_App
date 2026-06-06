@@ -71,9 +71,10 @@ Update this file whenever a feature is completed.
 
 ## Phase 3: Admin Customer CRM
 
-- [ ] Replace basic customer report with a CRM-style customer list.
+- [x] Replace basic customer report with a CRM-style customer list.
   - Show name, WhatsApp, visits, last visit, total order value, favorite item.
-  - Suggested path:
+  - Paths:
+    - `src/frontend/app/admin/customers/page.tsx`
     - `src/frontend/app/admin/reports/page.tsx`
 
 - [ ] Add customer detail view.

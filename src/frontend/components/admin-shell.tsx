@@ -17,6 +17,7 @@ import {
   Search,
   Settings,
   Store,
+  Users,
   X
 } from "lucide-react";
 import { Button } from "./ui/button";
@@ -26,7 +27,7 @@ import { getCurrentRoleCode } from "../lib/auth";
 const SidebarCollapsedStorageKey = "qrapp.admin.sidebarCollapsed";
 
 type AdminShellProps = {
-  active: "dashboard" | "branches" | "menu" | "orders" | "kitchen" | "offers" | "reports" | "analytics" | "settings";
+  active: "dashboard" | "branches" | "menu" | "orders" | "kitchen" | "offers" | "customers" | "reports" | "analytics" | "settings";
   branchName?: string;
   branches?: BranchListItem[];
   children: ReactNode;
@@ -60,6 +61,7 @@ const navGroups: { label: string; items: NavItem[] }[] = [
     label: "Insights",
     items: [
       { id: "analytics", label: "Analytics", helper: "Reports", icon: BarChart3, href: "/admin/analytics" },
+      { id: "customers", label: "Customers", helper: "CRM", icon: Users, href: "/admin/customers" },
       { id: "reports", label: "Reports", helper: "History", icon: ClipboardList, href: "/admin/reports" },
       { id: "settings", label: "Settings", helper: "Controls", icon: Settings, href: "/admin/settings" }
     ]
