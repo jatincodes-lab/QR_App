@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { CalendarDays, HeartHandshake, MessageCircle, RefreshCw, Search, Send, SlidersHorizontal, Star, UserRound, Users } from "lucide-react";
+import { CalendarDays, MessageCircle, RefreshCw, Search, Send, SlidersHorizontal, Star, UserRound, Users } from "lucide-react";
 import { AdminShell } from "../../../components/admin-shell";
 import { EmptyBranchState, MetricCard, PageError, PageLoading } from "../../../components/admin-page-common";
 import { Badge } from "../../../components/ui/badge";
@@ -33,7 +33,7 @@ type WhatsAppTemplate = {
 const WhatsAppTemplates: WhatsAppTemplate[] = [
   {
     id: "repeatVisit",
-    label: "Repeat visit invite",
+    label: "Invite again",
     description: "Invite loyal customers back with a simple thank-you message.",
     buildMessage: (customer, branchName) =>
       `Hi ${customerFirstName(customer)}, thanks for visiting ${branchName}. We would love to serve you again. Reply here or scan our QR menu when you are nearby.`
@@ -47,7 +47,7 @@ const WhatsAppTemplates: WhatsAppTemplate[] = [
   },
   {
     id: "favoriteItem",
-    label: "Favorite item reminder",
+    label: "Favorite item",
     description: "Mention the item this customer orders most often.",
     buildMessage: (customer, branchName) =>
       `Hi ${customerFirstName(customer)}, your favorite ${favoriteItem(customer).toLowerCase() === "-" ? "order" : favoriteItem(customer)} is waiting at ${branchName}. Visit us again soon.`
@@ -64,6 +64,7 @@ export default function AdminCustomersPage() {
   });
   const [customers, setCustomers] = useState<CustomerReport[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<WhatsAppTemplateId>("repeatVisit");
 
   const filter = useMemo<ReportFilterInput>(() => ({
@@ -129,9 +130,9 @@ export default function AdminCustomersPage() {
               <Users size={14} />
               Customers
             </Badge>
-            <h1 className="mt-4 text-headline-lg text-primary">Customer CRM</h1>
+            <h1 className="mt-4 text-headline-lg text-primary">Customers</h1>
             <p className="mt-2 max-w-2xl text-body-md text-on-surface-variant">
-              Review captured WhatsApp customers, repeat visits, spend, consent, branch activity, and favorite items.
+              See saved customers and message them on WhatsApp.
             </p>
           </div>
         </header>
@@ -145,44 +146,55 @@ export default function AdminCustomersPage() {
         ) : (
           <>
             <Card className="bg-surface-container-low/70">
-              <CardContent className="flex min-h-[6.75rem] items-center px-5 py-6 sm:px-6">
-                <form onSubmit={applyFilters} className="grid w-full gap-x-3 gap-y-4 sm:grid-cols-2 xl:grid-cols-[minmax(10rem,1fr)_minmax(10rem,1fr)_minmax(12rem,1fr)_minmax(16rem,1.4fr)_auto] xl:items-end">
-                  <label className="grid gap-2">
-                    <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-on-surface-variant">
-                      <CalendarDays size={13} />
-                      From
-                    </span>
-                    <Input className="h-11 bg-white" type="date" value={form.dateFrom} onChange={(event) => setForm({ ...form, dateFrom: event.target.value })} />
-                  </label>
-                  <label className="grid gap-2">
-                    <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-on-surface-variant">
-                      <CalendarDays size={13} />
-                      To
-                    </span>
-                    <Input className="h-11 bg-white" type="date" value={form.dateTo} onChange={(event) => setForm({ ...form, dateTo: event.target.value })} />
-                  </label>
-                  <label className="grid gap-2">
-                    <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-on-surface-variant">
-                      <SlidersHorizontal size={13} />
-                      Status
-                    </span>
-                    <select value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value })} className="h-11 w-full rounded-lg border border-input bg-white px-3 text-sm font-semibold text-on-surface outline-none transition-colors focus:border-primary/30 focus:ring-2 focus:ring-ring/20">
-                      {StatusOptions.map((status) => (
-                        <option key={status || "all"} value={status}>{status || "All statuses"}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="grid gap-2">
-                    <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-on-surface-variant">
-                      <Search size={13} />
+              <CardContent className="px-5 py-5 sm:px-6">
+                <form onSubmit={applyFilters} className="grid w-full gap-4">
+                  <div className="grid gap-3 lg:grid-cols-[minmax(16rem,1fr)_auto_auto] lg:items-end">
+                    <label className="grid gap-2">
+                      <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-on-surface-variant">
+                        <Search size={13} />
+                        Search customer
+                      </span>
+                      <Input className="h-11 bg-white" value={form.search} onChange={(event) => setForm({ ...form, search: event.target.value })} placeholder="Name, WhatsApp number, favorite item" />
+                    </label>
+                    <Button type="button" variant="outline" className="h-11 px-4" onClick={() => setShowMoreFilters((current) => !current)}>
+                      <SlidersHorizontal size={17} />
+                      {showMoreFilters ? "Hide filters" : "More filters"}
+                    </Button>
+                    <Button type="submit" disabled={isLoading} className="h-11 px-5">
+                      {isLoading ? <RefreshCw size={17} className="animate-spin" /> : <Search size={17} />}
                       Search
-                    </span>
-                    <Input className="h-11 bg-white" value={form.search} onChange={(event) => setForm({ ...form, search: event.target.value })} placeholder="Name, WhatsApp, item, branch" />
-                  </label>
-                  <Button type="submit" disabled={isLoading} className="h-11 px-5 sm:col-span-2 xl:col-span-1">
-                    {isLoading ? <RefreshCw size={17} className="animate-spin" /> : <Search size={17} />}
-                    Apply
-                  </Button>
+                    </Button>
+                  </div>
+
+                  {showMoreFilters ? (
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      <label className="grid gap-2">
+                        <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-on-surface-variant">
+                          <CalendarDays size={13} />
+                          From
+                        </span>
+                        <Input className="h-11 bg-white" type="date" value={form.dateFrom} onChange={(event) => setForm({ ...form, dateFrom: event.target.value })} />
+                      </label>
+                      <label className="grid gap-2">
+                        <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-on-surface-variant">
+                          <CalendarDays size={13} />
+                          To
+                        </span>
+                        <Input className="h-11 bg-white" type="date" value={form.dateTo} onChange={(event) => setForm({ ...form, dateTo: event.target.value })} />
+                      </label>
+                      <label className="grid gap-2">
+                        <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-on-surface-variant">
+                          <SlidersHorizontal size={13} />
+                          Order status
+                        </span>
+                        <select value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value })} className="h-11 w-full rounded-lg border border-input bg-white px-3 text-sm font-semibold text-on-surface outline-none transition-colors focus:border-primary/30 focus:ring-2 focus:ring-ring/20">
+                          {StatusOptions.map((status) => (
+                            <option key={status || "all"} value={status}>{status || "All statuses"}</option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                  ) : null}
                 </form>
               </CardContent>
             </Card>
@@ -190,26 +202,17 @@ export default function AdminCustomersPage() {
             <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               <MetricCard icon={<Users size={20} />} label="Customers" value={isLoading ? "..." : String(customers.length)} />
               <MetricCard icon={<RefreshCw size={20} />} label="Repeat customers" value={isLoading ? "..." : String(metrics.repeatCustomers)} />
-              <MetricCard icon={<HeartHandshake size={20} />} label="WhatsApp opt-ins" value={isLoading ? "..." : String(metrics.optedInCustomers)} />
-              <MetricCard icon={<Star size={20} />} label="Customer value" value={isLoading ? "..." : formatMoney(metrics.totalValue)} />
+              <MetricCard icon={<MessageCircle size={20} />} label="Can message" value={isLoading ? "..." : String(optedInCustomers)} />
+              <MetricCard icon={<Star size={20} />} label="Total spent" value={isLoading ? "..." : formatMoney(metrics.totalValue)} />
             </section>
 
             <Card className="bg-surface-container-low/70">
-              <CardHeader className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <MessageCircle size={19} />
-                    WhatsApp action
-                  </CardTitle>
-                  <p className="mt-1 max-w-2xl text-sm text-on-surface-variant">
-                    Choose a message template, then send it from an opted-in customer row.
-                  </p>
-                </div>
-                <Badge variant="outline">{optedInCustomers} sendable customers</Badge>
-              </CardHeader>
-              <CardContent className="grid gap-4 lg:grid-cols-[minmax(14rem,0.75fr)_minmax(20rem,1.25fr)] lg:items-start">
+              <CardContent className="grid gap-4 px-5 py-5 sm:px-6 lg:grid-cols-[minmax(15rem,0.7fr)_minmax(18rem,1fr)_auto] lg:items-center">
                 <label className="grid gap-2">
-                  <span className="text-xs font-bold uppercase tracking-wide text-on-surface-variant">Template</span>
+                  <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-on-surface-variant">
+                    <MessageCircle size={13} />
+                    WhatsApp message
+                  </span>
                   <select
                     value={selectedTemplateId}
                     onChange={(event) => setSelectedTemplateId(event.target.value as WhatsAppTemplateId)}
@@ -219,22 +222,22 @@ export default function AdminCustomersPage() {
                       <option key={template.id} value={template.id}>{template.label}</option>
                     ))}
                   </select>
-                  <span className="text-xs text-on-surface-variant">{selectedTemplate.description}</span>
                 </label>
-                <div className="rounded-lg border border-outline-variant/70 bg-white p-3">
+                <div className="min-w-0">
                   <p className="text-xs font-bold uppercase tracking-wide text-on-surface-variant">Preview</p>
-                  <p className="mt-2 text-sm font-semibold leading-6 text-on-surface">
+                  <p className="mt-1 truncate text-sm font-semibold text-on-surface">
                     {selectedTemplate.buildMessage(customers[0] ?? EmptyPreviewCustomer, branchName)}
                   </p>
                 </div>
+                <Badge variant="outline" className="justify-center">{optedInCustomers} can message</Badge>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <CardTitle>Customer list</CardTitle>
-                  <p className="mt-1 text-sm text-on-surface-variant">{customers.length} captured customers for the selected filters.</p>
+                  <CardTitle>Saved customers</CardTitle>
+                  <p className="mt-1 text-sm text-on-surface-variant">{customers.length} customers found.</p>
                 </div>
                 <Badge variant="outline">{workspace.selectedBranch.name}</Badge>
               </CardHeader>
@@ -254,8 +257,8 @@ function CustomerList({ branchName, customers, template }: { branchName: string;
     return (
       <div className="rounded-xl border border-dashed border-outline-variant/70 bg-surface-container-low p-8 text-center">
         <UserRound size={28} className="mx-auto text-on-surface-variant/70" />
-        <p className="mt-3 text-sm font-extrabold text-on-surface">No customers match the selected filters.</p>
-        <p className="mt-1 text-sm text-on-surface-variant">Customers appear here after they place an order with a WhatsApp number.</p>
+        <p className="mt-3 text-sm font-extrabold text-on-surface">No customers yet</p>
+        <p className="mt-1 text-sm text-on-surface-variant">Customers will appear here after they order with a WhatsApp number.</p>
       </div>
     );
   }
@@ -268,40 +271,28 @@ function CustomerList({ branchName, customers, template }: { branchName: string;
         ))}
       </div>
       <div className="hidden overflow-x-auto lg:block">
-        <table className="w-full min-w-[1180px] text-left text-sm">
+        <table className="w-full min-w-[920px] text-left text-sm">
           <thead className="border-b border-outline-variant/70 text-xs uppercase text-on-surface-variant">
             <tr>
               <th className="py-2 pr-4">Customer</th>
-              <th className="py-2 pr-4">Consent</th>
               <th className="py-2 pr-4">Visits</th>
-              <th className="py-2 pr-4">Orders</th>
-              <th className="py-2 pr-4">Total value</th>
-              <th className="py-2 pr-4">Favorite item</th>
-              <th className="py-2 pr-4">Branches</th>
+              <th className="py-2 pr-4">Total spent</th>
+              <th className="py-2 pr-4">Favorite</th>
               <th className="py-2 pr-4">Last visit</th>
-              <th className="py-2 pr-4">Action</th>
+              <th className="py-2 pr-4">WhatsApp</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-outline-variant/50">
             {customers.map((customer) => (
               <tr key={customer.customerId ?? customer.customerKey}>
                 <td className="py-4 pr-4">
-                  <p className="max-w-[16rem] truncate font-extrabold text-on-surface">{displayName(customer)}</p>
-                  <p className="mt-1 text-xs text-on-surface-variant">{customer.customerWhatsApp ?? "No WhatsApp saved"}</p>
-                </td>
-                <td className="py-4 pr-4">
-                  <Badge variant={customer.marketingConsent ? "secondary" : "outline"}>{customer.marketingConsent ? "Opted in" : "No consent"}</Badge>
+                  <p className="max-w-[18rem] truncate font-extrabold text-on-surface">{displayName(customer)}</p>
+                  <p className="mt-1 text-xs text-on-surface-variant">{customer.customerWhatsApp ?? "No WhatsApp number"}</p>
                 </td>
                 <td className="py-4 pr-4 font-semibold text-on-surface">{customer.visitCount}</td>
-                <td className="py-4 pr-4 font-semibold text-on-surface">{customer.orderCount}</td>
                 <td className="py-4 pr-4 font-extrabold text-primary">{formatMoney(customer.totalValue)}</td>
                 <td className="py-4 pr-4">
                   <p className="max-w-[14rem] truncate font-semibold text-on-surface">{favoriteItem(customer)}</p>
-                  {customer.favoriteItemQuantity > 0 ? <p className="mt-1 text-xs text-on-surface-variant">{customer.favoriteItemQuantity} ordered</p> : null}
-                </td>
-                <td className="py-4 pr-4">
-                  <p className="max-w-[14rem] truncate font-semibold text-on-surface">{customer.lastBranchName ?? "-"}</p>
-                  <p className="mt-1 text-xs text-on-surface-variant">{customer.branchesVisited || 1} visited</p>
                 </td>
                 <td className="py-4 pr-4 text-on-surface-variant">{formatDateTime(customer.lastVisitAtUtc ?? customer.lastOrderAtUtc)}</td>
                 <td className="py-4 pr-4">
@@ -322,22 +313,17 @@ function CustomerCard({ branchName, customer, template }: { branchName: string; 
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-sm font-extrabold text-on-surface">{displayName(customer)}</p>
-          <p className="mt-1 text-xs text-on-surface-variant">{customer.customerWhatsApp ?? "No WhatsApp saved"}</p>
+          <p className="mt-1 text-xs text-on-surface-variant">{customer.customerWhatsApp ?? "No WhatsApp number"}</p>
         </div>
-        <Badge variant={customer.marketingConsent ? "secondary" : "outline"}>{customer.marketingConsent ? "Opted in" : "No consent"}</Badge>
+        <WhatsAppButton branchName={branchName} customer={customer} template={template} />
       </div>
-      <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+      <div className="mt-4 grid grid-cols-2 gap-2 text-center">
         <MiniStat label="Visits" value={String(customer.visitCount)} />
-        <MiniStat label="Orders" value={String(customer.orderCount)} />
-        <MiniStat label="Value" value={formatMoney(customer.totalValue)} />
+        <MiniStat label="Spent" value={formatMoney(customer.totalValue)} />
       </div>
       <div className="mt-4 grid gap-2 text-sm">
         <InfoRow label="Favorite" value={favoriteItem(customer)} />
-        <InfoRow label="Last branch" value={customer.lastBranchName ?? "-"} />
         <InfoRow label="Last visit" value={formatDateTime(customer.lastVisitAtUtc ?? customer.lastOrderAtUtc)} />
-      </div>
-      <div className="mt-4">
-        <WhatsAppButton branchName={branchName} customer={customer} template={template} />
       </div>
     </article>
   );
@@ -345,7 +331,8 @@ function CustomerCard({ branchName, customer, template }: { branchName: string; 
 
 function WhatsAppButton({ branchName, customer, template }: { branchName: string; customer: CustomerReport; template: WhatsAppTemplate }) {
   const phone = toWhatsAppPhone(customer.customerWhatsApp);
-  const isEnabled = Boolean(phone && customer.marketingConsent);
+  const disabledReason = whatsAppDisabledReason(customer, phone);
+  const isEnabled = disabledReason === null;
 
   function openWhatsApp() {
     if (!phone || !customer.marketingConsent) {
@@ -357,9 +344,9 @@ function WhatsAppButton({ branchName, customer, template }: { branchName: string
   }
 
   return (
-    <Button type="button" size="sm" variant={isEnabled ? "secondary" : "outline"} disabled={!isEnabled} onClick={openWhatsApp} title={whatsAppDisabledReason(customer, phone)}>
-      <Send size={15} />
-      WhatsApp
+    <Button type="button" size="sm" variant={isEnabled ? "secondary" : "outline"} disabled={!isEnabled} onClick={openWhatsApp} title={disabledReason ?? "Send WhatsApp message"}>
+      {isEnabled ? <Send size={15} /> : <MessageCircle size={15} />}
+      {disabledReason ?? "WhatsApp"}
     </Button>
   );
 }
@@ -447,16 +434,16 @@ function toWhatsAppPhone(value: string | null): string | null {
   return digits.length >= 8 ? digits : null;
 }
 
-function whatsAppDisabledReason(customer: CustomerReport, phone: string | null): string {
+function whatsAppDisabledReason(customer: CustomerReport, phone: string | null): string | null {
   if (!phone) {
-    return "No usable WhatsApp number saved";
+    return "No number";
   }
 
   if (!customer.marketingConsent) {
-    return "Customer has not opted in";
+    return "No consent";
   }
 
-  return "Send WhatsApp message";
+  return null;
 }
 
 const EmptyPreviewCustomer: CustomerReport = {
