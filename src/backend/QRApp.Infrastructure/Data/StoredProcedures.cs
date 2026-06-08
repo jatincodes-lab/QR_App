@@ -55,6 +55,14 @@ internal static class StoredProcedures
     public const string ReportItems = "dbo.Report_Items";
     public const string ReportCustomers = "dbo.Report_Customers";
 
+    public const string WhatsAppCampaignPreviewRecipients = "dbo.WhatsAppCampaign_PreviewRecipients";
+    public const string WhatsAppCampaignCreate = "dbo.WhatsAppCampaign_Create";
+    public const string WhatsAppCampaignGetList = "dbo.WhatsAppCampaign_GetList";
+
+    public const string StaffUserCreate = "dbo.StaffUser_Create";
+    public const string StaffUserGetList = "dbo.StaffUser_GetList";
+    public const string StaffUserUpdate = "dbo.StaffUser_Update";
+
     public const string WaiterCallCreateFromQrToken = "dbo.WaiterCall_CreateFromQrToken";
     public const string WaiterCallGetListByBranch = "dbo.WaiterCall_GetListByBranch";
     public const string WaiterCallUpdateStatus = "dbo.WaiterCall_UpdateStatus";

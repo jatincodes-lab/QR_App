@@ -480,6 +480,105 @@ curl --request POST "{{baseUrl}}/api/v1/public/qr/{{qrToken}}/waiter-calls" \
   }'
 ```
 
+## Admin Campaign Routes
+
+These routes require `Authorization: Bearer {{accessToken}}`.
+
+### GET /api/v1/admin/campaigns
+
+Lists the latest WhatsApp campaign queues for the tenant, optionally scoped to a branch.
+
+```bash
+curl --request GET "{{baseUrl}}/api/v1/admin/campaigns?branchId={{branchId}}" \
+  --header "Authorization: Bearer {{accessToken}}"
+```
+
+### GET /api/v1/admin/campaigns/preview
+
+Returns the number of opted-in customers that match a target segment.
+
+```bash
+curl --request GET "{{baseUrl}}/api/v1/admin/campaigns/preview?branchId={{branchId}}&targetSegment=AllOptedIn" \
+  --header "Authorization: Bearer {{accessToken}}"
+```
+
+Allowed `targetSegment` values:
+
+- `AllOptedIn`
+- `RepeatCustomers`
+- `InactiveCustomers`
+- `HighValueCustomers`
+
+### POST /api/v1/admin/campaigns
+
+Creates a queued WhatsApp campaign and recipient rows for opted-in customers. Provider delivery is handled by the later WhatsApp Business API integration.
+
+```bash
+curl --request POST "{{baseUrl}}/api/v1/admin/campaigns" \
+  --header "Authorization: Bearer {{accessToken}}" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "branchId": "{{branchId}}",
+    "name": "Weekend offer",
+    "targetSegment": "AllOptedIn",
+    "messageText": "Hi {{name}}, we have a fresh offer this weekend. Visit us today."
+  }'
+```
+
+## Admin Staff Routes
+
+These routes require `Authorization: Bearer {{accessToken}}` from an owner account.
+
+### GET /api/v1/admin/staff
+
+Lists tenant users and staff accounts.
+
+```bash
+curl --request GET "{{baseUrl}}/api/v1/admin/staff?includeInactive=true" \
+  --header "Authorization: Bearer {{accessToken}}"
+```
+
+### POST /api/v1/admin/staff
+
+Creates a staff login for the tenant.
+
+```bash
+curl --request POST "{{baseUrl}}/api/v1/admin/staff" \
+  --header "Authorization: Bearer {{accessToken}}" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "branchId": "{{branchId}}",
+    "email": "kitchen@example.com",
+    "displayName": "Kitchen Staff",
+    "password": "TestPass123!",
+    "roleCode": "kitchen"
+  }'
+```
+
+Allowed `roleCode` values:
+
+- `admin`
+- `manager`
+- `kitchen`
+- `waiter`
+- `staff`
+
+### PUT /api/v1/admin/staff/{userId}
+
+Updates a staff user's display name, role, branch assignment, and active status. Owner accounts cannot be edited from this route.
+
+```bash
+curl --request PUT "{{baseUrl}}/api/v1/admin/staff/{{userId}}" \
+  --header "Authorization: Bearer {{accessToken}}" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "branchId": "{{branchId}}",
+    "displayName": "Kitchen Staff",
+    "roleCode": "kitchen",
+    "isActive": true
+  }'
+```
+
 ## Foundation Tenant Routes
 
 These unauthenticated tenant routes exist for foundation testing. Prefer the authenticated admin routes for production-oriented flows.

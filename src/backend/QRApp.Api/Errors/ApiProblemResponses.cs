@@ -54,6 +54,15 @@ internal static class ApiProblemResponses
             "https://httpstatuses.com/409");
     }
 
+    public static IResult Forbidden(string detail)
+    {
+        return Problem(
+            StatusCodes.Status403Forbidden,
+            "Forbidden",
+            detail,
+            "https://httpstatuses.com/403");
+    }
+
     public static IResult ServerError(string detail)
     {
         return Problem(

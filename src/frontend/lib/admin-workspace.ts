@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { ApiError, BranchListItem, getBranches } from "./api";
-import { clearAccessToken, getAccessToken } from "./auth";
+import { clearAccessToken, getAccessToken, getCurrentBranchId } from "./auth";
 
 const SelectedBranchStorageKey = "qrapp.admin.selectedBranchId";
 
@@ -35,12 +35,14 @@ export function useAdminWorkspace() {
 
     try {
       const response = await getBranches();
-      setBranches(response);
-      const firstActive = response.find((branch) => branch.isActive);
+      const assignedBranchId = getCurrentBranchId();
+      const visibleBranches = assignedBranchId ? response.filter((branch) => branch.branchId === assignedBranchId) : response;
+      setBranches(visibleBranches);
+      const firstActive = visibleBranches.find((branch) => branch.isActive);
       const storedBranchId = typeof window === "undefined" ? "" : window.localStorage.getItem(SelectedBranchStorageKey) ?? "";
-      const storedBranch = response.find((branch) => branch.isActive && branch.branchId === storedBranchId);
+      const storedBranch = visibleBranches.find((branch) => branch.isActive && branch.branchId === storedBranchId);
       setSelectedBranchId((current) => {
-        const currentBranch = response.find((branch) => branch.isActive && branch.branchId === current);
+        const currentBranch = visibleBranches.find((branch) => branch.isActive && branch.branchId === current);
         return currentBranch?.branchId ?? storedBranch?.branchId ?? firstActive?.branchId ?? "";
       });
     } catch (caught) {

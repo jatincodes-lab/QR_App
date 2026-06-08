@@ -68,7 +68,9 @@ public static class AdminBranchEndpoints
                 includeInactive.GetValueOrDefault(),
                 cancellationToken);
 
-            return Results.Ok(branches);
+            return Results.Ok(tenantContext.BranchId.HasValue
+                ? branches.Where(branch => branch.BranchId == tenantContext.BranchId.Value).ToArray()
+                : branches);
         }
         catch (Exception ex)
         when (ex is SqlException)

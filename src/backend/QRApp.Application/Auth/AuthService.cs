@@ -95,8 +95,7 @@ public sealed class AuthService(IAuthRepository authRepository, IPasswordHasher 
     private static AuthenticatedSessionResponse ToSession(LoginUserRecord user)
     {
         return new AuthenticatedSessionResponse(
-            new AuthenticatedUserResponse(user.UserId, user.Email, user.DisplayName, user.TenantId, user.RoleCode),
+            new AuthenticatedUserResponse(user.UserId, user.Email, user.DisplayName, user.TenantId, user.RoleCode, user.BranchId),
             new AuthenticatedTenantResponse(user.TenantId, user.TenantName, user.TenantSlug));
     }
 }
-

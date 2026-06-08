@@ -14,7 +14,8 @@ public sealed record AuthenticatedUserResponse(
     string Email,
     string DisplayName,
     Guid TenantId,
-    string RoleCode);
+    string RoleCode,
+    Guid? BranchId);
 
 public sealed record AuthenticatedTenantResponse(
     Guid TenantId,
@@ -33,5 +34,5 @@ public sealed record LoginUserRecord(
     Guid TenantId,
     string TenantName,
     string TenantSlug,
-    string RoleCode);
-
+    string RoleCode,
+    Guid? BranchId);

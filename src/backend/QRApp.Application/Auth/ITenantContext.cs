@@ -9,5 +9,6 @@ public interface ITenantContext
     Guid TenantId { get; }
 
     string RoleCode { get; }
-}
 
+    Guid? BranchId { get; }
+}

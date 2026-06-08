@@ -117,7 +117,7 @@ Update this file whenever a feature is completed.
   - Suggested path:
     - `src/frontend/app/admin/customers/page.tsx`
 
-- [ ] Create campaign draft flow.
+- [x] Create campaign draft flow.
   - Campaign name, target segment, message text, optional offer.
   - Suggested paths:
     - `database/migrations/013_WhatsApp_Campaigns.sql`
@@ -130,7 +130,7 @@ Update this file whenever a feature is completed.
     - `src/backend/QRApp.Application/Messaging`
     - `src/backend/QRApp.Infrastructure/Messaging`
 
-- [ ] Add campaign send status.
+- [~] Add campaign send status.
   - Draft, queued, sending, sent, failed.
   - Suggested paths:
     - `src/backend/QRApp.Application/Campaigns`

@@ -20,6 +20,10 @@ Core flow:
 
 Base project structure has been created. The first backend foundation slice now supports tenants, branches, branch order settings, owner registration, login, JWT authentication, tenant context resolution, authenticated admin branch/settings APIs, menu category/item foundations, branch table management, QR token public menu resolution, customer QR order creation and tracking through SQL Server stored procedures and minimal v1 APIs, a mobile-first public QR menu frontend with customer cart/order submission, an admin kitchen order dashboard, SignalR realtime staff updates, and waiter-call workflows.
 
+The CRM slice now includes a WhatsApp campaign queue foundation: admins can preview opted-in customer audience counts, create branch-scoped campaign queues, and view queued campaign history. Actual WhatsApp Business API delivery is still pending provider configuration and template approval.
+
+The admin access slice now supports staff management. Owner users can create staff logins, assign roles (`admin`, `manager`, `kitchen`, `waiter`, `staff`), optionally assign a branch, turn staff access on/off, and staff tokens carry role plus assigned branch context for frontend navigation and branch selection. Admin APIs now include a role/branch guard so non-owner staff cannot call owner-only routes directly, and branch-assigned staff are blocked from branch-scoped actions outside their assigned branch.
+
 ## What Changed
 
 - Added repository README.

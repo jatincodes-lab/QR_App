@@ -61,7 +61,8 @@ public sealed class SqlAuthRepository(ISqlConnectionFactory connectionFactory) :
                 reader.GetGuid(reader.GetOrdinal("TenantId")),
                 reader.GetString(reader.GetOrdinal("TenantName")),
                 reader.GetString(reader.GetOrdinal("TenantSlug")),
-                reader.GetString(reader.GetOrdinal("RoleCode")))
+                reader.GetString(reader.GetOrdinal("RoleCode")),
+                GetNullableGuid(reader, "BranchId"))
             : null;
     }
 
@@ -75,11 +76,30 @@ public sealed class SqlAuthRepository(ISqlConnectionFactory connectionFactory) :
                 reader.GetString(reader.GetOrdinal("Email")),
                 reader.GetString(reader.GetOrdinal("DisplayName")),
                 tenantId,
-                reader.GetString(reader.GetOrdinal("RoleCode"))),
+                reader.GetString(reader.GetOrdinal("RoleCode")),
+                HasColumn(reader, "BranchId") ? GetNullableGuid(reader, "BranchId") : null),
             new AuthenticatedTenantResponse(
                 tenantId,
                 reader.GetString(reader.GetOrdinal("TenantName")),
                 reader.GetString(reader.GetOrdinal("TenantSlug"))));
     }
-}
 
+    private static Guid? GetNullableGuid(SqlDataReader reader, string name)
+    {
+        var ordinal = reader.GetOrdinal(name);
+        return reader.IsDBNull(ordinal) ? null : reader.GetGuid(ordinal);
+    }
+
+    private static bool HasColumn(SqlDataReader reader, string name)
+    {
+        for (var index = 0; index < reader.FieldCount; index++)
+        {
+            if (string.Equals(reader.GetName(index), name, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}

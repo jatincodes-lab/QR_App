@@ -21,6 +21,14 @@ export function clearAccessToken(): void {
 }
 
 export function getCurrentRoleCode(): string | null {
+  return getTokenPayload()?.role_code ?? null;
+}
+
+export function getCurrentBranchId(): string | null {
+  return getTokenPayload()?.branch_id ?? null;
+}
+
+function getTokenPayload(): { role_code?: string; branch_id?: string } | null {
   const token = getAccessToken();
   if (!token) {
     return null;
@@ -32,8 +40,7 @@ export function getCurrentRoleCode(): string | null {
   }
 
   try {
-    const decoded = JSON.parse(window.atob(toBase64(payload))) as { role_code?: string };
-    return decoded.role_code ?? null;
+    return JSON.parse(window.atob(toBase64(payload))) as { role_code?: string; branch_id?: string };
   } catch {
     return null;
   }

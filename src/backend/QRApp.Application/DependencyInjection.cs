@@ -2,10 +2,12 @@ using Microsoft.Extensions.DependencyInjection;
 using QRApp.Application.Auth;
 using QRApp.Application.Branches;
 using QRApp.Application.BranchOrderSettings;
+using QRApp.Application.Campaigns;
 using QRApp.Application.Customers;
 using QRApp.Application.Menus;
 using QRApp.Application.Orders;
 using QRApp.Application.Reports;
+using QRApp.Application.Staff;
 using QRApp.Application.Tables;
 using QRApp.Application.Tenants;
 using QRApp.Application.WaiterCalls;
@@ -21,6 +23,7 @@ public static class DependencyInjection
         services.AddScoped<ITenantService, TenantService>();
         services.AddScoped<IBranchService, BranchService>();
         services.AddScoped<IBranchOrderSettingsService, BranchOrderSettingsService>();
+        services.AddScoped<ICampaignService, CampaignService>();
         services.AddScoped<IMenuCategoryService, MenuCategoryService>();
         services.AddScoped<IMenuItemService, MenuItemService>();
         services.AddScoped<IBranchOfferService, BranchOfferService>();
@@ -29,6 +32,7 @@ public static class DependencyInjection
         services.AddScoped<IOrderService, OrderService>();
         services.AddScoped<IAdminOrderService, AdminOrderService>();
         services.AddScoped<IReportService, ReportService>();
+        services.AddScoped<IStaffUserService, StaffUserService>();
         services.AddScoped<IWaiterCallService, WaiterCallService>();
 
         return services;

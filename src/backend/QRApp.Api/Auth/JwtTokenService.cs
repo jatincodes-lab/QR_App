@@ -17,7 +17,7 @@ public sealed class JwtTokenService(IOptions<JwtOptions> options) : IJwtTokenSer
             new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SigningKey)),
             SecurityAlgorithms.HmacSha256);
 
-        var claims = new[]
+        var claims = new List<Claim>
         {
             new Claim(JwtRegisteredClaimNames.Sub, session.User.UserId.ToString()),
             new Claim(TokenClaims.UserId, session.User.UserId.ToString()),
@@ -26,6 +26,11 @@ public sealed class JwtTokenService(IOptions<JwtOptions> options) : IJwtTokenSer
             new Claim(TokenClaims.TenantId, session.User.TenantId.ToString()),
             new Claim(TokenClaims.RoleCode, session.User.RoleCode)
         };
+
+        if (session.User.BranchId.HasValue)
+        {
+            claims.Add(new Claim(TokenClaims.BranchId, session.User.BranchId.Value.ToString()));
+        }
 
         var token = new JwtSecurityToken(
             jwtOptions.Issuer,

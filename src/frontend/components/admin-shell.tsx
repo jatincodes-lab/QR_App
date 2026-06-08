@@ -12,11 +12,13 @@ import {
   Gift,
   LayoutDashboard,
   LogOut,
+  Megaphone,
   Menu,
   QrCode,
   Search,
   Settings,
   Store,
+  UserCog,
   Users,
   X
 } from "lucide-react";
@@ -27,7 +29,7 @@ import { getCurrentRoleCode } from "../lib/auth";
 const SidebarCollapsedStorageKey = "qrapp.admin.sidebarCollapsed";
 
 type AdminShellProps = {
-  active: "dashboard" | "branches" | "menu" | "orders" | "kitchen" | "offers" | "customers" | "reports" | "analytics" | "settings";
+  active: "dashboard" | "branches" | "menu" | "orders" | "kitchen" | "offers" | "customers" | "campaigns" | "staff" | "reports" | "analytics" | "settings";
   branchName?: string;
   branches?: BranchListItem[];
   children: ReactNode;
@@ -62,6 +64,8 @@ const navGroups: { label: string; items: NavItem[] }[] = [
     items: [
       { id: "analytics", label: "Analytics", helper: "Reports", icon: BarChart3, href: "/admin/analytics" },
       { id: "customers", label: "Customers", helper: "CRM", icon: Users, href: "/admin/customers" },
+      { id: "campaigns", label: "Campaigns", helper: "WhatsApp", icon: Megaphone, href: "/admin/campaigns" },
+      { id: "staff", label: "Staff", helper: "Access", icon: UserCog, href: "/admin/staff" },
       { id: "reports", label: "Reports", helper: "History", icon: ClipboardList, href: "/admin/reports" },
       { id: "settings", label: "Settings", helper: "Controls", icon: Settings, href: "/admin/settings" }
     ]
@@ -324,6 +328,22 @@ function NavButton({ item, active, collapsed }: { item: NavItem; active: boolean
 function canAccessNavItem(roleCode: string | null, itemId: AdminShellProps["active"]): boolean {
   if (roleCode === "staff") {
     return ["orders", "kitchen", "settings"].includes(itemId);
+  }
+
+  if (roleCode === "kitchen") {
+    return ["orders", "kitchen"].includes(itemId);
+  }
+
+  if (roleCode === "waiter") {
+    return ["orders", "kitchen", "settings"].includes(itemId);
+  }
+
+  if (roleCode === "manager") {
+    return !["branches", "staff"].includes(itemId);
+  }
+
+  if (roleCode === "admin") {
+    return itemId !== "staff";
   }
 
   return true;

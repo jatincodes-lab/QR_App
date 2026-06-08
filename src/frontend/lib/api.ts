@@ -28,6 +28,7 @@ export type LoginResponse = {
     displayName: string;
     tenantId: string;
     roleCode: string;
+    branchId: string | null;
   };
   tenant: {
     tenantId: string;
@@ -304,6 +305,70 @@ export type WaiterCall = {
   note: string | null;
   createdAtUtc: string;
   updatedAtUtc: string | null;
+};
+
+export type CampaignTargetSegment = "AllOptedIn" | "RepeatCustomers" | "InactiveCustomers" | "HighValueCustomers";
+
+export type StaffRoleCode = "admin" | "manager" | "kitchen" | "waiter" | "staff";
+
+export type StaffUser = {
+  userId: string;
+  tenantUserId: string;
+  tenantId: string;
+  branchId: string | null;
+  branchName: string | null;
+  email: string;
+  displayName: string;
+  roleCode: StaffRoleCode | "owner";
+  isActive: boolean;
+  tenantUserIsActive: boolean;
+  createdAtUtc: string;
+  updatedAtUtc: string | null;
+};
+
+export type CreateStaffUserInput = {
+  branchId: string | null;
+  email: string;
+  displayName: string;
+  password: string;
+  roleCode: StaffRoleCode;
+};
+
+export type UpdateStaffUserInput = {
+  branchId: string | null;
+  displayName: string;
+  roleCode: StaffRoleCode;
+  isActive: boolean;
+};
+
+export type Campaign = {
+  campaignId: string;
+  tenantId: string;
+  branchId: string | null;
+  branchName: string | null;
+  name: string;
+  targetSegment: CampaignTargetSegment;
+  messageText: string;
+  statusCode: string;
+  recipientCount: number;
+  sentCount: number;
+  failedCount: number;
+  createdAtUtc: string;
+  queuedAtUtc: string | null;
+  startedAtUtc: string | null;
+  completedAtUtc: string | null;
+  updatedAtUtc: string | null;
+};
+
+export type CampaignPreview = {
+  recipientCount: number;
+};
+
+export type CreateCampaignInput = {
+  branchId: string | null;
+  name: string;
+  targetSegment: CampaignTargetSegment;
+  messageText: string;
 };
 
 export type RegisterOwnerInput = {
@@ -719,6 +784,56 @@ export async function getItemReport(filter: ReportFilterInput): Promise<ItemRepo
 export async function getCustomerReport(filter: ReportFilterInput): Promise<CustomerReport[]> {
   return request<CustomerReport[]>(`/api/v1/admin/reports/customers${toReportQuery(filter)}`, {
     method: "GET",
+    requireAuth: true
+  });
+}
+
+export async function getCampaigns(branchId?: string): Promise<Campaign[]> {
+  const query = branchId ? `?branchId=${encodeURIComponent(branchId)}` : "";
+  return request<Campaign[]>(`/api/v1/admin/campaigns${query}`, {
+    method: "GET",
+    requireAuth: true
+  });
+}
+
+export async function previewCampaignRecipients(branchId: string | null, targetSegment: CampaignTargetSegment): Promise<CampaignPreview> {
+  const params = new URLSearchParams();
+  if (branchId) params.set("branchId", branchId);
+  params.set("targetSegment", targetSegment);
+
+  return request<CampaignPreview>(`/api/v1/admin/campaigns/preview?${params.toString()}`, {
+    method: "GET",
+    requireAuth: true
+  });
+}
+
+export async function createCampaign(input: CreateCampaignInput): Promise<Campaign> {
+  return request<Campaign>("/api/v1/admin/campaigns", {
+    method: "POST",
+    body: input,
+    requireAuth: true
+  });
+}
+
+export async function getStaffUsers(includeInactive = true): Promise<StaffUser[]> {
+  return request<StaffUser[]>(`/api/v1/admin/staff?includeInactive=${includeInactive}`, {
+    method: "GET",
+    requireAuth: true
+  });
+}
+
+export async function createStaffUser(input: CreateStaffUserInput): Promise<StaffUser> {
+  return request<StaffUser>("/api/v1/admin/staff", {
+    method: "POST",
+    body: input,
+    requireAuth: true
+  });
+}
+
+export async function updateStaffUser(userId: string, input: UpdateStaffUserInput): Promise<StaffUser> {
+  return request<StaffUser>(`/api/v1/admin/staff/${userId}`, {
+    method: "PUT",
+    body: input,
     requireAuth: true
   });
 }

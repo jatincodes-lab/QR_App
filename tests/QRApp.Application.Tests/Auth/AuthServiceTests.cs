@@ -48,7 +48,8 @@ public sealed class AuthServiceTests
                 Guid.NewGuid(),
                 "Cafe Demo",
                 "cafe-demo",
-                "owner")
+                "owner",
+                null)
         };
         var service = new AuthService(repository, new FakePasswordHasher());
 
@@ -78,7 +79,7 @@ public sealed class AuthServiceTests
             PasswordHash = passwordHash;
 
             return Task.FromResult(new AuthenticatedSessionResponse(
-                new AuthenticatedUserResponse(userId, request.OwnerEmail, request.OwnerDisplayName, tenantId, "owner"),
+                new AuthenticatedUserResponse(userId, request.OwnerEmail, request.OwnerDisplayName, tenantId, "owner", null),
                 new AuthenticatedTenantResponse(tenantId, request.TenantName, request.TenantSlug)));
         }
 
@@ -95,4 +96,3 @@ public sealed class AuthServiceTests
         public bool Verify(string password, string passwordHash) => passwordHash == Hash(password);
     }
 }
-

@@ -16,6 +16,15 @@ public sealed class HttpTenantContext(IHttpContextAccessor httpContextAccessor) 
     public string RoleCode => User?.FindFirstValue(TokenClaims.RoleCode)
         ?? throw new InvalidOperationException("Authenticated request is missing role context.");
 
+    public Guid? BranchId
+    {
+        get
+        {
+            var value = User?.FindFirstValue(TokenClaims.BranchId);
+            return Guid.TryParse(value, out var id) ? id : null;
+        }
+    }
+
     private Guid ReadGuidClaim(string claimType)
     {
         var value = User?.FindFirstValue(claimType);
