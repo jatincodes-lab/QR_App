@@ -18,6 +18,7 @@ import {
   Utensils,
   X
 } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { CountryPhoneInput } from "../../../components/country-phone-input";
 import {
@@ -425,6 +426,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
         <CustomerPreviousOrdersPage
           customer={recognizedCustomer}
           menuItemById={menuItemById}
+          qrToken={currentMenu.qrToken}
           onBackToCart={() => setActiveView("cart")}
           onReorder={(order) => {
             addRecentOrderToCart(order);
@@ -444,6 +446,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
           marketingConsent={marketingConsent}
           notes={notes}
           orderSettings={currentMenu.orderSettings}
+          qrToken={currentMenu.qrToken}
           recognizedCustomer={recognizedCustomer}
           submitState={submitState}
           onCustomerNameChange={setCustomerName}
@@ -953,6 +956,7 @@ function CartPage({
   marketingConsent,
   notes,
   orderSettings,
+  qrToken,
   menuItemById,
   recognizedCustomer,
   submitState,
@@ -977,6 +981,7 @@ function CartPage({
   marketingConsent: boolean;
   notes: string;
   orderSettings: PublicQrMenu["orderSettings"];
+  qrToken: string;
   menuItemById: Map<string, PublicQrMenuItem>;
   recognizedCustomer: PublicCustomerLookup | null;
   submitState: SubmitState;
@@ -992,7 +997,7 @@ function CartPage({
   onSubmit: () => void;
 }) {
   if (submitState.kind === "success") {
-    return <OrderPlacedView menuItemById={menuItemById} order={submitState.order} onBackToMenu={onBackToMenu} />;
+    return <OrderPlacedView menuItemById={menuItemById} order={submitState.order} qrToken={qrToken} onBackToMenu={onBackToMenu} />;
   }
 
   return (
@@ -1178,12 +1183,16 @@ function CartPage({
 function OrderPlacedView({
   menuItemById,
   order,
+  qrToken,
   onBackToMenu
 }: {
   menuItemById: Map<string, PublicQrMenuItem>;
   order: PublicQrOrder;
+  qrToken: string;
   onBackToMenu: () => void;
 }) {
+  const trackingHref = `/qr/${encodeURIComponent(qrToken)}/orders/${encodeURIComponent(order.orderId)}`;
+
   return (
     <section className="min-h-dvh flex-1 bg-[#f8f9fa] px-4 py-5 pb-8">
       <div className="mb-5">
@@ -1237,13 +1246,21 @@ function OrderPlacedView({
         </div>
       </div>
 
-      <button
-        type="button"
-        className="mt-4 h-14 w-full rounded-2xl bg-[#001c11] px-4 text-sm font-black text-white"
-        onClick={onBackToMenu}
-      >
-        Back to menu
-      </button>
+      <div className="mt-4 grid gap-3">
+        <Link
+          href={trackingHref}
+          className="inline-flex h-14 w-full items-center justify-center rounded-2xl bg-[#006d36] px-4 text-sm font-black text-white"
+        >
+          Track order
+        </Link>
+        <button
+          type="button"
+          className="h-14 w-full rounded-2xl bg-[#001c11] px-4 text-sm font-black text-white"
+          onClick={onBackToMenu}
+        >
+          Back to menu
+        </button>
+      </div>
     </section>
   );
 }
@@ -1251,11 +1268,13 @@ function OrderPlacedView({
 function CustomerPreviousOrdersPage({
   customer,
   menuItemById,
+  qrToken,
   onBackToCart,
   onReorder
 }: {
   customer: PublicCustomerLookup | null;
   menuItemById: Map<string, PublicQrMenuItem>;
+  qrToken: string;
   onBackToCart: () => void;
   onReorder: (order: PublicCustomerRecentOrder) => void;
 }) {
@@ -1318,13 +1337,21 @@ function CustomerPreviousOrdersPage({
                 ))}
               </div>
 
-              <button
-                type="button"
-                className="mt-3 h-12 w-full rounded-xl bg-[#001c11] px-4 text-sm font-black text-white"
-                onClick={() => onReorder(order)}
-              >
-                Reorder
-              </button>
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <Link
+                  href={`/qr/${encodeURIComponent(qrToken)}/orders/${encodeURIComponent(order.orderId)}`}
+                  className="inline-flex h-12 items-center justify-center rounded-xl border border-[#d9e4df] bg-white px-4 text-sm font-black text-[#001c11]"
+                >
+                  Track
+                </Link>
+                <button
+                  type="button"
+                  className="h-12 rounded-xl bg-[#001c11] px-4 text-sm font-black text-white"
+                  onClick={() => onReorder(order)}
+                >
+                  Reorder
+                </button>
+              </div>
             </article>
           ))}
         </div>

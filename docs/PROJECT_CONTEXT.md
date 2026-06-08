@@ -26,6 +26,8 @@ The admin access slice now supports staff management. Owner users can create sta
 
 The owner onboarding flow now includes `/admin/setup`, a guided first-setup page that creates the first branch, branch order settings, starter menu category, starter menu item, and first table QR in one flow. New owner registration redirects there before the normal dashboard.
 
+The customer order experience now includes a public tracking page at `/qr/{qrToken}/orders/{orderId}` with refreshable order status, item details, table context, and links from order confirmation and previous orders. The kitchen dashboard now uses a live four-column board for placed, accepted, preparing, and ready orders, including a new-order notice and status-focused action buttons.
+
 ## What Changed
 
 - Added repository README.
@@ -85,8 +87,10 @@ The owner onboarding flow now includes `/admin/setup`, a guided first-setup page
 - Replaced the public QR cart popup with a full in-page cart view that shows selected items, subtotal, total amount, customer fields, and the place-order action.
 - Added a public QR order confirmation view after successful order submission with short order code, status, ordered items, total amount, and a back-to-menu action.
 - Added a public QR previous-orders page backed by browser local storage for orders placed from the same device/browser, opened from the header orders icon and scoped per QR token.
+- Added public customer order tracking links from order confirmation and previous orders, backed by the existing public order tracking API.
 - Added authenticated admin order APIs for branch order listing and status updates, backed by stored procedures and tenant-scoped repository access.
 - Added the admin branch detail kitchen orders panel with incoming order cards, item details, totals, customer/table context, refresh, and status transition buttons.
+- Upgraded the admin kitchen dashboard to a four-column live board for placed, accepted, preparing, and ready orders with a visible new-order alert and larger status transition actions.
 - Added `database/migrations/002_Public_Order_Runtime_Fix.sql` as an idempotent runtime migration for the public order tables, indexes, and `PublicOrder_CreateFromQrToken` procedure when deployed databases have not yet been brought up to the order slice.
 - Mapped missing SQL object/procedure errors to a clear `503` database schema response instead of a generic server error.
 - Added public order status tracking at `GET /api/v1/public/qr/{qrToken}/orders/{orderId}`.

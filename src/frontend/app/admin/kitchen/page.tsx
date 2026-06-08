@@ -2,22 +2,28 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { HubConnection } from "@microsoft/signalr";
-import { ChefHat, Clock, RefreshCw } from "lucide-react";
+import { Bell, ChefHat, RefreshCw } from "lucide-react";
 import { AdminShell } from "../../../components/admin-shell";
 import { EmptyBranchState, MetricCard, PageError, PageLoading } from "../../../components/admin-page-common";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../components/ui/card";
 import { getAdminOrders, updateAdminOrderStatus, type AdminOrder, type OrderStatusCode } from "../../../lib/api";
 import { useAdminWorkspace } from "../../../lib/admin-workspace";
 import { createAdminOrderConnection, stopConnection, type AdminOrderRealtimeEvent } from "../../../lib/realtime";
 
 const KitchenNextStatus: Partial<Record<OrderStatusCode, OrderStatusCode>> = {
-  Placed: "Preparing",
+  Placed: "Accepted",
   Accepted: "Preparing",
   Preparing: "Ready",
   Ready: "Served"
 };
+
+const KitchenColumns: { status: OrderStatusCode; title: string; helper: string }[] = [
+  { status: "Placed", title: "Placed", helper: "Accept these first" },
+  { status: "Accepted", title: "Accepted", helper: "Ready to prep" },
+  { status: "Preparing", title: "Preparing", helper: "Being cooked" },
+  { status: "Ready", title: "Ready", helper: "Send to table" }
+];
 
 export default function AdminKitchenPage() {
   const workspace = useAdminWorkspace();
@@ -25,10 +31,19 @@ export default function AdminKitchenPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [liveState, setLiveState] = useState<"connecting" | "live" | "offline">("offline");
   const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [newOrderNotice, setNewOrderNotice] = useState(false);
 
-  const kitchenOrders = useMemo(() => orders.filter((order) => ["Accepted", "Preparing", "Ready"].includes(order.orderStatusCode)), [orders]);
-  const preparingCount = useMemo(() => kitchenOrders.filter((order) => order.orderStatusCode === "Preparing").length, [kitchenOrders]);
+  const kitchenOrders = useMemo(() => orders.filter((order) => ["Placed", "Accepted", "Preparing", "Ready"].includes(order.orderStatusCode)), [orders]);
+  const placedCount = useMemo(() => kitchenOrders.filter((order) => order.orderStatusCode === "Placed").length, [kitchenOrders]);
   const readyCount = useMemo(() => kitchenOrders.filter((order) => order.orderStatusCode === "Ready").length, [kitchenOrders]);
+  const ordersByStatus = useMemo(
+    () =>
+      KitchenColumns.reduce<Record<OrderStatusCode, AdminOrder[]>>((lookup, column) => {
+        lookup[column.status] = kitchenOrders.filter((order) => order.orderStatusCode === column.status);
+        return lookup;
+      }, {} as Record<OrderStatusCode, AdminOrder[]>),
+    [kitchenOrders]
+  );
 
   useEffect(() => {
     if (!workspace.selectedBranch) {
@@ -104,6 +119,12 @@ export default function AdminKitchenPage() {
 
   function handleRealtimeOrder(event: AdminOrderRealtimeEvent, branchId: string) {
     if (event.branchId === branchId) {
+      if (event.orderStatusCode === "Placed") {
+        setNewOrderNotice(true);
+        playOrderTone();
+        window.setTimeout(() => setNewOrderNotice(false), 7_000);
+      }
+
       void loadOrders(branchId);
     }
   }
@@ -166,32 +187,82 @@ export default function AdminKitchenPage() {
           <>
             <section className="grid gap-4 md:grid-cols-3">
               <MetricCard icon={<ChefHat size={20} />} label="Kitchen tickets" value={isLoading ? "..." : String(kitchenOrders.length)} />
-              <MetricCard icon={<Clock size={20} />} label="Preparing" value={isLoading ? "..." : String(preparingCount)} />
+              <MetricCard icon={<Bell size={20} />} label="New placed" value={isLoading ? "..." : String(placedCount)} />
               <MetricCard icon={<RefreshCw size={20} />} label="Ready" value={isLoading ? "..." : String(readyCount)} />
             </section>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Active tickets</CardTitle>
-              <CardDescription>Only accepted orders appear here. New placed orders stay on the live order board until staff accepts them.</CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-4 lg:grid-cols-2">
-                {isLoading ? (
-                  <PageLoading />
-                ) : kitchenOrders.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-outline-variant/70 bg-surface-container-low p-8 text-center lg:col-span-2">
-                    <p className="text-sm font-bold text-on-surface">No accepted kitchen tickets</p>
-                    <p className="mt-1 text-sm text-on-surface-variant">Accepted orders will appear here automatically.</p>
-                  </div>
-                ) : (
-                  kitchenOrders.map((order) => <KitchenTicket key={order.orderId} order={order} savingKey={savingKey} onMove={moveOrder} />)
-                )}
-              </CardContent>
-            </Card>
+            {newOrderNotice ? (
+              <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-950 shadow-sm">
+                <Bell size={18} />
+                <p className="text-sm font-extrabold">New order received</p>
+              </div>
+            ) : null}
+
+            <section className="space-y-4">
+              <div>
+                <h2 className="text-title-lg text-primary">Live kitchen board</h2>
+                <p className="mt-1 text-sm text-on-surface-variant">Completed and cancelled orders stay hidden by default.</p>
+              </div>
+
+              {isLoading ? (
+                <PageLoading />
+              ) : kitchenOrders.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-outline-variant/70 bg-surface-container-low p-8 text-center">
+                  <p className="text-sm font-bold text-on-surface">No active kitchen tickets</p>
+                  <p className="mt-1 text-sm text-on-surface-variant">Placed orders will appear here automatically.</p>
+                </div>
+              ) : (
+                <div className="grid gap-4 xl:grid-cols-4">
+                  {KitchenColumns.map((column) => (
+                    <KitchenColumn
+                      key={column.status}
+                      column={column}
+                      orders={ordersByStatus[column.status] ?? []}
+                      savingKey={savingKey}
+                      onMove={moveOrder}
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
           </>
         )}
       </div>
     </AdminShell>
+  );
+}
+
+function KitchenColumn({
+  column,
+  orders,
+  savingKey,
+  onMove
+}: {
+  column: { status: OrderStatusCode; title: string; helper: string };
+  orders: AdminOrder[];
+  savingKey: string | null;
+  onMove: (order: AdminOrder, status: OrderStatusCode) => void;
+}) {
+  return (
+    <section className="min-h-48 rounded-lg border border-outline-variant/70 bg-surface-container-low p-3">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-extrabold uppercase tracking-[0.08em] text-on-surface">{column.title}</h3>
+          <p className="mt-1 text-xs font-semibold text-on-surface-variant">{column.helper}</p>
+        </div>
+        <Badge variant={column.status === "Ready" ? "success" : column.status === "Placed" ? "secondary" : "outline"}>{orders.length}</Badge>
+      </div>
+
+      <div className="grid gap-3">
+        {orders.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-outline-variant/70 bg-white p-4 text-center text-xs font-semibold text-on-surface-variant">
+            No {column.title.toLowerCase()} orders
+          </div>
+        ) : (
+          orders.map((order) => <KitchenTicket key={order.orderId} order={order} savingKey={savingKey} onMove={onMove} />)
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -200,7 +271,7 @@ function KitchenTicket({ order, savingKey, onMove }: { order: AdminOrder; saving
   const minutesWaiting = Math.max(0, Math.round((Date.now() - new Date(order.createdAtUtc).getTime()) / 60000));
 
   return (
-    <article className="rounded-xl border border-outline-variant/70 bg-white p-4 shadow-sm">
+    <article className="rounded-lg border border-outline-variant/70 bg-white p-4 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-lg font-extrabold text-on-surface">{order.tableName} - #{shortOrderCode(order.orderId)}</p>
@@ -209,7 +280,7 @@ function KitchenTicket({ order, savingKey, onMove }: { order: AdminOrder; saving
         <Badge variant={order.orderStatusCode === "Ready" ? "success" : "outline"}>{order.orderStatusCode}</Badge>
       </div>
 
-      <div className="mt-4 divide-y divide-outline-variant/40 rounded-xl border border-outline-variant/50">
+      <div className="mt-4 divide-y divide-outline-variant/40 rounded-lg border border-outline-variant/50">
         {order.items.map((item) => (
           <div key={item.orderItemId} className="grid gap-1 p-3">
             <p className="text-sm font-extrabold text-on-surface">
@@ -223,8 +294,8 @@ function KitchenTicket({ order, savingKey, onMove }: { order: AdminOrder; saving
       {order.notes ? <p className="mt-3 rounded-lg bg-surface-container-low p-3 text-xs font-semibold text-on-surface-variant">Order note: {order.notes}</p> : null}
 
       {nextStatus ? (
-        <Button type="button" size="sm" className="mt-4" disabled={savingKey === order.orderId} onClick={() => onMove(order, nextStatus)}>
-          Move to {nextStatus}
+        <Button type="button" className="mt-4 h-12 w-full" disabled={savingKey === order.orderId} onClick={() => onMove(order, nextStatus)}>
+          {nextStatus === "Accepted" ? "Accept order" : `Move to ${nextStatus}`}
         </Button>
       ) : null}
     </article>
@@ -243,4 +314,26 @@ function formatKitchenDate(value: string): string {
   return new Intl.DateTimeFormat("en-IN", {
     timeStyle: "short"
   }).format(new Date(value));
+}
+
+function playOrderTone() {
+  try {
+    const AudioContextConstructor = window.AudioContext ?? (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextConstructor) {
+      return;
+    }
+
+    const context = new AudioContextConstructor();
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.type = "sine";
+    oscillator.frequency.value = 880;
+    gain.gain.value = 0.04;
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start();
+    oscillator.stop(context.currentTime + 0.18);
+  } catch {
+    // Browser autoplay rules can block audio until staff interacts with the page.
+  }
 }
