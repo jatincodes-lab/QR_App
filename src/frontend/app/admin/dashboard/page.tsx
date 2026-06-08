@@ -102,6 +102,14 @@ export default function AdminDashboardPage() {
               Track setup progress, live orders, waiter calls, and branch readiness from one place.
             </p>
           </div>
+          {!workspace.isLoadingBranches && !workspace.selectedBranch ? (
+            <Link href="/admin/setup">
+              <Button type="button">
+                Start setup
+                <ArrowRight size={17} />
+              </Button>
+            </Link>
+          ) : null}
         </header>
 
         <PageError message={workspace.workspaceError} />

@@ -67,7 +67,7 @@ export default function AdminRegisterPage() {
         password
       });
       setAccessToken(response.accessToken);
-      router.replace("/admin/dashboard");
+      router.replace("/admin/setup");
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : "Account could not be created. Please try again.");
     } finally {

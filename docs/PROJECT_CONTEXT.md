@@ -24,6 +24,8 @@ The CRM slice now includes a WhatsApp campaign queue foundation: admins can prev
 
 The admin access slice now supports staff management. Owner users can create staff logins, assign roles (`admin`, `manager`, `kitchen`, `waiter`, `staff`), optionally assign a branch, turn staff access on/off, and staff tokens carry role plus assigned branch context for frontend navigation and branch selection. Admin APIs now include a role/branch guard so non-owner staff cannot call owner-only routes directly, and branch-assigned staff are blocked from branch-scoped actions outside their assigned branch.
 
+The owner onboarding flow now includes `/admin/setup`, a guided first-setup page that creates the first branch, branch order settings, starter menu category, starter menu item, and first table QR in one flow. New owner registration redirects there before the normal dashboard.
+
 ## What Changed
 
 - Added repository README.

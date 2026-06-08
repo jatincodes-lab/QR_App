@@ -60,14 +60,14 @@ export function EmptyBranchState() {
         </div>
         <h2 className="mt-5 text-xl font-extrabold text-on-surface">Create a branch first</h2>
         <p className="mt-2 max-w-md text-sm leading-6 text-on-surface-variant">
-          Admin dashboards, menu, orders, analytics, and settings need at least one active restaurant branch.
+          Use the first setup flow to create a branch, menu item, table QR, and ordering rules together.
         </p>
         <Link
-          href="/admin/branches"
+          href="/admin/setup"
           className="mt-5 inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary-container"
         >
           <Plus size={18} />
-          Go to Branches
+          Start setup
         </Link>
       </CardContent>
     </Card>
