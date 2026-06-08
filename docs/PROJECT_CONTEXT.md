@@ -28,6 +28,8 @@ The owner onboarding flow now includes `/admin/setup`, a guided first-setup page
 
 The customer order experience now includes a public tracking page at `/qr/{qrToken}/orders/{orderId}` with refreshable order status, item details, table context, and links from order confirmation and previous orders. The kitchen dashboard now uses a live four-column board for placed, accepted, preparing, and ready orders, including a new-order notice and status-focused action buttons.
 
+The Bareilly launch roadmap is documented in `docs/BAREILLY_GO_LIVE_PLAN.md`, with phase-wise priorities for media uploads, branded QR downloads, manual subscription control, deployment, local pilot sales, and post-pilot revenue features.
+
 ## What Changed
 
 - Added repository README.
@@ -91,6 +93,7 @@ The customer order experience now includes a public tracking page at `/qr/{qrTok
 - Added authenticated admin order APIs for branch order listing and status updates, backed by stored procedures and tenant-scoped repository access.
 - Added the admin branch detail kitchen orders panel with incoming order cards, item details, totals, customer/table context, refresh, and status transition buttons.
 - Upgraded the admin kitchen dashboard to a four-column live board for placed, accepted, preparing, and ready orders with a visible new-order alert and larger status transition actions.
+- Added the Bareilly phase-wise go-live roadmap covering pre-demo product polish, QR print/download, subscription control, deployment, pilot launch, pricing, and post-pilot features.
 - Added `database/migrations/002_Public_Order_Runtime_Fix.sql` as an idempotent runtime migration for the public order tables, indexes, and `PublicOrder_CreateFromQrToken` procedure when deployed databases have not yet been brought up to the order slice.
 - Mapped missing SQL object/procedure errors to a clear `503` database schema response instead of a generic server error.
 - Added public order status tracking at `GET /api/v1/public/qr/{qrToken}/orders/{orderId}`.
