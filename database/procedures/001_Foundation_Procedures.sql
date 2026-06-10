@@ -132,7 +132,9 @@ CREATE OR ALTER PROCEDURE dbo.Branch_Create
     @City NVARCHAR(120) = NULL,
     @State NVARCHAR(120) = NULL,
     @PostalCode NVARCHAR(32) = NULL,
-    @CountryCode CHAR(2) = 'IN'
+    @CountryCode CHAR(2) = 'IN',
+    @LogoUrl NVARCHAR(1000) = NULL,
+    @LogoPublicId NVARCHAR(300) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -158,7 +160,9 @@ BEGIN
         City,
         State,
         PostalCode,
-        CountryCode
+        CountryCode,
+        LogoUrl,
+        LogoPublicId
     )
     VALUES
     (
@@ -171,7 +175,9 @@ BEGIN
         @City,
         @State,
         @PostalCode,
-        @CountryCode
+        @CountryCode,
+        @LogoUrl,
+        @LogoPublicId
     );
 
     SELECT
@@ -185,6 +191,8 @@ BEGIN
         State,
         PostalCode,
         CountryCode,
+        LogoUrl,
+        LogoPublicId,
         IsActive,
         CreatedAtUtc,
         UpdatedAtUtc
@@ -205,6 +213,8 @@ CREATE OR ALTER PROCEDURE dbo.Branch_Update
     @State NVARCHAR(120) = NULL,
     @PostalCode NVARCHAR(32) = NULL,
     @CountryCode CHAR(2) = 'IN',
+    @LogoUrl NVARCHAR(1000) = NULL,
+    @LogoPublicId NVARCHAR(300) = NULL,
     @IsActive BIT
 AS
 BEGIN
@@ -237,6 +247,8 @@ BEGIN
         State = @State,
         PostalCode = @PostalCode,
         CountryCode = @CountryCode,
+        LogoUrl = @LogoUrl,
+        LogoPublicId = @LogoPublicId,
         IsActive = @IsActive,
         UpdatedAtUtc = SYSUTCDATETIME()
     WHERE TenantId = @TenantId
@@ -253,6 +265,8 @@ BEGIN
         State,
         PostalCode,
         CountryCode,
+        LogoUrl,
+        LogoPublicId,
         IsActive,
         CreatedAtUtc,
         UpdatedAtUtc
@@ -280,6 +294,8 @@ BEGIN
         State,
         PostalCode,
         CountryCode,
+        LogoUrl,
+        LogoPublicId,
         IsActive,
         CreatedAtUtc,
         UpdatedAtUtc
@@ -303,6 +319,8 @@ BEGIN
         PhoneNumber,
         City,
         CountryCode,
+        LogoUrl,
+        LogoPublicId,
         IsActive,
         CreatedAtUtc,
         UpdatedAtUtc

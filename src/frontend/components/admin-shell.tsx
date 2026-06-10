@@ -135,7 +135,7 @@ export function AdminShell({
           </button>
         </div>
 
-        <nav className={`flex-1 overflow-y-auto px-3 py-5 ${isCollapsed ? "lg:px-2" : ""}`}>
+        <nav className={`scrollbar-hidden flex-1 overflow-y-auto px-3 py-5 ${isCollapsed ? "lg:px-2" : ""}`}>
           {visibleNavGroups.map((group) => (
             <div key={group.label} className="mb-6">
               <p className={`mb-2 px-3 text-[11px] font-bold uppercase tracking-wider text-white/40 ${isCollapsed ? "lg:text-center lg:text-[0]" : ""}`}>

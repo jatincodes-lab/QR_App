@@ -126,6 +126,7 @@ public sealed class BranchTableService(IBranchTableRepository repository, IBranc
         return new PublicQrMenuResponse(
             first.BranchId,
             first.BranchName,
+            first.BranchLogoUrl,
             first.TableId,
             first.TableName,
             first.QrToken,

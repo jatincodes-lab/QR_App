@@ -103,7 +103,7 @@ public sealed class MenuItemService(IMenuItemRepository repository) : IMenuItemS
                     ReadPublicVariants(row.VariantsJson))).ToArray()))
             .ToArray();
 
-        return new PublicMenuResponse(first.BranchId, first.BranchName, categories);
+        return new PublicMenuResponse(first.BranchId, first.BranchName, first.BranchLogoUrl, categories);
     }
 
     private static List<ValidationFailure> Validate(

@@ -14,6 +14,7 @@ import {
   Send,
   ShoppingCart,
   SlidersHorizontal,
+  Store,
   Trash2,
   Utensils,
   X
@@ -420,7 +421,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
 
   return (
     <>
-      <QrPageHeader branchName={currentMenu.branchName} tableName={currentMenu.tableName} onBack={handleHeaderBack} />
+      <QrPageHeader branchLogoUrl={currentMenu.branchLogoUrl} branchName={currentMenu.branchName} tableName={currentMenu.tableName} onBack={handleHeaderBack} />
 
       {activeView === "customerOrders" ? (
         <CustomerPreviousOrdersPage
@@ -543,7 +544,7 @@ function OrderingUnavailableNotice() {
   );
 }
 
-function QrPageHeader({ branchName, onBack, tableName }: { branchName: string; onBack: () => void; tableName: string }) {
+function QrPageHeader({ branchLogoUrl, branchName, onBack, tableName }: { branchLogoUrl?: string | null; branchName: string; onBack: () => void; tableName: string }) {
   return (
     <header className="sticky top-0 z-30 border-b border-[#e6eeea] bg-white/95 px-4 py-3 backdrop-blur">
       <div className="grid h-10 grid-cols-[40px_1fr_40px] items-center">
@@ -554,7 +555,9 @@ function QrPageHeader({ branchName, onBack, tableName }: { branchName: string; o
           <h1 className="truncate text-[15px] font-black uppercase tracking-normal text-[#001c11]">{branchName}</h1>
           <p className="mt-0.5 truncate text-[11px] font-semibold text-[#5a625e]">{tableName}</p>
         </div>
-        <div aria-hidden="true" />
+        <div className="grid h-10 w-10 place-items-center overflow-hidden rounded-full bg-[#e7f8ee] text-[#006d36]" aria-hidden="true">
+          {branchLogoUrl ? <img src={branchLogoUrl} alt="" className="h-full w-full object-cover" /> : <Store className="h-5 w-5" />}
+        </div>
       </div>
     </header>
   );
@@ -686,9 +689,14 @@ function MenuHero({
   return (
     <section className="bg-[#f8f9fa] px-4 pb-5 pt-5">
       <div className="mb-5 flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs font-black uppercase tracking-[0.24em] text-[#006d36]">{menu.tableName}</p>
-          <h1 className="mt-1 truncate text-2xl font-black leading-8 text-[#001c11]">{menu.branchName}</h1>
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-2xl bg-[#e7f8ee] text-[#006d36]">
+            {menu.branchLogoUrl ? <img src={menu.branchLogoUrl} alt={`${menu.branchName} logo`} className="h-full w-full object-cover" /> : <Store className="h-6 w-6" />}
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-black uppercase tracking-[0.24em] text-[#006d36]">{menu.tableName}</p>
+            <h1 className="mt-1 truncate text-2xl font-black leading-8 text-[#001c11]">{menu.branchName}</h1>
+          </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <button type="button" onClick={onCartOpen} className="relative grid h-12 w-12 place-items-center rounded-full bg-[#001c11] text-white shadow-sm" aria-label="Open cart">

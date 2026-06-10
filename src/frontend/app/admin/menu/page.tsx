@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "re
 import { ChefHat, IndianRupee, Layers3, Loader2, Pencil, Plus, Power, Save } from "lucide-react";
 import { AdminShell } from "../../../components/admin-shell";
 import { EmptyBranchState, MetricCard, PageError, PageLoading } from "../../../components/admin-page-common";
+import { MenuItemImagePicker } from "../../../components/menu-item-image-picker";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../components/ui/card";
@@ -24,7 +25,7 @@ import {
   type MenuItem
 } from "../../../lib/api";
 import { formatMoney, useAdminWorkspace } from "../../../lib/admin-workspace";
-import { firstInvalid, validateMoney, validateOptionalText, validateOptionalUrl, validatePositiveInteger, validateRequired } from "../../../lib/validation";
+import { firstInvalid, validateMoney, validateOptionalText, validatePositiveInteger, validateRequired } from "../../../lib/validation";
 
 type ItemForm = {
   menuCategoryId: string;
@@ -195,7 +196,7 @@ export default function AdminMenuPage() {
         isAvailable: itemForm.isAvailable,
         displayOrder: toPositiveNumber(itemForm.displayOrder),
         imageUrl: optional(itemForm.imageUrl),
-        imageAltText: optional(itemForm.imageAltText),
+        imageAltText: itemForm.imageUrl ? optional(itemForm.imageAltText) ?? itemForm.name.trim() : null,
         variants: toVariantInput(itemForm.variants)
       });
 
@@ -350,7 +351,7 @@ export default function AdminMenuPage() {
         isActive: item.isActive,
         displayOrder: toPositiveNumber(editingItemForm.displayOrder),
         imageUrl: optional(editingItemForm.imageUrl),
-        imageAltText: optional(editingItemForm.imageAltText),
+        imageAltText: editingItemForm.imageUrl ? optional(editingItemForm.imageAltText) ?? editingItemForm.name.trim() : null,
         variants: toVariantInput(editingItemForm.variants)
       });
 
@@ -680,22 +681,15 @@ export default function AdminMenuPage() {
                         }
                       />
                     </Field>
-                    <Field label="Item image URL">
-                      <Input
-                        value={isEditingItem ? editingItemForm.imageUrl : itemForm.imageUrl}
-                        onChange={(event) =>
-                          isEditingItem ? setEditingItemForm({ ...editingItemForm, imageUrl: event.target.value }) : setItemForm({ ...itemForm, imageUrl: event.target.value })
-                        }
-                        placeholder="https://..."
-                      />
-                    </Field>
-                    <Field label="Image alt text">
-                      <Input
-                        value={isEditingItem ? editingItemForm.imageAltText : itemForm.imageAltText}
-                        onChange={(event) =>
+                    <Field label="Item image">
+                      <MenuItemImagePicker
+                        imageAltText={activeItemForm.imageAltText}
+                        imageUrl={activeItemForm.imageUrl}
+                        itemName={activeItemForm.name}
+                        onChange={(next) =>
                           isEditingItem
-                            ? setEditingItemForm({ ...editingItemForm, imageAltText: event.target.value })
-                            : setItemForm({ ...itemForm, imageAltText: event.target.value })
+                            ? setEditingItemForm({ ...editingItemForm, imageUrl: next.imageUrl, imageAltText: next.imageAltText })
+                            : setItemForm({ ...itemForm, imageUrl: next.imageUrl, imageAltText: next.imageAltText })
                         }
                       />
                     </Field>
@@ -897,8 +891,6 @@ function validateItemForm(form: ItemForm) {
     validateRequired(form.menuCategoryId, "Category"),
     validateRequired(form.name, "Item name"),
     validateOptionalText(form.description, "Description", 500),
-    validateOptionalUrl(form.imageUrl, "Item image URL"),
-    validateOptionalText(form.imageAltText, "Image alt text", 200),
     form.variants.length > 0 ? validItemVariants(form.variants) : validateMoney(form.price, "Price"),
     validatePositiveInteger(form.displayOrder, "Order")
   );

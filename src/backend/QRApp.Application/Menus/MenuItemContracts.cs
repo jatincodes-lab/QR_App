@@ -60,6 +60,7 @@ public sealed record MenuItemResponse(
 public sealed record PublicMenuResponse(
     Guid BranchId,
     string BranchName,
+    string? BranchLogoUrl,
     IReadOnlyCollection<PublicMenuCategoryResponse> Categories)
 {
     public IReadOnlyCollection<PublicMenuOfferResponse> Offers { get; init; } = Array.Empty<PublicMenuOfferResponse>();
@@ -90,6 +91,7 @@ public sealed record PublicMenuItemVariantResponse(
 public sealed record PublicMenuItemRecord(
     Guid BranchId,
     string BranchName,
+    string? BranchLogoUrl,
     Guid MenuCategoryId,
     string CategoryName,
     int CategoryDisplayOrder,

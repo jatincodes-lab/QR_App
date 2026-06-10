@@ -96,7 +96,9 @@ export default function AdminSetupPage() {
         city: form.city.trim() || null,
         state: null,
         postalCode: null,
-        countryCode: "IN"
+        countryCode: "IN",
+        logoUrl: null,
+        logoPublicId: null
       });
 
       await createBranchOrderSettings(branch.branchId, {

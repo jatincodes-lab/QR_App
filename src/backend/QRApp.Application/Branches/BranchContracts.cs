@@ -8,7 +8,9 @@ public sealed record CreateBranchRequest(
     string? City,
     string? State,
     string? PostalCode,
-    string CountryCode);
+    string CountryCode,
+    string? LogoUrl = null,
+    string? LogoPublicId = null);
 
 public sealed record UpdateBranchRequest(
     string Name,
@@ -19,7 +21,9 @@ public sealed record UpdateBranchRequest(
     string? State,
     string? PostalCode,
     string CountryCode,
-    bool IsActive);
+    bool IsActive,
+    string? LogoUrl = null,
+    string? LogoPublicId = null);
 
 public sealed record BranchResponse(
     Guid BranchId,
@@ -32,6 +36,8 @@ public sealed record BranchResponse(
     string? State,
     string? PostalCode,
     string CountryCode,
+    string? LogoUrl,
+    string? LogoPublicId,
     bool IsActive,
     DateTime CreatedAtUtc,
     DateTime? UpdatedAtUtc);
@@ -43,7 +49,8 @@ public sealed record BranchListItemResponse(
     string? PhoneNumber,
     string? City,
     string CountryCode,
+    string? LogoUrl,
+    string? LogoPublicId,
     bool IsActive,
     DateTime CreatedAtUtc,
     DateTime? UpdatedAtUtc);
-

@@ -551,7 +551,9 @@ function toCreateInput(form: BranchFormState): CreateBranchInput {
     city: optional(form.city),
     state: optional(form.state),
     postalCode: optional(form.postalCode),
-    countryCode: form.countryCode
+    countryCode: form.countryCode,
+    logoUrl: null,
+    logoPublicId: null
   };
 }
 

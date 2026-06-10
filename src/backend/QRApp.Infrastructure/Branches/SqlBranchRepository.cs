@@ -31,7 +31,7 @@ public sealed class SqlBranchRepository(ISqlConnectionFactory connectionFactory)
             CommandType = CommandType.StoredProcedure
         };
 
-        AddBranchParameters(command, tenantId, branchId, request.Name, request.PhoneNumber, request.AddressLine1, request.AddressLine2, request.City, request.State, request.PostalCode, request.CountryCode);
+        AddBranchParameters(command, tenantId, branchId, request.Name, request.PhoneNumber, request.AddressLine1, request.AddressLine2, request.City, request.State, request.PostalCode, request.CountryCode, request.LogoUrl, request.LogoPublicId);
         command.AddBool("@IsActive", request.IsActive);
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -82,6 +82,8 @@ public sealed class SqlBranchRepository(ISqlConnectionFactory connectionFactory)
                 reader.IsDBNull(reader.GetOrdinal("PhoneNumber")) ? null : reader.GetString(reader.GetOrdinal("PhoneNumber")),
                 reader.IsDBNull(reader.GetOrdinal("City")) ? null : reader.GetString(reader.GetOrdinal("City")),
                 reader.GetString(reader.GetOrdinal("CountryCode")),
+                reader.IsDBNull(reader.GetOrdinal("LogoUrl")) ? null : reader.GetString(reader.GetOrdinal("LogoUrl")),
+                reader.IsDBNull(reader.GetOrdinal("LogoPublicId")) ? null : reader.GetString(reader.GetOrdinal("LogoPublicId")),
                 reader.GetBoolean(reader.GetOrdinal("IsActive")),
                 reader.GetDateTime(reader.GetOrdinal("CreatedAtUtc")),
                 reader.IsDBNull(reader.GetOrdinal("UpdatedAtUtc")) ? null : reader.GetDateTime(reader.GetOrdinal("UpdatedAtUtc"))));
@@ -112,11 +114,11 @@ public sealed class SqlBranchRepository(ISqlConnectionFactory connectionFactory)
             CommandType = CommandType.StoredProcedure
         };
 
-        AddBranchParameters(command, tenantId, branchId, request.Name, request.PhoneNumber, request.AddressLine1, request.AddressLine2, request.City, request.State, request.PostalCode, request.CountryCode);
+        AddBranchParameters(command, tenantId, branchId, request.Name, request.PhoneNumber, request.AddressLine1, request.AddressLine2, request.City, request.State, request.PostalCode, request.CountryCode, request.LogoUrl, request.LogoPublicId);
         return command;
     }
 
-    private static void AddBranchParameters(SqlCommand command, Guid tenantId, Guid branchId, string name, string? phoneNumber, string? addressLine1, string? addressLine2, string? city, string? state, string? postalCode, string countryCode)
+    private static void AddBranchParameters(SqlCommand command, Guid tenantId, Guid branchId, string name, string? phoneNumber, string? addressLine1, string? addressLine2, string? city, string? state, string? postalCode, string countryCode, string? logoUrl, string? logoPublicId)
     {
         command.AddGuid("@TenantId", tenantId);
         command.AddGuid("@BranchId", branchId);
@@ -128,6 +130,8 @@ public sealed class SqlBranchRepository(ISqlConnectionFactory connectionFactory)
         command.AddString("@State", state, 120);
         command.AddString("@PostalCode", postalCode, 32);
         command.AddChar("@CountryCode", countryCode, 2);
+        command.AddString("@LogoUrl", logoUrl, 1000);
+        command.AddString("@LogoPublicId", logoPublicId, 300);
     }
 
     private static BranchResponse ReadBranch(SqlDataReader reader)
@@ -143,9 +147,10 @@ public sealed class SqlBranchRepository(ISqlConnectionFactory connectionFactory)
             reader.IsDBNull(reader.GetOrdinal("State")) ? null : reader.GetString(reader.GetOrdinal("State")),
             reader.IsDBNull(reader.GetOrdinal("PostalCode")) ? null : reader.GetString(reader.GetOrdinal("PostalCode")),
             reader.GetString(reader.GetOrdinal("CountryCode")),
+            reader.IsDBNull(reader.GetOrdinal("LogoUrl")) ? null : reader.GetString(reader.GetOrdinal("LogoUrl")),
+            reader.IsDBNull(reader.GetOrdinal("LogoPublicId")) ? null : reader.GetString(reader.GetOrdinal("LogoPublicId")),
             reader.GetBoolean(reader.GetOrdinal("IsActive")),
             reader.GetDateTime(reader.GetOrdinal("CreatedAtUtc")),
             reader.IsDBNull(reader.GetOrdinal("UpdatedAtUtc")) ? null : reader.GetDateTime(reader.GetOrdinal("UpdatedAtUtc")));
     }
 }
-

@@ -181,6 +181,7 @@ public sealed class SqlBranchTableRepository(ISqlConnectionFactory connectionFac
         return new PublicQrMenuRecord(
             reader.GetGuid(reader.GetOrdinal("BranchId")),
             reader.GetString(reader.GetOrdinal("BranchName")),
+            GetNullableString(reader, "BranchLogoUrl"),
             reader.GetGuid(reader.GetOrdinal("TableId")),
             reader.GetString(reader.GetOrdinal("TableName")),
             reader.GetString(reader.GetOrdinal("QrToken")),

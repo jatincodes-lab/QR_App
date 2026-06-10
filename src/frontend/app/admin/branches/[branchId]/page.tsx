@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   CircleAlert,
@@ -31,6 +31,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import QRCode from "qrcode";
 import { AdminShell } from "../../../../components/admin-shell";
 import { CountryPhoneInput } from "../../../../components/country-phone-input";
+import { MenuItemImagePicker } from "../../../../components/menu-item-image-picker";
 import { Alert, AlertDescription } from "../../../../components/ui/alert";
 import { Badge } from "../../../../components/ui/badge";
 import { Button } from "../../../../components/ui/button";
@@ -70,6 +71,7 @@ import {
   updateBranch,
   updateBranchOffer,
   updateAdminOrderStatus,
+  uploadMedia,
   updateMenuCategory,
   updateMenuItem,
   updateWaiterCallStatus,
@@ -136,6 +138,8 @@ type BranchProfileForm = {
   state: string;
   postalCode: string;
   countryCode: string;
+  logoUrl: string;
+  logoPublicId: string;
 };
 
 type FeedbackState = {
@@ -173,7 +177,9 @@ const EmptyBranchProfileForm: BranchProfileForm = {
   city: "",
   state: "",
   postalCode: "",
-  countryCode: "IN"
+  countryCode: "IN",
+  logoUrl: "",
+  logoPublicId: ""
 };
 const DefaultSettingsForm: SettingsForm = {
   enableDirectQrOrdering: false,
@@ -534,7 +540,7 @@ export default function AdminBranchDetailPage() {
         isAvailable: itemForm.isAvailable,
         displayOrder: toPositiveNumber(itemForm.displayOrder),
         imageUrl: optional(itemForm.imageUrl),
-        imageAltText: optional(itemForm.imageAltText),
+        imageAltText: itemForm.imageUrl ? optional(itemForm.imageAltText) ?? itemForm.name.trim() : null,
         variants: []
       });
       setItems((current) => [...current, item]);
@@ -666,6 +672,8 @@ export default function AdminBranchDetailPage() {
         state: optional(branchProfileForm.state),
         postalCode: optional(branchProfileForm.postalCode),
         countryCode: branchProfileForm.countryCode.trim().toUpperCase(),
+        logoUrl: optional(branchProfileForm.logoUrl),
+        logoPublicId: optional(branchProfileForm.logoPublicId),
         isActive: branch.isActive
       });
 
@@ -742,7 +750,7 @@ export default function AdminBranchDetailPage() {
         isActive: item.isActive,
         displayOrder: toPositiveNumber(editingItemForm.displayOrder),
         imageUrl: optional(editingItemForm.imageUrl),
-        imageAltText: optional(editingItemForm.imageAltText),
+        imageAltText: editingItemForm.imageUrl ? optional(editingItemForm.imageAltText) ?? editingItemForm.name.trim() : null,
         variants: []
       });
       setItems((current) => current.map((currentItem) => (currentItem.menuItemId === updated.menuItemId ? updated : currentItem)));
@@ -885,7 +893,12 @@ export default function AdminBranchDetailPage() {
               <Store size={14} />
               Branch workspace
             </Badge>
-            <h1 className="mt-4 text-headline-lg text-primary">{branch?.name ?? "Branch setup"}</h1>
+            <div className="mt-4 flex min-w-0 items-center gap-3">
+              <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-2xl bg-primary-fixed text-primary">
+                {branch?.logoUrl ? <img src={branch.logoUrl} alt={`${branch.name} logo`} className="h-full w-full object-cover" /> : <Store size={22} />}
+              </div>
+              <h1 className="min-w-0 truncate text-headline-lg text-primary">{branch?.name ?? "Branch setup"}</h1>
+            </div>
             <p className="mt-2 max-w-2xl text-body-md text-on-surface-variant">
               Manage this location's profile and table QR codes. Menu, orders, analytics, and ordering settings live in their sidebar workspaces.
             </p>
@@ -1104,11 +1117,13 @@ function MenuPanel({
           <Field label="Description">
             <Input value={itemForm.description} onChange={(event) => onItemFormChange({ ...itemForm, description: event.target.value })} />
           </Field>
-          <Field label="Item image URL">
-            <Input value={itemForm.imageUrl} onChange={(event) => onItemFormChange({ ...itemForm, imageUrl: event.target.value })} placeholder="https://..." />
-          </Field>
-          <Field label="Image alt text">
-            <Input value={itemForm.imageAltText} onChange={(event) => onItemFormChange({ ...itemForm, imageAltText: event.target.value })} />
+          <Field label="Item image">
+            <MenuItemImagePicker
+              imageAltText={itemForm.imageAltText}
+              imageUrl={itemForm.imageUrl}
+              itemName={itemForm.name}
+              onChange={(next) => onItemFormChange({ ...itemForm, imageUrl: next.imageUrl, imageAltText: next.imageAltText })}
+            />
           </Field>
           <div className="grid gap-3 sm:grid-cols-[1fr_7rem]">
             <Field label="Price">
@@ -1289,11 +1304,13 @@ function MenuPanel({
                           <Field label="Description">
                             <Input value={editingItemForm.description} onChange={(event) => onEditingItemFormChange({ ...editingItemForm, description: event.target.value })} />
                           </Field>
-                          <Field label="Item image URL">
-                            <Input value={editingItemForm.imageUrl} onChange={(event) => onEditingItemFormChange({ ...editingItemForm, imageUrl: event.target.value })} placeholder="https://..." />
-                          </Field>
-                          <Field label="Image alt text">
-                            <Input value={editingItemForm.imageAltText} onChange={(event) => onEditingItemFormChange({ ...editingItemForm, imageAltText: event.target.value })} />
+                          <Field label="Item image">
+                            <MenuItemImagePicker
+                              imageAltText={editingItemForm.imageAltText}
+                              imageUrl={editingItemForm.imageUrl}
+                              itemName={editingItemForm.name}
+                              onChange={(next) => onEditingItemFormChange({ ...editingItemForm, imageUrl: next.imageUrl, imageAltText: next.imageAltText })}
+                            />
                           </Field>
                           <div className="grid gap-3 sm:grid-cols-[1fr_7rem]">
                             <Field label="Price">
@@ -1454,6 +1471,45 @@ function MenuPanel({
   );
 }
 
+function BranchLogoUploadField({ form, onChange }: { form: BranchProfileForm; onChange: (form: BranchProfileForm) => void }) {
+  const [isUploading, setIsUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    setIsUploading(true);
+    setError(null);
+    try {
+      const uploaded = await uploadMedia(file, "branch-logo");
+      onChange({ ...form, logoUrl: uploaded.url, logoPublicId: uploaded.publicId });
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Logo upload failed.");
+    } finally {
+      setIsUploading(false);
+      event.target.value = "";
+    }
+  }
+
+  return (
+    <Field label="Branch logo">
+      <div className="flex items-center gap-3 rounded-xl border border-outline-variant/70 bg-white p-3">
+        <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl bg-primary-fixed text-primary">
+          {form.logoUrl ? <img src={form.logoUrl} alt={`${form.name || "Branch"} logo`} className="h-full w-full object-cover" /> : <Store size={20} />}
+        </div>
+        <div className="min-w-0 flex-1">
+          <Input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleFileChange} disabled={isUploading} />
+          {error ? <p className="mt-1 text-xs font-semibold text-destructive">{error}</p> : null}
+        </div>
+        {isUploading ? <Loader2 size={18} className="shrink-0 animate-spin text-primary" /> : null}
+      </div>
+    </Field>
+  );
+}
+
 function BranchProfilePanel({
   branchProfileForm,
   isSavingProfile,
@@ -1476,6 +1532,7 @@ function BranchProfilePanel({
           <Field label="Branch name">
             <Input value={branchProfileForm.name} onChange={(event) => onBranchProfileChange({ ...branchProfileForm, name: event.target.value })} required />
           </Field>
+          <BranchLogoUploadField form={branchProfileForm} onChange={onBranchProfileChange} />
           <CountryPhoneInput
             countryCode={branchProfileForm.countryCode}
             label="Phone"
@@ -1539,6 +1596,7 @@ function SettingsPanel({
             <Field label="Branch name">
               <Input value={branchProfileForm.name} onChange={(event) => onBranchProfileChange({ ...branchProfileForm, name: event.target.value })} required />
             </Field>
+            <BranchLogoUploadField form={branchProfileForm} onChange={onBranchProfileChange} />
             <CountryPhoneInput
               countryCode={branchProfileForm.countryCode}
               label="Phone"
@@ -2353,7 +2411,9 @@ function toBranchProfileForm(branch: BranchListItem): BranchProfileForm {
     city: branch.city ?? "",
     state: branch.state ?? "",
     postalCode: branch.postalCode ?? "",
-    countryCode: branch.countryCode ?? "IN"
+    countryCode: branch.countryCode ?? "IN",
+    logoUrl: branch.logoUrl ?? "",
+    logoPublicId: branch.logoPublicId ?? ""
   };
 }
 
@@ -2393,8 +2453,6 @@ function validateItemForm(form: ItemForm) {
     validateRequired(form.menuCategoryId, "Category"),
     validateRequired(form.name, "Item name"),
     validateOptionalText(form.description, "Description", 500),
-    validateOptionalUrl(form.imageUrl, "Item image URL"),
-    validateOptionalText(form.imageAltText, "Image alt text", 200),
     validateMoney(form.price, "Price"),
     validatePositiveInteger(form.displayOrder, "Order")
   );

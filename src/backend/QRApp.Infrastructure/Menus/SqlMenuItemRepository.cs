@@ -135,6 +135,7 @@ public sealed class SqlMenuItemRepository(ISqlConnectionFactory connectionFactor
             items.Add(new PublicMenuItemRecord(
                 reader.GetGuid(reader.GetOrdinal("BranchId")),
                 reader.GetString(reader.GetOrdinal("BranchName")),
+                reader.IsDBNull(reader.GetOrdinal("BranchLogoUrl")) ? null : reader.GetString(reader.GetOrdinal("BranchLogoUrl")),
                 reader.GetGuid(reader.GetOrdinal("MenuCategoryId")),
                 reader.GetString(reader.GetOrdinal("CategoryName")),
                 reader.GetInt32(reader.GetOrdinal("CategoryDisplayOrder")),

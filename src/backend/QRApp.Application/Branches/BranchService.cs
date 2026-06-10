@@ -7,7 +7,7 @@ public sealed class BranchService(IBranchRepository branchRepository) : IBranchS
 {
     public async Task<OperationResult<BranchResponse>> CreateAsync(Guid tenantId, CreateBranchRequest request, CancellationToken cancellationToken)
     {
-        var errors = Validate(request.Name, request.CountryCode);
+        var errors = Validate(request.Name, request.CountryCode, request.LogoUrl, request.LogoPublicId);
         if (errors.Count > 0)
         {
             return OperationResult<BranchResponse>.Failed(errors.ToArray());
@@ -21,7 +21,9 @@ public sealed class BranchService(IBranchRepository branchRepository) : IBranchS
             TextRules.CleanOptional(request.City),
             TextRules.CleanOptional(request.State),
             TextRules.CleanOptional(request.PostalCode),
-            TextRules.CleanRequired(request.CountryCode).ToUpperInvariant());
+            TextRules.CleanRequired(request.CountryCode).ToUpperInvariant(),
+            TextRules.CleanOptional(request.LogoUrl),
+            TextRules.CleanOptional(request.LogoPublicId));
 
         var branch = await branchRepository.CreateAsync(tenantId, Guid.NewGuid(), cleanedRequest, cancellationToken);
         return OperationResult<BranchResponse>.Success(branch);
@@ -29,7 +31,7 @@ public sealed class BranchService(IBranchRepository branchRepository) : IBranchS
 
     public async Task<OperationResult<BranchResponse>> UpdateAsync(Guid tenantId, Guid branchId, UpdateBranchRequest request, CancellationToken cancellationToken)
     {
-        var errors = Validate(request.Name, request.CountryCode);
+        var errors = Validate(request.Name, request.CountryCode, request.LogoUrl, request.LogoPublicId);
         if (errors.Count > 0)
         {
             return OperationResult<BranchResponse>.Failed(errors.ToArray());
@@ -44,7 +46,9 @@ public sealed class BranchService(IBranchRepository branchRepository) : IBranchS
             TextRules.CleanOptional(request.State),
             TextRules.CleanOptional(request.PostalCode),
             TextRules.CleanRequired(request.CountryCode).ToUpperInvariant(),
-            request.IsActive);
+            request.IsActive,
+            TextRules.CleanOptional(request.LogoUrl),
+            TextRules.CleanOptional(request.LogoPublicId));
 
         var branch = await branchRepository.UpdateAsync(tenantId, branchId, cleanedRequest, cancellationToken);
         return OperationResult<BranchResponse>.Success(branch);
@@ -65,7 +69,7 @@ public sealed class BranchService(IBranchRepository branchRepository) : IBranchS
         return branchRepository.DeactivateAsync(tenantId, branchId, cancellationToken);
     }
 
-    private static List<ValidationFailure> Validate(string name, string countryCode)
+    private static List<ValidationFailure> Validate(string name, string countryCode, string? logoUrl, string? logoPublicId)
     {
         var errors = new List<ValidationFailure>();
         var cleanName = TextRules.CleanRequired(name);
@@ -81,7 +85,16 @@ public sealed class BranchService(IBranchRepository branchRepository) : IBranchS
             errors.Add(new ValidationFailure(nameof(CreateBranchRequest.CountryCode), "Country code must be a two-letter ISO code."));
         }
 
+        if (TextRules.CleanOptional(logoUrl)?.Length > 1000)
+        {
+            errors.Add(new ValidationFailure(nameof(CreateBranchRequest.LogoUrl), "Branch logo URL cannot exceed 1000 characters."));
+        }
+
+        if (TextRules.CleanOptional(logoPublicId)?.Length > 300)
+        {
+            errors.Add(new ValidationFailure(nameof(CreateBranchRequest.LogoPublicId), "Branch logo provider ID cannot exceed 300 characters."));
+        }
+
         return errors;
     }
 }
-

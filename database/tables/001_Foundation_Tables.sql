@@ -71,6 +71,8 @@ BEGIN
         State NVARCHAR(120) NULL,
         PostalCode NVARCHAR(32) NULL,
         CountryCode CHAR(2) NOT NULL CONSTRAINT DF_Branches_CountryCode DEFAULT ('IN'),
+        LogoUrl NVARCHAR(1000) NULL,
+        LogoPublicId NVARCHAR(300) NULL,
         IsActive BIT NOT NULL CONSTRAINT DF_Branches_IsActive DEFAULT (1),
         CreatedAtUtc DATETIME2(3) NOT NULL CONSTRAINT DF_Branches_CreatedAtUtc DEFAULT (SYSUTCDATETIME()),
         UpdatedAtUtc DATETIME2(3) NULL,

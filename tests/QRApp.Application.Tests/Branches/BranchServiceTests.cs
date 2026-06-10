@@ -43,12 +43,12 @@ public sealed class BranchServiceTests
         public Task<BranchResponse> CreateAsync(Guid tenantId, Guid branchId, CreateBranchRequest request, CancellationToken cancellationToken)
         {
             CreatedRequest = request;
-            return Task.FromResult(new BranchResponse(branchId, tenantId, request.Name, request.PhoneNumber, request.AddressLine1, request.AddressLine2, request.City, request.State, request.PostalCode, request.CountryCode, true, DateTime.UtcNow, null));
+            return Task.FromResult(new BranchResponse(branchId, tenantId, request.Name, request.PhoneNumber, request.AddressLine1, request.AddressLine2, request.City, request.State, request.PostalCode, request.CountryCode, request.LogoUrl, request.LogoPublicId, true, DateTime.UtcNow, null));
         }
 
         public Task<BranchResponse> UpdateAsync(Guid tenantId, Guid branchId, UpdateBranchRequest request, CancellationToken cancellationToken)
         {
-            return Task.FromResult(new BranchResponse(branchId, tenantId, request.Name, request.PhoneNumber, request.AddressLine1, request.AddressLine2, request.City, request.State, request.PostalCode, request.CountryCode, request.IsActive, DateTime.UtcNow, null));
+            return Task.FromResult(new BranchResponse(branchId, tenantId, request.Name, request.PhoneNumber, request.AddressLine1, request.AddressLine2, request.City, request.State, request.PostalCode, request.CountryCode, request.LogoUrl, request.LogoPublicId, request.IsActive, DateTime.UtcNow, null));
         }
 
         public Task<BranchResponse?> GetByIdAsync(Guid tenantId, Guid branchId, CancellationToken cancellationToken)
@@ -67,4 +67,3 @@ public sealed class BranchServiceTests
         }
     }
 }
-

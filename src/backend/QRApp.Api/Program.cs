@@ -7,6 +7,7 @@ using QRApp.Api.Auth;
 using QRApp.Api.Endpoints;
 using QRApp.Api.Errors;
 using QRApp.Api.Hubs;
+using QRApp.Api.Media;
 using QRApp.Application;
 using QRApp.Application.Auth;
 using QRApp.Infrastructure;
@@ -40,8 +41,10 @@ builder.Services.AddSignalR();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure();
 builder.Services.AddScoped<ITenantContext, HttpTenantContext>();
+builder.Services.AddHttpClient<IImageUploadService, CloudinaryImageUploadService>();
 builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
 builder.Services.AddSingleton<IAdminOrderRealtimeNotifier, AdminOrderRealtimeNotifier>();
+builder.Services.Configure<CloudinaryOptions>(builder.Configuration.GetSection(CloudinaryOptions.SectionName));
 
 builder.Services
     .AddOptions<JwtOptions>()
@@ -163,6 +166,7 @@ app.MapGet("/health", () =>
 app.MapHealthChecks("/health/live");
 app.MapAuthEndpoints();
 app.MapAdminBranchEndpoints();
+app.MapAdminMediaEndpoints();
 app.MapAdminMenuEndpoints();
 app.MapAdminTableEndpoints();
 app.MapAdminOrderEndpoints();
@@ -243,6 +247,7 @@ static bool CanRoleAccessPath(string? roleCode, string path)
     if (string.Equals(roleCode, "manager", StringComparison.OrdinalIgnoreCase))
     {
         return path.StartsWith("/api/v1/admin/branches", StringComparison.OrdinalIgnoreCase) && IsBranchOperationalPath(path) ||
+               path.StartsWith("/api/v1/admin/media", StringComparison.OrdinalIgnoreCase) ||
                path.StartsWith("/api/v1/admin/reports", StringComparison.OrdinalIgnoreCase) ||
                path.StartsWith("/api/v1/admin/campaigns", StringComparison.OrdinalIgnoreCase);
     }

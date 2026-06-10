@@ -48,6 +48,8 @@ export type BranchListItem = {
   state: string | null;
   postalCode: string | null;
   countryCode: string;
+  logoUrl: string | null;
+  logoPublicId: string | null;
   isActive: boolean;
   createdAtUtc: string;
   updatedAtUtc: string | null;
@@ -179,6 +181,7 @@ export type PublicQrMenuCategory = {
 export type PublicQrMenu = {
   branchId: string;
   branchName: string;
+  branchLogoUrl: string | null;
   tableId: string;
   tableName: string;
   qrToken: string;
@@ -393,10 +396,17 @@ export type CreateBranchInput = {
   state: string | null;
   postalCode: string | null;
   countryCode: string;
+  logoUrl: string | null;
+  logoPublicId: string | null;
 };
 
 export type UpdateBranchInput = CreateBranchInput & {
   isActive: boolean;
+};
+
+export type MediaUploadResponse = {
+  url: string;
+  publicId: string;
 };
 
 export type CreateMenuCategoryInput = {
@@ -582,6 +592,44 @@ export async function createWaiterCall(qrToken: string, input: CreateWaiterCallI
     body: input,
     requireAuth: false
   });
+}
+
+export async function uploadMedia(file: File, purpose: "menu-item" | "branch-logo"): Promise<MediaUploadResponse> {
+  const token = getAccessToken();
+  if (!token) {
+    throw new ApiError("Please login to continue.", 401);
+  }
+
+  const formData = new FormData();
+  formData.set("file", file);
+  formData.set("purpose", purpose);
+
+  let response: Response;
+  try {
+    response = await fetch(`${ApiBaseUrl}/api/v1/admin/media/uploads`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: formData
+    });
+  } catch {
+    throw new ApiError("Cannot connect to the API. Check that the backend is running.", 0);
+  }
+
+  const responseText = await response.text();
+  const data = parseJson(responseText);
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      clearAccessToken();
+    }
+
+    throw toApiError(data, response.status);
+  }
+
+  return data as MediaUploadResponse;
 }
 
 export async function getBranches(): Promise<BranchListItem[]> {

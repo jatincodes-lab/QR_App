@@ -26,6 +26,7 @@ public sealed record PublicQrOrderSettingsResponse(
 public sealed record PublicQrMenuResponse(
     Guid BranchId,
     string BranchName,
+    string? BranchLogoUrl,
     Guid TableId,
     string TableName,
     string QrToken,
@@ -38,6 +39,7 @@ public sealed record PublicQrMenuResponse(
 public sealed record PublicQrMenuRecord(
     Guid BranchId,
     string BranchName,
+    string? BranchLogoUrl,
     Guid TableId,
     string TableName,
     string QrToken,

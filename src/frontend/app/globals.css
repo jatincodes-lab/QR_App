@@ -65,6 +65,15 @@ input {
     background: rgba(243, 244, 245, 0.72);
   }
 
+  .scrollbar-hidden {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hidden::-webkit-scrollbar {
+    display: none;
+  }
+
   .qr-fly-to-cart {
     animation: qr-fly-to-cart 1250ms cubic-bezier(0.2, 0.82, 0.28, 1) forwards;
   }
