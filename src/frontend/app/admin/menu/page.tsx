@@ -625,7 +625,7 @@ export default function AdminMenuPage() {
 
             {isItemDialogOpen ? (
               <Dialog>
-                <DialogContent className="max-w-3xl overflow-visible p-0">
+                <DialogContent className="max-h-[calc(100vh-2rem)] w-[min(96vw,64rem)] max-w-none overflow-y-auto p-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   <div className="border-b border-outline-variant/70 bg-surface-container-low px-6 py-5">
                     <DialogHeader>
                       <DialogTitle className="text-xl font-black text-on-surface">{isEditingItem ? "Edit menu item" : "Add menu item"}</DialogTitle>
@@ -644,9 +644,9 @@ export default function AdminMenuPage() {
 
                       void handleCreateItem(event);
                     }}
-                    className="grid gap-5 px-6 py-6"
+                    className="grid w-full min-w-0 gap-5 px-6 py-6"
                   >
-                    <div className="grid gap-4 rounded-xl border border-outline-variant/70 bg-white p-4">
+                    <div className="grid w-full min-w-0 gap-4 rounded-xl border border-outline-variant/70 bg-white p-4">
                       <div className="grid gap-4">
                         <Field label="Category">
                           <select
@@ -823,7 +823,7 @@ function ItemVariantsEditor({ form, onChange }: { form: ItemForm; onChange: (for
   }
 
   return (
-    <section className="grid gap-3 rounded-lg border border-outline-variant/40 bg-surface-container-low p-3 lg:col-span-2">
+    <section className="grid w-full min-w-0 gap-4 rounded-xl border border-outline-variant/70 bg-white p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-sm font-extrabold text-on-surface">Portions / sizes</p>
