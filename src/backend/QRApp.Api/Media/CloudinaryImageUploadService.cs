@@ -115,6 +115,7 @@ public sealed class CloudinaryImageUploadService(HttpClient httpClient, IOptions
         {
             "menu-item" => "menu-items",
             "branch-logo" => "branch-logos",
+            "offer" => "offers",
             _ => "general"
         };
     }

@@ -77,6 +77,70 @@ input {
   .qr-fly-to-cart {
     animation: qr-fly-to-cart 1250ms cubic-bezier(0.2, 0.82, 0.28, 1) forwards;
   }
+
+  .landing-reveal {
+    animation: landing-reveal 900ms cubic-bezier(0.2, 0.82, 0.28, 1) both;
+  }
+
+  .landing-rise {
+    animation: landing-rise both;
+    animation-timeline: view();
+    animation-range: entry 8% cover 32%;
+  }
+
+  .landing-float {
+    animation: landing-float 7s ease-in-out infinite;
+  }
+
+  .landing-marquee {
+    width: max-content;
+    animation: landing-marquee 34s linear infinite;
+  }
+
+  .landing-marquee:hover {
+    animation-play-state: paused;
+  }
+}
+
+@keyframes landing-reveal {
+  0% {
+    opacity: 0;
+    transform: translateY(28px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes landing-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(36px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes landing-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-14px);
+  }
+}
+
+@keyframes landing-marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
 }
 
 @keyframes qr-fly-to-cart {

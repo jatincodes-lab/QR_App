@@ -1,6 +1,7 @@
 using Microsoft.Data.SqlClient;
 using QRApp.Api.Errors;
 using QRApp.Api.Hubs;
+using QRApp.Application.Notifications;
 using QRApp.Application.Orders;
 
 namespace QRApp.Api.Endpoints;
@@ -21,6 +22,7 @@ public static class PublicOrderEndpoints
         string qrToken,
         CreatePublicQrOrderRequest request,
         IOrderService orderService,
+        IAdminNotificationService notificationService,
         IAdminOrderRealtimeNotifier realtimeNotifier,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
@@ -34,6 +36,23 @@ public static class PublicOrderEndpoints
             }
 
             var order = result.Value!;
+            try
+            {
+                await notificationService.CreateAsync(
+                    order.TenantId,
+                    new CreateAdminNotificationRequest(
+                        order.BranchId,
+                        "order-created",
+                        "New order received",
+                        $"Order {ShortId(order.OrderId)} placed with {order.Items.Count} item{(order.Items.Count == 1 ? "" : "s")}.",
+                        "/admin/orders"),
+                    cancellationToken);
+            }
+            catch (Exception notificationException)
+            {
+                loggerFactory.CreateLogger(nameof(PublicOrderEndpoints)).LogWarning(notificationException, "Order {OrderId} was created, but its admin notification could not be stored.", order.OrderId);
+            }
+
             await realtimeNotifier.OrderCreatedAsync(order, cancellationToken);
             return Results.Created($"/api/v1/public/orders/{order.OrderId}", order);
         }
@@ -77,5 +96,10 @@ public static class PublicOrderEndpoints
             loggerFactory.CreateLogger(nameof(PublicOrderEndpoints)).LogError(ex, "Failed to read public QR order.");
             return ApiProblemResponses.ServerError("Order could not be read.");
         }
+    }
+
+    private static string ShortId(Guid id)
+    {
+        return id.ToString("N")[^6..].ToUpperInvariant();
     }
 }

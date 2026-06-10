@@ -66,4 +66,10 @@ internal static class StoredProcedures
     public const string WaiterCallCreateFromQrToken = "dbo.WaiterCall_CreateFromQrToken";
     public const string WaiterCallGetListByBranch = "dbo.WaiterCall_GetListByBranch";
     public const string WaiterCallUpdateStatus = "dbo.WaiterCall_UpdateStatus";
+
+    public const string AdminNotificationCreate = "dbo.AdminNotification_Create";
+    public const string AdminNotificationGetList = "dbo.AdminNotification_GetList";
+    public const string AdminNotificationMarkRead = "dbo.AdminNotification_MarkRead";
+    public const string AdminNotificationMarkAllRead = "dbo.AdminNotification_MarkAllRead";
+    public const string AdminSearch = "dbo.AdminSearch";
 }

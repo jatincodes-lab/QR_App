@@ -367,6 +367,29 @@ export type CampaignPreview = {
   recipientCount: number;
 };
 
+export type AdminNotification = {
+  adminNotificationId: string;
+  tenantId: string;
+  branchId: string;
+  typeCode: string;
+  title: string;
+  message: string;
+  targetUrl: string;
+  isRead: boolean;
+  createdAtUtc: string;
+  readAtUtc: string | null;
+};
+
+export type AdminSearchResult = {
+  typeCode: "branch" | "menu-item" | "order" | "offer" | string;
+  entityId: string;
+  branchId: string | null;
+  title: string;
+  subtitle: string;
+  targetUrl: string;
+  createdAtUtc: string | null;
+};
+
 export type CreateCampaignInput = {
   branchId: string | null;
   name: string;
@@ -594,7 +617,7 @@ export async function createWaiterCall(qrToken: string, input: CreateWaiterCallI
   });
 }
 
-export async function uploadMedia(file: File, purpose: "menu-item" | "branch-logo"): Promise<MediaUploadResponse> {
+export async function uploadMedia(file: File, purpose: "menu-item" | "branch-logo" | "offer"): Promise<MediaUploadResponse> {
   const token = getAccessToken();
   if (!token) {
     throw new ApiError("Please login to continue.", 401);
@@ -901,6 +924,42 @@ export async function updateWaiterCallStatus(
   return request<WaiterCall>(`/api/v1/admin/branches/${branchId}/waiter-calls/${waiterCallId}/status`, {
     method: "PUT",
     body: { statusCode },
+    requireAuth: true
+  });
+}
+
+export async function getAdminNotifications(branchId?: string): Promise<AdminNotification[]> {
+  const query = branchId ? `?branchId=${encodeURIComponent(branchId)}` : "";
+  return request<AdminNotification[]>(`/api/v1/admin/notifications${query}`, {
+    method: "GET",
+    requireAuth: true
+  });
+}
+
+export async function markAdminNotificationRead(notificationId: string): Promise<void> {
+  await request<void>(`/api/v1/admin/notifications/${encodeURIComponent(notificationId)}/read`, {
+    method: "POST",
+    requireAuth: true
+  });
+}
+
+export async function markAllAdminNotificationsRead(branchId?: string): Promise<void> {
+  const query = branchId ? `?branchId=${encodeURIComponent(branchId)}` : "";
+  await request<void>(`/api/v1/admin/notifications/read-all${query}`, {
+    method: "POST",
+    requireAuth: true
+  });
+}
+
+export async function searchAdmin(query: string, branchId?: string): Promise<AdminSearchResult[]> {
+  const params = new URLSearchParams();
+  params.set("q", query);
+  if (branchId) {
+    params.set("branchId", branchId);
+  }
+
+  return request<AdminSearchResult[]>(`/api/v1/admin/search?${params.toString()}`, {
+    method: "GET",
     requireAuth: true
   });
 }

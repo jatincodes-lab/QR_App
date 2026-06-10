@@ -168,6 +168,7 @@ app.MapAuthEndpoints();
 app.MapAdminBranchEndpoints();
 app.MapAdminMediaEndpoints();
 app.MapAdminMenuEndpoints();
+app.MapAdminNotificationEndpoints();
 app.MapAdminTableEndpoints();
 app.MapAdminOrderEndpoints();
 app.MapAdminReportEndpoints();

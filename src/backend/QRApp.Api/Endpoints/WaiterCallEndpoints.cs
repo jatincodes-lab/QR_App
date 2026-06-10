@@ -2,6 +2,7 @@ using Microsoft.Data.SqlClient;
 using QRApp.Api.Errors;
 using QRApp.Api.Hubs;
 using QRApp.Application.Auth;
+using QRApp.Application.Notifications;
 using QRApp.Application.WaiterCalls;
 
 namespace QRApp.Api.Endpoints;
@@ -24,6 +25,7 @@ public static class WaiterCallEndpoints
         string qrToken,
         CreateWaiterCallRequest request,
         IWaiterCallService service,
+        IAdminNotificationService notificationService,
         IAdminOrderRealtimeNotifier realtimeNotifier,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
@@ -37,6 +39,23 @@ public static class WaiterCallEndpoints
             }
 
             var waiterCall = result.Value!;
+            try
+            {
+                await notificationService.CreateAsync(
+                    waiterCall.TenantId,
+                    new CreateAdminNotificationRequest(
+                        waiterCall.BranchId,
+                        "waiter-call-created",
+                        "Waiter call",
+                        $"{waiterCall.TableName} requested staff assistance.",
+                        "/admin/orders"),
+                    cancellationToken);
+            }
+            catch (Exception notificationException)
+            {
+                loggerFactory.CreateLogger(nameof(WaiterCallEndpoints)).LogWarning(notificationException, "Waiter call {WaiterCallId} was created, but its admin notification could not be stored.", waiterCall.WaiterCallId);
+            }
+
             await realtimeNotifier.WaiterCallCreatedAsync(waiterCall, cancellationToken);
             return Results.Created($"/api/v1/public/waiter-calls/{waiterCall.WaiterCallId}", waiterCall);
         }
@@ -87,6 +106,7 @@ public static class WaiterCallEndpoints
         UpdateWaiterCallStatusRequest request,
         ITenantContext tenantContext,
         IWaiterCallService service,
+        IAdminNotificationService notificationService,
         IAdminOrderRealtimeNotifier realtimeNotifier,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
@@ -97,6 +117,26 @@ public static class WaiterCallEndpoints
             if (!result.IsSuccess)
             {
                 return ApiProblemResponses.Validation(result.Errors);
+            }
+
+            if (result.Value!.StatusCode is "Acknowledged" or "Resolved")
+            {
+                try
+                {
+                    await notificationService.CreateAsync(
+                        tenantContext.TenantId,
+                        new CreateAdminNotificationRequest(
+                            branchId,
+                            "waiter-call-status-updated",
+                            "Waiter call updated",
+                            $"{result.Value.TableName} call is now {result.Value.StatusCode.ToLowerInvariant()}.",
+                            "/admin/orders"),
+                        cancellationToken);
+                }
+                catch (Exception notificationException)
+                {
+                    loggerFactory.CreateLogger(nameof(WaiterCallEndpoints)).LogWarning(notificationException, "Waiter call {WaiterCallId} status was updated, but its admin notification could not be stored.", waiterCallId);
+                }
             }
 
             await realtimeNotifier.WaiterCallStatusUpdatedAsync(result.Value!, cancellationToken);

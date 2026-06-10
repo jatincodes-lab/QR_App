@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BarChart3, Check, ChefHat, Clock3, MessageCircle, QrCode, ScanLine, ShieldCheck, Smartphone, Store, Users } from "lucide-react";
+import { MarketingHeader } from "./marketing-header";
 
 export const SiteUrl = "https://qrave.app";
 
@@ -67,55 +68,45 @@ export const FaqItems = [
   }
 ];
 
-export function MarketingHeader() {
-  return (
-    <header className="sticky top-0 z-30 border-b border-white/10 bg-[#080604]/95 backdrop-blur">
-      <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <Link href="/" className="flex items-center gap-3" aria-label="Qrave home">
-          <QraveMark />
-          <span className="text-2xl font-extrabold tracking-normal text-white">Qrave</span>
-        </Link>
-        <div className="hidden items-center gap-7 text-sm font-semibold text-white/70 md:flex">
-          <Link href="/#features" className="hover:text-white">Features</Link>
-          <Link href="/pricing" className="hover:text-white">Pricing</Link>
-          <Link href="/faq" className="hover:text-white">FAQ</Link>
-          <Link href="/contact" className="hover:text-white">Contact</Link>
-        </div>
-        <Link href="/admin/register" className="rounded-md bg-[#ff6b35] px-4 py-2 text-sm font-bold text-white hover:bg-[#ff7f4f]">
-          Start free
-        </Link>
-      </nav>
-    </header>
-  );
-}
-
 export function MarketingFooter() {
   return (
-    <footer className="border-t border-outline-variant/70 bg-white">
-      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 md:grid-cols-[1.2fr_0.8fr_0.8fr] lg:px-8">
-        <div>
-          <div className="flex items-center gap-3">
-            <QraveMark />
-            <span className="text-2xl font-extrabold tracking-normal text-primary">Qrave</span>
+    <footer className="bg-[#9fc3e6] px-4 pb-5 pt-20 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl overflow-hidden rounded-[2.25rem] bg-[#1a1615] text-white shadow-[0_24px_80px_rgba(26,22,21,0.22)]">
+        <div className="grid gap-8 border-b border-white/10 p-6 md:grid-cols-[1.1fr_0.9fr] md:p-10">
+          <div>
+            <p className="text-sm font-extrabold uppercase text-[#9fc3e6]">Ready for service?</p>
+            <h2 className="mt-4 max-w-2xl text-4xl font-extrabold leading-tight md:text-6xl">Launch your table QR menu and order flow</h2>
+            <p className="mt-5 max-w-xl text-base font-medium leading-8 text-white/62">
+              Keep the polished Dreelio-style experience, but run real restaurant workflows with Qrave.
+            </p>
           </div>
-          <p className="mt-3 max-w-md text-sm leading-6 text-on-surface-variant">
-            QR menu ordering and customer follow-up software for restaurants, cafes, cloud kitchens, and quick-service teams.
-          </p>
-        </div>
-        <div>
-          <p className="text-sm font-extrabold text-on-surface">Product</p>
-          <div className="mt-3 grid gap-2 text-sm text-on-surface-variant">
-            <Link href="/#features">Features</Link>
-            <Link href="/pricing">Pricing</Link>
-            <Link href="/faq">FAQ</Link>
+          <div className="flex items-end md:justify-end">
+            <Link href="/admin/register" className="inline-flex items-center justify-center rounded-full bg-[#9fc3e6] px-6 py-3 text-sm font-extrabold text-[#1a1615] transition hover:bg-white">
+              Start free
+            </Link>
           </div>
         </div>
-        <div>
-          <p className="text-sm font-extrabold text-on-surface">Company</p>
-          <div className="mt-3 grid gap-2 text-sm text-on-surface-variant">
-            <Link href="/contact">Contact</Link>
-            <Link href="/privacy">Privacy</Link>
+        <div className="grid gap-8 p-6 md:grid-cols-[1.2fr_0.8fr_0.8fr_0.8fr] md:p-10">
+          <div>
+            <div className="flex items-center gap-3">
+              <span className="relative h-12 w-36 overflow-hidden rounded-full bg-white">
+                <img src="/brand/qrave-logo.png" alt="Qrave" className="absolute left-[-46px] top-[-46px] h-[140px] w-[140px] max-w-none object-contain" />
+                <span className="absolute left-11 top-1/2 -translate-y-1/2 text-2xl font-extrabold text-[#06633f]">rave</span>
+              </span>
+            </div>
+            <p className="mt-4 max-w-md text-sm font-medium leading-6 text-white/58">
+              QR menu ordering and customer follow-up software for restaurants, cafes, cloud kitchens, and quick-service teams.
+            </p>
+          </div>
+          <FooterColumn title="Product" links={[["Features", "/#features"], ["Benefits", "/#benefits"], ["Pricing", "/#pricing"]]} />
+          <FooterColumn title="Company" links={[["Contact", "/contact"], ["FAQ", "/faq"], ["Privacy", "/privacy"]]} />
+          <FooterColumn title="Workspace" links={[["Login", "/admin/login"], ["Create account", "/admin/register"], ["Admin panel", "/admin"]]} />
+        </div>
+        <div className="flex flex-col gap-3 border-t border-white/10 px-6 py-5 text-xs font-bold text-white/40 md:flex-row md:items-center md:justify-between md:px-10">
+          <p>© 2026 Qrave. Restaurant operations, QR menus, and customer CRM.</p>
+          <div className="flex gap-4">
             <Link href="/terms">Terms</Link>
+            <Link href="/privacy">Privacy</Link>
           </div>
         </div>
       </div>
@@ -123,9 +114,34 @@ export function MarketingFooter() {
   );
 }
 
-export function QraveMark() {
+function FooterColumn({ links, title }: { links: Array<[string, string]>; title: string }) {
   return (
-    <svg className="h-11 w-11 shrink-0" viewBox="0 0 120 120" role="img" aria-label="Qrave logo mark" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <div>
+      <p className="text-sm font-extrabold text-white">{title}</p>
+      <div className="mt-4 grid gap-3 text-sm font-semibold text-white/54">
+        {links.map(([label, href]) => (
+          <Link key={label} href={href} className="transition hover:text-white">
+            {label}
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function QraveMark({ className = "h-11 w-11 shrink-0", compact = false }: { className?: string; compact?: boolean }) {
+  if (compact) {
+    return (
+      <svg className={className} viewBox="0 0 120 120" role="img" aria-label="Qrave logo mark" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="16" y="16" width="88" height="88" rx="24" fill="#20c77a" />
+        <path d="M38 38h14v14H38V38Zm30 0h14v14H68V38ZM38 68h14v14H38V68Zm30 0h6v6h8v8H68V68Z" fill="#06281c" />
+        <path d="M56 56h8v8h-8v-8Zm20 0h6v6h-6v-6ZM56 76h6v6h-6v-6Z" fill="#06281c" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg className={className} viewBox="0 0 120 120" role="img" aria-label="Qrave logo mark" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M18 82c16 11 41 12 60 1" stroke="#ffb978" strokeWidth="8" strokeLinecap="round" />
       <circle cx="55" cy="52" r="42" stroke="#006241" strokeWidth="9" />
       <circle cx="55" cy="52" r="28" stroke="#006241" strokeWidth="9" />

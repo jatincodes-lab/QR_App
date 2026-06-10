@@ -86,7 +86,6 @@ import {
   validateCountryCode,
   validateMoney,
   validateOptionalText,
-  validateOptionalUrl,
   validatePhone,
   validatePositiveInteger,
   validateRequired
@@ -1180,11 +1179,14 @@ function MenuPanel({
             <Field label="Subtitle">
               <Input value={offerForm.subtitle} onChange={(event) => onOfferFormChange({ ...offerForm, subtitle: event.target.value })} />
             </Field>
-            <Field label="Offer image URL">
-              <Input value={offerForm.imageUrl} onChange={(event) => onOfferFormChange({ ...offerForm, imageUrl: event.target.value })} placeholder="https://..." />
-            </Field>
-            <Field label="Image alt text">
-              <Input value={offerForm.imageAltText} onChange={(event) => onOfferFormChange({ ...offerForm, imageAltText: event.target.value })} />
+            <Field label="Offer image">
+              <MenuItemImagePicker
+                imageAltText={offerForm.imageAltText}
+                imageUrl={offerForm.imageUrl}
+                itemName={offerForm.title}
+                purpose="offer"
+                onChange={(next) => onOfferFormChange({ ...offerForm, imageUrl: next.imageUrl, imageAltText: next.imageAltText })}
+              />
             </Field>
             <Field label="Order">
               <Input type="number" min="1" value={offerForm.displayOrder} onChange={(event) => onOfferFormChange({ ...offerForm, displayOrder: event.target.value })} required />
@@ -1210,11 +1212,14 @@ function MenuPanel({
                       <Field label="Subtitle">
                         <Input value={editingOfferForm.subtitle} onChange={(event) => onEditingOfferFormChange({ ...editingOfferForm, subtitle: event.target.value })} />
                       </Field>
-                      <Field label="Offer image URL">
-                        <Input value={editingOfferForm.imageUrl} onChange={(event) => onEditingOfferFormChange({ ...editingOfferForm, imageUrl: event.target.value })} />
-                      </Field>
-                      <Field label="Image alt text">
-                        <Input value={editingOfferForm.imageAltText} onChange={(event) => onEditingOfferFormChange({ ...editingOfferForm, imageAltText: event.target.value })} />
+                      <Field label="Offer image">
+                        <MenuItemImagePicker
+                          imageAltText={editingOfferForm.imageAltText}
+                          imageUrl={editingOfferForm.imageUrl}
+                          itemName={editingOfferForm.title}
+                          purpose="offer"
+                          onChange={(next) => onEditingOfferFormChange({ ...editingOfferForm, imageUrl: next.imageUrl, imageAltText: next.imageAltText })}
+                        />
                       </Field>
                       <Field label="Order">
                         <Input type="number" min="1" value={editingOfferForm.displayOrder} onChange={(event) => onEditingOfferFormChange({ ...editingOfferForm, displayOrder: event.target.value })} required />
@@ -1532,7 +1537,6 @@ function BranchProfilePanel({
           <Field label="Branch name">
             <Input value={branchProfileForm.name} onChange={(event) => onBranchProfileChange({ ...branchProfileForm, name: event.target.value })} required />
           </Field>
-          <BranchLogoUploadField form={branchProfileForm} onChange={onBranchProfileChange} />
           <CountryPhoneInput
             countryCode={branchProfileForm.countryCode}
             label="Phone"
@@ -1540,6 +1544,9 @@ function BranchProfilePanel({
             onChange={(phoneNumber) => onBranchProfileChange({ ...branchProfileForm, phoneNumber })}
             onCountryChange={(countryCode, phoneNumber) => onBranchProfileChange({ ...branchProfileForm, countryCode, phoneNumber })}
           />
+          <div className="md:col-span-2">
+            <BranchLogoUploadField form={branchProfileForm} onChange={onBranchProfileChange} />
+          </div>
           <Field label="Address line 1">
             <Input value={branchProfileForm.addressLine1} onChange={(event) => onBranchProfileChange({ ...branchProfileForm, addressLine1: event.target.value })} />
           </Field>
@@ -1596,7 +1603,6 @@ function SettingsPanel({
             <Field label="Branch name">
               <Input value={branchProfileForm.name} onChange={(event) => onBranchProfileChange({ ...branchProfileForm, name: event.target.value })} required />
             </Field>
-            <BranchLogoUploadField form={branchProfileForm} onChange={onBranchProfileChange} />
             <CountryPhoneInput
               countryCode={branchProfileForm.countryCode}
               label="Phone"
@@ -1604,6 +1610,9 @@ function SettingsPanel({
               onChange={(phoneNumber) => onBranchProfileChange({ ...branchProfileForm, phoneNumber })}
               onCountryChange={(countryCode, phoneNumber) => onBranchProfileChange({ ...branchProfileForm, countryCode, phoneNumber })}
             />
+            <div className="md:col-span-2">
+              <BranchLogoUploadField form={branchProfileForm} onChange={onBranchProfileChange} />
+            </div>
             <Field label="Address line 1">
               <Input value={branchProfileForm.addressLine1} onChange={(event) => onBranchProfileChange({ ...branchProfileForm, addressLine1: event.target.value })} />
             </Field>
@@ -2423,7 +2432,7 @@ function toOfferInput(form: OfferForm) {
     subtitle: optional(form.subtitle),
     discountText: optional(form.discountText),
     imageUrl: optional(form.imageUrl),
-    imageAltText: optional(form.imageAltText),
+    imageAltText: form.imageUrl ? optional(form.imageAltText) ?? form.title.trim() : null,
     displayOrder: toPositiveNumber(form.displayOrder),
     startsAtUtc: null,
     endsAtUtc: null
@@ -2463,8 +2472,6 @@ function validateOfferForm(form: OfferForm) {
     validateRequired(form.title, "Offer title"),
     validateOptionalText(form.subtitle, "Subtitle", 200),
     validateOptionalText(form.discountText, "Discount text", 120),
-    validateOptionalUrl(form.imageUrl, "Offer image URL"),
-    validateOptionalText(form.imageAltText, "Image alt text", 200),
     validatePositiveInteger(form.displayOrder, "Order")
   );
 }

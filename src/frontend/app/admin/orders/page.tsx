@@ -194,10 +194,18 @@ export default function AdminOrdersPage() {
               Track live QR orders and waiter calls for the selected branch.
             </p>
           </div>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <Badge variant={liveState === "live" ? "default" : "outline"}>{liveState === "live" ? "Live" : liveState === "connecting" ? "Connecting" : "Manual refresh"}</Badge>
-            <Button type="button" variant="outline" onClick={() => workspace.selectedBranch && loadOrders(workspace.selectedBranch.branchId)}>
-              <RefreshCw size={17} />
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+            <div className="inline-flex h-11 items-center gap-2 rounded-xl border border-outline-variant/70 bg-white px-4 text-sm font-bold text-on-surface shadow-sm">
+              <span
+                className={`h-2.5 w-2.5 rounded-full ${
+                  liveState === "live" ? "bg-brand-mint" : liveState === "connecting" ? "bg-accent" : "bg-on-surface-variant/35"
+                }`}
+                aria-hidden="true"
+              />
+              {liveState === "live" ? "Live" : liveState === "connecting" ? "Connecting" : "Manual refresh"}
+            </div>
+            <Button type="button" variant="outline" onClick={() => workspace.selectedBranch && loadOrders(workspace.selectedBranch.branchId)} className="h-11 border-outline-variant/70 bg-white">
+              <RefreshCw size={17} className={isLoadingOrders ? "animate-spin" : ""} />
               Refresh
             </Button>
           </div>

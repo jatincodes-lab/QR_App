@@ -476,7 +476,9 @@ function BranchDialog({
             <TextInput label="Address line 2" value={form.addressLine2} onChange={(value) => onChange({ ...form, addressLine2: value })} />
             <TextInput label="City" value={form.city} onChange={(value) => onChange({ ...form, city: value })} />
             <TextInput label="State" value={form.state} onChange={(value) => onChange({ ...form, state: value })} />
-            <TextInput label="Postal code" value={form.postalCode} onChange={(value) => onChange({ ...form, postalCode: value })} />
+            <div className="sm:col-span-2">
+              <TextInput label="Postal code" value={form.postalCode} onChange={(value) => onChange({ ...form, postalCode: value })} />
+            </div>
           </div>
 
           <div className="flex justify-end gap-2 border-t bg-muted/40 p-5">

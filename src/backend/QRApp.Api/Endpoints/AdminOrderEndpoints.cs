@@ -2,6 +2,7 @@ using Microsoft.Data.SqlClient;
 using QRApp.Api.Errors;
 using QRApp.Api.Hubs;
 using QRApp.Application.Auth;
+using QRApp.Application.Notifications;
 using QRApp.Application.Orders;
 
 namespace QRApp.Api.Endpoints;
@@ -51,6 +52,7 @@ public static class AdminOrderEndpoints
         UpdateAdminOrderStatusRequest request,
         ITenantContext tenantContext,
         IAdminOrderService service,
+        IAdminNotificationService notificationService,
         IAdminOrderRealtimeNotifier realtimeNotifier,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
@@ -61,6 +63,23 @@ public static class AdminOrderEndpoints
             if (!result.IsSuccess)
             {
                 return ApiProblemResponses.Validation(result.Errors);
+            }
+
+            try
+            {
+                await notificationService.CreateAsync(
+                    tenantContext.TenantId,
+                    new CreateAdminNotificationRequest(
+                        branchId,
+                        "order-status-updated",
+                        "Order status updated",
+                        $"Order {ShortId(orderId)} is now {result.Value!.OrderStatusCode}.",
+                        "/admin/orders"),
+                    cancellationToken);
+            }
+            catch (Exception notificationException)
+            {
+                loggerFactory.CreateLogger(nameof(AdminOrderEndpoints)).LogWarning(notificationException, "Order {OrderId} status was updated, but its admin notification could not be stored.", orderId);
             }
 
             await realtimeNotifier.OrderStatusUpdatedAsync(result.Value!, cancellationToken);
@@ -78,5 +97,10 @@ public static class AdminOrderEndpoints
             loggerFactory.CreateLogger(nameof(AdminOrderEndpoints)).LogError(ex, "Failed to update order {OrderId}.", orderId);
             return ApiProblemResponses.ServerError("Order status could not be updated.");
         }
+    }
+
+    private static string ShortId(Guid id)
+    {
+        return id.ToString("N")[^6..].ToUpperInvariant();
     }
 }

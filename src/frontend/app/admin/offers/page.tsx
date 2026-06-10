@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { Gift, Loader2, Plus, Power, RefreshCw } from "lucide-react";
 import { AdminShell } from "../../../components/admin-shell";
 import { EmptyBranchState, MetricCard, PageError, PageLoading } from "../../../components/admin-page-common";
+import { MenuItemImagePicker } from "../../../components/menu-item-image-picker";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../components/ui/card";
@@ -18,7 +19,7 @@ import {
   type CreateBranchOfferInput
 } from "../../../lib/api";
 import { useAdminWorkspace } from "../../../lib/admin-workspace";
-import { firstInvalid, validateOptionalText, validateOptionalUrl, validatePositiveInteger, validateRequired } from "../../../lib/validation";
+import { firstInvalid, validateOptionalText, validatePositiveInteger, validateRequired } from "../../../lib/validation";
 
 type OfferForm = {
   title: string;
@@ -172,11 +173,14 @@ export default function AdminOffersPage() {
                     <Field label="Subtitle">
                       <Input value={form.subtitle} onChange={(event) => setForm({ ...form, subtitle: event.target.value })} placeholder="Burger + fries + coke" />
                     </Field>
-                    <Field label="Image URL">
-                      <Input value={form.imageUrl} onChange={(event) => setForm({ ...form, imageUrl: event.target.value })} placeholder="https://..." />
-                    </Field>
-                    <Field label="Image alt text">
-                      <Input value={form.imageAltText} onChange={(event) => setForm({ ...form, imageAltText: event.target.value })} />
+                    <Field label="Offer image">
+                      <MenuItemImagePicker
+                        imageAltText={form.imageAltText}
+                        imageUrl={form.imageUrl}
+                        itemName={form.title}
+                        purpose="offer"
+                        onChange={(next) => setForm({ ...form, imageUrl: next.imageUrl, imageAltText: next.imageAltText })}
+                      />
                     </Field>
                     <Button type="submit" disabled={savingKey === "offer"} className="justify-self-start">
                       {savingKey === "offer" ? <Loader2 size={17} className="animate-spin" /> : <Plus size={17} />}
@@ -239,7 +243,7 @@ function toOfferInput(form: OfferForm): CreateBranchOfferInput {
     subtitle: optional(form.subtitle),
     discountText: optional(form.discountText),
     imageUrl: optional(form.imageUrl),
-    imageAltText: optional(form.imageAltText),
+    imageAltText: form.imageUrl ? optional(form.imageAltText) ?? form.title.trim() : null,
     displayOrder: toPositiveNumber(form.displayOrder),
     startsAtUtc: null,
     endsAtUtc: null
@@ -251,8 +255,6 @@ function validateOfferForm(form: OfferForm) {
     validateRequired(form.title, "Title"),
     validateOptionalText(form.subtitle, "Subtitle", 200),
     validateOptionalText(form.discountText, "Discount text", 120),
-    validateOptionalUrl(form.imageUrl, "Image URL"),
-    validateOptionalText(form.imageAltText, "Image alt text", 200),
     validatePositiveInteger(form.displayOrder, "Order")
   );
 }
