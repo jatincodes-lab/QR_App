@@ -179,18 +179,18 @@ export default function AdminStaffPage() {
                 <CardTitle>Add staff user</CardTitle>
               </CardHeader>
               <CardContent>
-                <form onSubmit={submitStaff} className="grid gap-4 lg:grid-cols-[1fr_1fr_0.8fr_0.8fr_auto] lg:items-end">
+                <form onSubmit={submitStaff} autoComplete="off" className="grid gap-4 lg:grid-cols-[1fr_1fr_0.8fr_0.8fr_auto] lg:items-end">
                   <label className="grid gap-2">
                     <span className="text-xs font-bold uppercase tracking-wide text-on-surface-variant">Name</span>
-                    <Input value={form.displayName} onChange={(event) => setForm({ ...form, displayName: event.target.value })} className="h-11 bg-white" />
+                    <Input value={form.displayName} onChange={(event) => setForm({ ...form, displayName: event.target.value })} autoComplete="off" placeholder="Staff member name" className="h-11 bg-white" />
                   </label>
                   <label className="grid gap-2">
                     <span className="text-xs font-bold uppercase tracking-wide text-on-surface-variant">Email</span>
-                    <Input value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} type="email" className="h-11 bg-white" />
+                    <Input value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} type="email" autoComplete="off" placeholder="staff@example.com" className="h-11 bg-white" />
                   </label>
                   <label className="grid gap-2">
                     <span className="text-xs font-bold uppercase tracking-wide text-on-surface-variant">Password</span>
-                    <Input value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} type="password" className="h-11 bg-white" />
+                    <Input value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} type="password" autoComplete="new-password" placeholder="Create staff password" className="h-11 bg-white" />
                   </label>
                   <label className="grid gap-2">
                     <span className="text-xs font-bold uppercase tracking-wide text-on-surface-variant">Role</span>

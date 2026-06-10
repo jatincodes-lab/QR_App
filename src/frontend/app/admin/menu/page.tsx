@@ -625,11 +625,15 @@ export default function AdminMenuPage() {
 
             {isItemDialogOpen ? (
               <Dialog>
-                <DialogContent className="max-w-3xl p-6">
-                  <DialogHeader>
-                    <DialogTitle>{isEditingItem ? "Edit item" : "Add item"}</DialogTitle>
-                    <DialogDescription>{isEditingItem ? "Update item details shown to customers." : "Add a customer-facing menu item."}</DialogDescription>
-                  </DialogHeader>
+                <DialogContent className="max-w-3xl overflow-visible p-0">
+                  <div className="border-b border-outline-variant/70 bg-surface-container-low px-6 py-5">
+                    <DialogHeader>
+                      <DialogTitle className="text-xl font-black text-on-surface">{isEditingItem ? "Edit menu item" : "Add menu item"}</DialogTitle>
+                      <DialogDescription className="max-w-2xl text-sm font-semibold text-on-surface-variant">
+                        {isEditingItem ? "Update the item details customers see on the QR menu." : "Create a menu item with image, pricing, availability, and optional portion sizes."}
+                      </DialogDescription>
+                    </DialogHeader>
+                  </div>
                   <form
                     onSubmit={(event) => {
                       if (editingItem) {
@@ -640,108 +644,119 @@ export default function AdminMenuPage() {
 
                       void handleCreateItem(event);
                     }}
-                    className="mt-5 grid gap-4 lg:grid-cols-2"
+                    className="grid gap-5 px-6 py-6"
                   >
-                    <Field label="Category">
-                      <select
-                        value={isEditingItem ? editingItemForm.menuCategoryId : itemForm.menuCategoryId}
-                        onChange={(event) =>
-                          isEditingItem
-                            ? setEditingItemForm({ ...editingItemForm, menuCategoryId: event.target.value })
-                            : setItemForm({ ...itemForm, menuCategoryId: event.target.value })
-                        }
-                        className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                        required
-                        disabled={categories.length === 0}
-                      >
-                        {categories.length === 0 ? <option value="">Add a category first</option> : null}
-                        {sortedCategories.map((category) => (
-                          <option key={category.menuCategoryId} value={category.menuCategoryId}>
-                            {category.name}
-                          </option>
-                        ))}
-                      </select>
-                    </Field>
-                    <Field label="Item name">
-                      <Input
-                        value={isEditingItem ? editingItemForm.name : itemForm.name}
-                        onChange={(event) =>
-                          isEditingItem ? setEditingItemForm({ ...editingItemForm, name: event.target.value }) : setItemForm({ ...itemForm, name: event.target.value })
-                        }
-                        required
-                      />
-                    </Field>
-                    <Field label="Description">
-                      <Input
-                        value={isEditingItem ? editingItemForm.description : itemForm.description}
-                        onChange={(event) =>
-                          isEditingItem
-                            ? setEditingItemForm({ ...editingItemForm, description: event.target.value })
-                            : setItemForm({ ...itemForm, description: event.target.value })
-                        }
-                      />
-                    </Field>
-                    <Field label="Item image">
-                      <MenuItemImagePicker
-                        imageAltText={activeItemForm.imageAltText}
-                        imageUrl={activeItemForm.imageUrl}
-                        itemName={activeItemForm.name}
-                        onChange={(next) =>
-                          isEditingItem
-                            ? setEditingItemForm({ ...editingItemForm, imageUrl: next.imageUrl, imageAltText: next.imageAltText })
-                            : setItemForm({ ...itemForm, imageUrl: next.imageUrl, imageAltText: next.imageAltText })
-                        }
-                      />
-                    </Field>
-                    <div className="grid gap-3 sm:grid-cols-[1fr_7rem]">
-                      <Field label={activeItemHasVariants ? "Base price" : "Price"}>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={activeItemHasVariants ? formatFormPrice(activeItemDerivedPrice ?? 0) : activeItemForm.price}
-                          onChange={(event) =>
-                            isEditingItem ? setEditingItemForm({ ...editingItemForm, price: event.target.value }) : setItemForm({ ...itemForm, price: event.target.value })
-                          }
-                          required={!activeItemHasVariants}
-                          disabled={activeItemHasVariants}
-                        />
-                        {activeItemHasVariants ? (
-                          <p className="text-xs font-semibold text-on-surface-variant">Auto set from the lowest variant price.</p>
-                        ) : null}
-                      </Field>
-                      <Field label="Order">
-                        <Input
-                          type="number"
-                          min="1"
-                          value={isEditingItem ? editingItemForm.displayOrder : itemForm.displayOrder}
+                    <div className="grid gap-4 rounded-xl border border-outline-variant/70 bg-white p-4">
+                      <div className="grid gap-4">
+                        <Field label="Category">
+                          <select
+                            value={isEditingItem ? editingItemForm.menuCategoryId : itemForm.menuCategoryId}
+                            onChange={(event) =>
+                              isEditingItem
+                                ? setEditingItemForm({ ...editingItemForm, menuCategoryId: event.target.value })
+                                : setItemForm({ ...itemForm, menuCategoryId: event.target.value })
+                            }
+                            className="h-11 w-full rounded-lg border border-input bg-white px-3 text-sm font-semibold text-on-surface outline-none transition-colors focus:border-primary/30 focus:ring-2 focus:ring-ring/20"
+                            required
+                            disabled={categories.length === 0}
+                          >
+                            {categories.length === 0 ? <option value="">Add a category first</option> : null}
+                            {sortedCategories.map((category) => (
+                              <option key={category.menuCategoryId} value={category.menuCategoryId}>
+                                {category.name}
+                              </option>
+                            ))}
+                          </select>
+                        </Field>
+                        <Field label="Item name">
+                          <Input
+                            className="h-11 bg-white font-semibold"
+                            value={isEditingItem ? editingItemForm.name : itemForm.name}
+                            onChange={(event) =>
+                              isEditingItem ? setEditingItemForm({ ...editingItemForm, name: event.target.value }) : setItemForm({ ...itemForm, name: event.target.value })
+                            }
+                            placeholder="Masala tea"
+                            required
+                          />
+                        </Field>
+                      </div>
+                      <Field label="Description">
+                        <textarea
+                          value={isEditingItem ? editingItemForm.description : itemForm.description}
                           onChange={(event) =>
                             isEditingItem
-                              ? setEditingItemForm({ ...editingItemForm, displayOrder: event.target.value })
-                              : setItemForm({ ...itemForm, displayOrder: event.target.value })
+                              ? setEditingItemForm({ ...editingItemForm, description: event.target.value })
+                              : setItemForm({ ...itemForm, description: event.target.value })
                           }
-                          required
+                          placeholder="Short description shown to customers"
+                          className="min-h-20 w-full resize-y rounded-lg border border-input bg-white px-3 py-3 text-sm font-semibold text-on-surface outline-none transition-colors placeholder:text-on-surface-variant/45 focus:border-primary/30 focus:ring-2 focus:ring-ring/20"
                         />
                       </Field>
+                      <Field label="Item image">
+                        <MenuItemImagePicker
+                          imageAltText={activeItemForm.imageAltText}
+                          imageUrl={activeItemForm.imageUrl}
+                          itemName={activeItemForm.name}
+                          onChange={(next) =>
+                            isEditingItem
+                              ? setEditingItemForm({ ...editingItemForm, imageUrl: next.imageUrl, imageAltText: next.imageAltText })
+                              : setItemForm({ ...itemForm, imageUrl: next.imageUrl, imageAltText: next.imageAltText })
+                          }
+                        />
+                      </Field>
+                      <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_8rem_minmax(12rem,0.7fr)] sm:items-end">
+                        <Field label={activeItemHasVariants ? "Base price" : "Price"}>
+                          <Input
+                            className="h-11 bg-white font-semibold"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={activeItemHasVariants ? formatFormPrice(activeItemDerivedPrice ?? 0) : activeItemForm.price}
+                            onChange={(event) =>
+                              isEditingItem ? setEditingItemForm({ ...editingItemForm, price: event.target.value }) : setItemForm({ ...itemForm, price: event.target.value })
+                            }
+                            placeholder="0.00"
+                            required={!activeItemHasVariants}
+                            disabled={activeItemHasVariants}
+                          />
+                          {activeItemHasVariants ? (
+                            <p className="text-xs font-semibold text-on-surface-variant">Auto set from the lowest variant price.</p>
+                          ) : null}
+                        </Field>
+                        <Field label="Order">
+                          <Input
+                            className="h-11 bg-white font-semibold"
+                            type="number"
+                            min="1"
+                            value={isEditingItem ? editingItemForm.displayOrder : itemForm.displayOrder}
+                            onChange={(event) =>
+                              isEditingItem
+                                ? setEditingItemForm({ ...editingItemForm, displayOrder: event.target.value })
+                                : setItemForm({ ...itemForm, displayOrder: event.target.value })
+                            }
+                            required
+                          />
+                        </Field>
+                        <label className="flex h-11 items-center justify-between gap-4 rounded-lg border border-outline-variant/70 bg-surface-container-low px-4 text-sm font-bold text-on-surface">
+                          <span>Available</span>
+                          <input
+                            type="checkbox"
+                            checked={isEditingItem ? editingItemForm.isAvailable : itemForm.isAvailable}
+                            onChange={(event) =>
+                              isEditingItem
+                                ? setEditingItemForm({ ...editingItemForm, isAvailable: event.target.checked })
+                                : setItemForm({ ...itemForm, isAvailable: event.target.checked })
+                            }
+                            className="h-4 w-4 rounded border-outline-variant text-primary"
+                          />
+                        </label>
+                      </div>
                     </div>
-                    <label className="flex h-10 items-center gap-3 text-sm font-semibold text-on-surface">
-                      <input
-                        type="checkbox"
-                        checked={isEditingItem ? editingItemForm.isAvailable : itemForm.isAvailable}
-                        onChange={(event) =>
-                          isEditingItem
-                            ? setEditingItemForm({ ...editingItemForm, isAvailable: event.target.checked })
-                            : setItemForm({ ...itemForm, isAvailable: event.target.checked })
-                        }
-                        className="h-4 w-4 rounded border-outline-variant text-primary"
-                      />
-                      Available
-                    </label>
                     <ItemVariantsEditor
                       form={isEditingItem ? editingItemForm : itemForm}
                       onChange={(nextForm) => (isEditingItem ? setEditingItemForm(nextForm) : setItemForm(nextForm))}
                     />
-                    <div className="flex flex-wrap justify-end gap-2 lg:col-span-2">
+                    <div className="-mx-6 -mb-6 flex flex-wrap justify-end gap-2 border-t border-outline-variant/70 bg-surface-container-low px-6 py-4">
                       <Button type="button" variant="outline" onClick={handleCancelEditItem}>
                         Cancel
                       </Button>
@@ -753,7 +768,7 @@ export default function AdminMenuPage() {
                         ) : (
                           <Plus size={17} />
                         )}
-                        {isEditingItem ? "Update" : "Add Item"}
+                        {isEditingItem ? "Update item" : "Add item"}
                       </Button>
                     </div>
                   </form>
