@@ -5,18 +5,21 @@ namespace QRApp.Application.Menus;
 
 public sealed class BranchOfferService(IBranchOfferRepository repository) : IBranchOfferService
 {
+    private static readonly HashSet<string> DiscountTypes = new(StringComparer.OrdinalIgnoreCase) { "DisplayOnly", "Percentage", "FixedAmount" };
+
     public async Task<OperationResult<BranchOfferResponse>> CreateAsync(
         Guid tenantId,
         Guid branchId,
         CreateBranchOfferRequest request,
         CancellationToken cancellationToken)
     {
-        var errors = Validate(request.Title, request.Subtitle, request.DiscountText, request.ImageUrl, request.ImageAltText, request.DisplayOrder, request.StartsAtUtc, request.EndsAtUtc);
+        var errors = Validate(request.Title, request.Subtitle, request.DiscountText, request.ImageUrl, request.ImageAltText, request.DisplayOrder, request.StartsAtUtc, request.EndsAtUtc, request.DiscountTypeCode, request.DiscountValue, request.MinimumOrderAmount, request.MaxDiscountAmount);
         if (errors.Count > 0)
         {
             return OperationResult<BranchOfferResponse>.Failed(errors.ToArray());
         }
 
+        var normalizedDiscountType = NormalizeDiscountType(request.DiscountTypeCode);
         var cleaned = new CreateBranchOfferRequest(
             TextRules.CleanRequired(request.Title),
             TextRules.CleanOptional(request.Subtitle),
@@ -25,7 +28,12 @@ public sealed class BranchOfferService(IBranchOfferRepository repository) : IBra
             TextRules.CleanOptional(request.ImageAltText),
             request.DisplayOrder,
             request.StartsAtUtc,
-            request.EndsAtUtc);
+            request.EndsAtUtc,
+            normalizedDiscountType,
+            normalizedDiscountType == "DisplayOnly" ? 0 : request.DiscountValue,
+            normalizedDiscountType == "DisplayOnly" ? 0 : request.MinimumOrderAmount,
+            normalizedDiscountType == "DisplayOnly" ? null : request.MaxDiscountAmount,
+            normalizedDiscountType != "DisplayOnly" && request.AutoApply);
 
         var offer = await repository.CreateAsync(tenantId, branchId, Guid.NewGuid(), cleaned, cancellationToken);
         return OperationResult<BranchOfferResponse>.Success(offer);
@@ -38,12 +46,13 @@ public sealed class BranchOfferService(IBranchOfferRepository repository) : IBra
         UpdateBranchOfferRequest request,
         CancellationToken cancellationToken)
     {
-        var errors = Validate(request.Title, request.Subtitle, request.DiscountText, request.ImageUrl, request.ImageAltText, request.DisplayOrder, request.StartsAtUtc, request.EndsAtUtc);
+        var errors = Validate(request.Title, request.Subtitle, request.DiscountText, request.ImageUrl, request.ImageAltText, request.DisplayOrder, request.StartsAtUtc, request.EndsAtUtc, request.DiscountTypeCode, request.DiscountValue, request.MinimumOrderAmount, request.MaxDiscountAmount);
         if (errors.Count > 0)
         {
             return OperationResult<BranchOfferResponse>.Failed(errors.ToArray());
         }
 
+        var normalizedDiscountType = NormalizeDiscountType(request.DiscountTypeCode);
         var cleaned = new UpdateBranchOfferRequest(
             TextRules.CleanRequired(request.Title),
             TextRules.CleanOptional(request.Subtitle),
@@ -53,7 +62,12 @@ public sealed class BranchOfferService(IBranchOfferRepository repository) : IBra
             request.DisplayOrder,
             request.IsActive,
             request.StartsAtUtc,
-            request.EndsAtUtc);
+            request.EndsAtUtc,
+            normalizedDiscountType,
+            normalizedDiscountType == "DisplayOnly" ? 0 : request.DiscountValue,
+            normalizedDiscountType == "DisplayOnly" ? 0 : request.MinimumOrderAmount,
+            normalizedDiscountType == "DisplayOnly" ? null : request.MaxDiscountAmount,
+            normalizedDiscountType != "DisplayOnly" && request.AutoApply);
 
         var offer = await repository.UpdateAsync(tenantId, branchId, branchOfferId, cleaned, cancellationToken);
         return OperationResult<BranchOfferResponse>.Success(offer);
@@ -82,7 +96,11 @@ public sealed class BranchOfferService(IBranchOfferRepository repository) : IBra
         string? imageAltText,
         int displayOrder,
         DateTime? startsAtUtc,
-        DateTime? endsAtUtc)
+        DateTime? endsAtUtc,
+        string discountTypeCode,
+        decimal discountValue,
+        decimal minimumOrderAmount,
+        decimal? maxDiscountAmount)
     {
         var errors = new List<ValidationFailure>();
         var cleanTitle = TextRules.CleanRequired(title);
@@ -122,6 +140,43 @@ public sealed class BranchOfferService(IBranchOfferRepository repository) : IBra
             errors.Add(new ValidationFailure(nameof(CreateBranchOfferRequest.EndsAtUtc), "Offer end date must be after the start date."));
         }
 
+        var cleanDiscountType = TextRules.CleanRequired(discountTypeCode);
+        if (!DiscountTypes.Contains(cleanDiscountType))
+        {
+            errors.Add(new ValidationFailure(nameof(CreateBranchOfferRequest.DiscountTypeCode), "Offer discount type is invalid."));
+        }
+
+        if (discountValue < 0)
+        {
+            errors.Add(new ValidationFailure(nameof(CreateBranchOfferRequest.DiscountValue), "Discount value cannot be negative."));
+        }
+
+        if (minimumOrderAmount < 0)
+        {
+            errors.Add(new ValidationFailure(nameof(CreateBranchOfferRequest.MinimumOrderAmount), "Minimum order amount cannot be negative."));
+        }
+
+        if (maxDiscountAmount.HasValue && maxDiscountAmount.Value < 0)
+        {
+            errors.Add(new ValidationFailure(nameof(CreateBranchOfferRequest.MaxDiscountAmount), "Maximum discount amount cannot be negative."));
+        }
+
+        if (string.Equals(cleanDiscountType, "Percentage", StringComparison.OrdinalIgnoreCase) && discountValue > 100)
+        {
+            errors.Add(new ValidationFailure(nameof(CreateBranchOfferRequest.DiscountValue), "Percentage offer cannot exceed 100."));
+        }
+
+        if (!string.Equals(cleanDiscountType, "DisplayOnly", StringComparison.OrdinalIgnoreCase) && discountValue <= 0)
+        {
+            errors.Add(new ValidationFailure(nameof(CreateBranchOfferRequest.DiscountValue), "Discount value is required for a calculated offer."));
+        }
+
         return errors;
+    }
+
+    private static string NormalizeDiscountType(string value)
+    {
+        var cleaned = TextRules.CleanRequired(value);
+        return DiscountTypes.First(item => string.Equals(item, cleaned, StringComparison.OrdinalIgnoreCase));
     }
 }

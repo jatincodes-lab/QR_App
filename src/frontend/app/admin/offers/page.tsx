@@ -16,7 +16,8 @@ import {
   deactivateBranchOffer,
   getBranchOffers,
   type BranchOffer,
-  type CreateBranchOfferInput
+  type CreateBranchOfferInput,
+  type OfferDiscountTypeCode
 } from "../../../lib/api";
 import { useAdminWorkspace } from "../../../lib/admin-workspace";
 import { firstInvalid, validateOptionalText, validatePositiveInteger, validateRequired } from "../../../lib/validation";
@@ -28,6 +29,11 @@ type OfferForm = {
   imageUrl: string;
   imageAltText: string;
   displayOrder: string;
+  discountTypeCode: OfferDiscountTypeCode;
+  discountValue: string;
+  minimumOrderAmount: string;
+  maxDiscountAmount: string;
+  autoApply: boolean;
 };
 
 const EmptyOfferForm: OfferForm = {
@@ -36,7 +42,12 @@ const EmptyOfferForm: OfferForm = {
   discountText: "",
   imageUrl: "",
   imageAltText: "",
-  displayOrder: "1"
+  displayOrder: "1",
+  discountTypeCode: "DisplayOnly",
+  discountValue: "0",
+  minimumOrderAmount: "0",
+  maxDiscountAmount: "",
+  autoApply: false
 };
 
 export default function AdminOffersPage() {
@@ -155,7 +166,7 @@ export default function AdminOffersPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Add offer or combo</CardTitle>
-                  <CardDescription>For now this creates promotional banners. Automatic cart discounts and priced combo bundles need the next pricing engine pass.</CardDescription>
+                  <CardDescription>Create promotional banners or auto-applied cart discounts for the QR menu.</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <form onSubmit={createOffer} className="grid gap-3">
@@ -173,6 +184,74 @@ export default function AdminOffersPage() {
                     <Field label="Subtitle">
                       <Input value={form.subtitle} onChange={(event) => setForm({ ...form, subtitle: event.target.value })} placeholder="Burger + fries + coke" />
                     </Field>
+                    <div className="rounded-lg border border-outline-variant/60 bg-surface-container-low p-3">
+                      <p className="text-sm font-extrabold text-on-surface">Discount rule</p>
+                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                        <Field label="Type">
+                          <select
+                            value={form.discountTypeCode}
+                            onChange={(event) => {
+                              const discountTypeCode = event.target.value as OfferDiscountTypeCode;
+                              setForm({
+                                ...form,
+                                discountTypeCode,
+                                discountValue: discountTypeCode === "DisplayOnly" ? "0" : form.discountValue,
+                                minimumOrderAmount: discountTypeCode === "DisplayOnly" ? "0" : form.minimumOrderAmount,
+                                maxDiscountAmount: discountTypeCode === "DisplayOnly" ? "" : form.maxDiscountAmount,
+                                autoApply: discountTypeCode !== "DisplayOnly" && form.autoApply
+                              });
+                            }}
+                            className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                          >
+                            <option value="DisplayOnly">Display only</option>
+                            <option value="Percentage">Percentage</option>
+                            <option value="FixedAmount">Fixed amount</option>
+                          </select>
+                        </Field>
+                        <Field label={form.discountTypeCode === "Percentage" ? "Discount %" : "Discount amount"}>
+                          <Input
+                            type="number"
+                            min="0"
+                            max={form.discountTypeCode === "Percentage" ? "100" : undefined}
+                            step="0.01"
+                            value={form.discountValue}
+                            onChange={(event) => setForm({ ...form, discountValue: event.target.value })}
+                            disabled={form.discountTypeCode === "DisplayOnly"}
+                          />
+                        </Field>
+                        <Field label="Minimum order">
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={form.minimumOrderAmount}
+                            onChange={(event) => setForm({ ...form, minimumOrderAmount: event.target.value })}
+                            disabled={form.discountTypeCode === "DisplayOnly"}
+                          />
+                        </Field>
+                        <Field label="Max discount">
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={form.maxDiscountAmount}
+                            onChange={(event) => setForm({ ...form, maxDiscountAmount: event.target.value })}
+                            placeholder="No cap"
+                            disabled={form.discountTypeCode !== "Percentage"}
+                          />
+                        </Field>
+                      </div>
+                      <label className="mt-3 flex items-center gap-2 text-sm font-bold text-on-surface">
+                        <input
+                          type="checkbox"
+                          checked={form.autoApply}
+                          onChange={(event) => setForm({ ...form, autoApply: event.target.checked })}
+                          disabled={form.discountTypeCode === "DisplayOnly"}
+                          className="h-4 w-4 rounded border-outline-variant"
+                        />
+                        Auto-apply best eligible offer in QR cart
+                      </label>
+                    </div>
                     <Field label="Offer image">
                       <MenuItemImagePicker
                         imageAltText={form.imageAltText}
@@ -209,7 +288,9 @@ export default function AdminOffersPage() {
                         <div className="min-w-0">
                           <p className="truncate text-sm font-extrabold text-on-surface">{offer.title}</p>
                           <p className="mt-1 text-xs text-on-surface-variant">{offer.subtitle || offer.discountText || "No subtitle"}</p>
-                          <p className="mt-1 text-xs text-on-surface-variant">Order {offer.displayOrder}</p>
+                          <p className="mt-1 text-xs text-on-surface-variant">
+                            {formatOfferRule(offer)} - Order {offer.displayOrder}
+                          </p>
                         </div>
                         <Button type="button" size="sm" variant="outline" disabled={savingKey === offer.branchOfferId} onClick={() => turnOffOffer(offer)}>
                           <Power size={14} />
@@ -246,7 +327,12 @@ function toOfferInput(form: OfferForm): CreateBranchOfferInput {
     imageAltText: form.imageUrl ? optional(form.imageAltText) ?? form.title.trim() : null,
     displayOrder: toPositiveNumber(form.displayOrder),
     startsAtUtc: null,
-    endsAtUtc: null
+    endsAtUtc: null,
+    discountTypeCode: form.discountTypeCode,
+    discountValue: form.discountTypeCode === "DisplayOnly" ? 0 : toMoneyNumber(form.discountValue),
+    minimumOrderAmount: form.discountTypeCode === "DisplayOnly" ? 0 : toMoneyNumber(form.minimumOrderAmount),
+    maxDiscountAmount: form.discountTypeCode === "Percentage" ? optionalMoney(form.maxDiscountAmount) : null,
+    autoApply: form.discountTypeCode !== "DisplayOnly" && form.autoApply
   };
 }
 
@@ -255,8 +341,37 @@ function validateOfferForm(form: OfferForm) {
     validateRequired(form.title, "Title"),
     validateOptionalText(form.subtitle, "Subtitle", 200),
     validateOptionalText(form.discountText, "Discount text", 120),
-    validatePositiveInteger(form.displayOrder, "Order")
+    validatePositiveInteger(form.displayOrder, "Order"),
+    validateOfferRule(form)
   );
+}
+
+function validateOfferRule(form: OfferForm) {
+  if (form.discountTypeCode === "DisplayOnly") {
+    return { isValid: true, message: "" };
+  }
+
+  const discountValue = Number(form.discountValue);
+  const minimumOrderAmount = Number(form.minimumOrderAmount);
+  const maxDiscountAmount = form.maxDiscountAmount.trim() ? Number(form.maxDiscountAmount) : null;
+
+  if (!Number.isFinite(discountValue) || discountValue <= 0) {
+    return { isValid: false, message: "Discount value must be greater than 0." };
+  }
+
+  if (form.discountTypeCode === "Percentage" && discountValue > 100) {
+    return { isValid: false, message: "Percentage discount cannot exceed 100." };
+  }
+
+  if (!Number.isFinite(minimumOrderAmount) || minimumOrderAmount < 0) {
+    return { isValid: false, message: "Minimum order amount cannot be negative." };
+  }
+
+  if (maxDiscountAmount !== null && (!Number.isFinite(maxDiscountAmount) || maxDiscountAmount < 0)) {
+    return { isValid: false, message: "Maximum discount amount cannot be negative." };
+  }
+
+  return { isValid: true, message: "" };
 }
 
 function optional(value: string): string | null {
@@ -267,4 +382,29 @@ function optional(value: string): string | null {
 function toPositiveNumber(value: string): number {
   const number = Number(value);
   return Number.isFinite(number) && number > 0 ? number : 1;
+}
+
+function toMoneyNumber(value: string): number {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? Math.round(number * 100) / 100 : 0;
+}
+
+function optionalMoney(value: string): number | null {
+  const cleaned = value.trim();
+  if (!cleaned) {
+    return null;
+  }
+
+  const number = Number(cleaned);
+  return Number.isFinite(number) && number >= 0 ? Math.round(number * 100) / 100 : null;
+}
+
+function formatOfferRule(offer: BranchOffer): string {
+  if (offer.discountTypeCode === "DisplayOnly") {
+    return "Display only";
+  }
+
+  const value = offer.discountTypeCode === "Percentage" ? `${offer.discountValue}% off` : `Rs ${offer.discountValue} off`;
+  const minimum = offer.minimumOrderAmount > 0 ? ` above Rs ${offer.minimumOrderAmount}` : "";
+  return `${offer.autoApply ? "Auto" : "Manual"} ${value}${minimum}`;
 }

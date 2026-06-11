@@ -143,6 +143,11 @@ export function OrderTrackingClient({
           <span className="text-base font-black text-[#001c11]">Total amount</span>
           <span className="text-xl font-black text-[#006d36]">{formatPrice(order.totalAmount)}</span>
         </div>
+        {order.appliedOfferDiscountAmount > 0 ? (
+          <div className="mt-3 rounded-xl border border-[#bfe6cf] bg-[#f1fbf5] px-3 py-2 text-sm font-bold text-[#006d36]">
+            {order.appliedOfferTitle ?? "Offer applied"} saved {formatPrice(order.appliedOfferDiscountAmount)}
+          </div>
+        ) : null}
       </div>
 
       <div className="mt-4 rounded-2xl border border-[#d9e4df] bg-white p-4 shadow-sm">

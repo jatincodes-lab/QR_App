@@ -24,6 +24,9 @@ public sealed record AdminOrderResponse(
     string? Notes,
     decimal SubtotalAmount,
     decimal TotalAmount,
+    Guid? AppliedBranchOfferId,
+    string? AppliedOfferTitle,
+    decimal AppliedOfferDiscountAmount,
     DateTime CreatedAtUtc,
     DateTime? UpdatedAtUtc,
     IReadOnlyCollection<AdminOrderItemResponse> Items);

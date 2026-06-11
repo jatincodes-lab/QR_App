@@ -19,7 +19,7 @@ public sealed class SqlBranchOfferRepository(ISqlConnectionFactory connectionFac
         command.AddGuid("@TenantId", tenantId);
         command.AddGuid("@BranchId", branchId);
         command.AddGuid("@BranchOfferId", branchOfferId);
-        AddOfferParameters(command, request.Title, request.Subtitle, request.DiscountText, request.ImageUrl, request.ImageAltText, request.DisplayOrder, request.StartsAtUtc, request.EndsAtUtc);
+        AddOfferParameters(command, request.Title, request.Subtitle, request.DiscountText, request.ImageUrl, request.ImageAltText, request.DisplayOrder, request.StartsAtUtc, request.EndsAtUtc, request.DiscountTypeCode, request.DiscountValue, request.MinimumOrderAmount, request.MaxDiscountAmount, request.AutoApply);
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         if (await reader.ReadAsync(cancellationToken))
@@ -42,7 +42,7 @@ public sealed class SqlBranchOfferRepository(ISqlConnectionFactory connectionFac
         command.AddGuid("@TenantId", tenantId);
         command.AddGuid("@BranchId", branchId);
         command.AddGuid("@BranchOfferId", branchOfferId);
-        AddOfferParameters(command, request.Title, request.Subtitle, request.DiscountText, request.ImageUrl, request.ImageAltText, request.DisplayOrder, request.StartsAtUtc, request.EndsAtUtc);
+        AddOfferParameters(command, request.Title, request.Subtitle, request.DiscountText, request.ImageUrl, request.ImageAltText, request.DisplayOrder, request.StartsAtUtc, request.EndsAtUtc, request.DiscountTypeCode, request.DiscountValue, request.MinimumOrderAmount, request.MaxDiscountAmount, request.AutoApply);
         command.AddBool("@IsActive", request.IsActive);
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -99,7 +99,12 @@ public sealed class SqlBranchOfferRepository(ISqlConnectionFactory connectionFac
                 GetNullableString(reader, "DiscountText"),
                 GetNullableString(reader, "ImageUrl"),
                 GetNullableString(reader, "ImageAltText"),
-                reader.GetInt32(reader.GetOrdinal("DisplayOrder"))));
+                reader.GetInt32(reader.GetOrdinal("DisplayOrder")),
+                reader.GetString(reader.GetOrdinal("DiscountTypeCode")),
+                reader.GetDecimal(reader.GetOrdinal("DiscountValue")),
+                reader.GetDecimal(reader.GetOrdinal("MinimumOrderAmount")),
+                GetNullableDecimal(reader, "MaxDiscountAmount"),
+                reader.GetBoolean(reader.GetOrdinal("AutoApply"))));
         }
 
         return offers;
@@ -130,7 +135,12 @@ public sealed class SqlBranchOfferRepository(ISqlConnectionFactory connectionFac
         string? imageAltText,
         int displayOrder,
         DateTime? startsAtUtc,
-        DateTime? endsAtUtc)
+        DateTime? endsAtUtc,
+        string discountTypeCode,
+        decimal discountValue,
+        decimal minimumOrderAmount,
+        decimal? maxDiscountAmount,
+        bool autoApply)
     {
         command.AddString("@Title", title, 160);
         command.AddString("@Subtitle", subtitle, 300);
@@ -140,6 +150,11 @@ public sealed class SqlBranchOfferRepository(ISqlConnectionFactory connectionFac
         command.AddInt("@DisplayOrder", displayOrder);
         AddNullableDateTime(command, "@StartsAtUtc", startsAtUtc);
         AddNullableDateTime(command, "@EndsAtUtc", endsAtUtc);
+        command.AddString("@DiscountTypeCode", discountTypeCode, 32);
+        command.AddDecimal("@DiscountValue", discountValue, 10, 2);
+        command.AddDecimal("@MinimumOrderAmount", minimumOrderAmount, 10, 2);
+        AddNullableDecimal(command, "@MaxDiscountAmount", maxDiscountAmount, 10, 2);
+        command.AddBool("@AutoApply", autoApply);
     }
 
     private static BranchOfferResponse ReadOffer(SqlDataReader reader)
@@ -157,6 +172,11 @@ public sealed class SqlBranchOfferRepository(ISqlConnectionFactory connectionFac
             reader.GetBoolean(reader.GetOrdinal("IsActive")),
             GetNullableDateTime(reader, "StartsAtUtc"),
             GetNullableDateTime(reader, "EndsAtUtc"),
+            reader.GetString(reader.GetOrdinal("DiscountTypeCode")),
+            reader.GetDecimal(reader.GetOrdinal("DiscountValue")),
+            reader.GetDecimal(reader.GetOrdinal("MinimumOrderAmount")),
+            GetNullableDecimal(reader, "MaxDiscountAmount"),
+            reader.GetBoolean(reader.GetOrdinal("AutoApply")),
             reader.GetDateTime(reader.GetOrdinal("CreatedAtUtc")),
             GetNullableDateTime(reader, "UpdatedAtUtc"));
     }
@@ -164,6 +184,14 @@ public sealed class SqlBranchOfferRepository(ISqlConnectionFactory connectionFac
     private static void AddNullableDateTime(SqlCommand command, string name, DateTime? value)
     {
         var parameter = command.Parameters.Add(name, SqlDbType.DateTime2);
+        parameter.Value = value.HasValue ? value.Value : DBNull.Value;
+    }
+
+    private static void AddNullableDecimal(SqlCommand command, string name, decimal? value, byte precision, byte scale)
+    {
+        var parameter = command.Parameters.Add(name, SqlDbType.Decimal);
+        parameter.Precision = precision;
+        parameter.Scale = scale;
         parameter.Value = value.HasValue ? value.Value : DBNull.Value;
     }
 
@@ -177,5 +205,11 @@ public sealed class SqlBranchOfferRepository(ISqlConnectionFactory connectionFac
     {
         var ordinal = reader.GetOrdinal(name);
         return reader.IsDBNull(ordinal) ? null : reader.GetDateTime(ordinal);
+    }
+
+    private static decimal? GetNullableDecimal(SqlDataReader reader, string name)
+    {
+        var ordinal = reader.GetOrdinal(name);
+        return reader.IsDBNull(ordinal) ? null : reader.GetDecimal(ordinal);
     }
 }

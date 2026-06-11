@@ -108,6 +108,11 @@ export type BranchOffer = {
   isActive: boolean;
   startsAtUtc: string | null;
   endsAtUtc: string | null;
+  discountTypeCode: OfferDiscountTypeCode;
+  discountValue: number;
+  minimumOrderAmount: number;
+  maxDiscountAmount: number | null;
+  autoApply: boolean;
   createdAtUtc: string;
   updatedAtUtc: string | null;
 };
@@ -206,6 +211,11 @@ export type PublicQrMenuOffer = {
   imageUrl: string | null;
   imageAltText: string | null;
   displayOrder: number;
+  discountTypeCode: OfferDiscountTypeCode;
+  discountValue: number;
+  minimumOrderAmount: number;
+  maxDiscountAmount: number | null;
+  autoApply: boolean;
 };
 
 export type PublicQrMenuCategory = {
@@ -267,6 +277,9 @@ export type PublicQrOrder = {
   notes: string | null;
   subtotalAmount: number;
   totalAmount: number;
+  appliedBranchOfferId: string | null;
+  appliedOfferTitle: string | null;
+  appliedOfferDiscountAmount: number;
   createdAtUtc: string;
   updatedAtUtc: string | null;
   items: PublicQrOrderItem[];
@@ -326,6 +339,9 @@ export type AdminOrder = {
   notes: string | null;
   subtotalAmount: number;
   totalAmount: number;
+  appliedBranchOfferId: string | null;
+  appliedOfferTitle: string | null;
+  appliedOfferDiscountAmount: number;
   createdAtUtc: string;
   updatedAtUtc: string | null;
   items: AdminOrderItem[];
@@ -354,6 +370,8 @@ export type OrderBill = {
   serviceChargeName: string;
   serviceChargeRate: number;
   discountEnabled: boolean;
+  appliedBranchOfferId: string | null;
+  appliedOfferTitle: string | null;
   refundStatusCode: RefundStatusCode;
   refundAmount: number;
   refundReason: string | null;
@@ -380,6 +398,8 @@ export type WaiterCall = {
 };
 
 export type CampaignTargetSegment = "AllOptedIn" | "RepeatCustomers" | "InactiveCustomers" | "HighValueCustomers";
+
+export type OfferDiscountTypeCode = "DisplayOnly" | "Percentage" | "FixedAmount";
 
 export type StaffRoleCode = "admin" | "manager" | "kitchen" | "waiter" | "staff";
 
@@ -545,6 +565,11 @@ export type CreateBranchOfferInput = {
   displayOrder: number;
   startsAtUtc: string | null;
   endsAtUtc: string | null;
+  discountTypeCode: OfferDiscountTypeCode;
+  discountValue: number;
+  minimumOrderAmount: number;
+  maxDiscountAmount: number | null;
+  autoApply: boolean;
 };
 
 export type UpdateBranchOfferInput = CreateBranchOfferInput & {

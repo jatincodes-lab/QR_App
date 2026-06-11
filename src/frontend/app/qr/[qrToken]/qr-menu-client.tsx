@@ -34,6 +34,7 @@ import {
   type PublicQrMenu,
   type PublicQrMenuCategory,
   type PublicQrMenuItem,
+  type PublicQrMenuOffer,
   type PublicQrOrder
 } from "../../../lib/api";
 import { firstInvalid, validateOptionalText, validatePhone, validateRequired } from "../../../lib/validation";
@@ -49,6 +50,8 @@ type CartLine = {
 
 type CartEstimate = {
   subtotalAmount: number;
+  discountAmount: number;
+  appliedOffer: PublicQrMenuOffer | null;
   taxableAmount: number;
   taxAmount: number;
   serviceChargeAmount: number;
@@ -118,7 +121,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
   const cartLines = Object.values(cart);
   const cartCount = cartLines.reduce((total, line) => total + line.quantity, 0);
   const cartTotal = cartLines.reduce((total, line) => total + getCartLinePrice(line) * line.quantity, 0);
-  const cartEstimate = useMemo(() => calculateCartEstimate(cartTotal, currentMenu.billingSettings), [cartTotal, currentMenu.billingSettings]);
+  const cartEstimate = useMemo(() => calculateCartEstimate(cartTotal, currentMenu.billingSettings, currentMenu.offers ?? []), [cartTotal, currentMenu.billingSettings, currentMenu.offers]);
   const canOrder = currentMenu.orderSettings.enableDirectQrOrdering;
   const canCallWaiter = currentMenu.orderSettings.waiterCallEnabled;
   const itemCount = categories.reduce((total, category) => total + category.items.length, 0);
@@ -1089,6 +1092,15 @@ function CartPage({
               <span>Subtotal</span>
               <span className="font-black text-[#001c11]">{formatPrice(cartTotal)}</span>
             </div>
+            {cartEstimate.discountAmount > 0 ? (
+              <div className="mt-2 rounded-xl border border-[#bfe6cf] bg-[#f1fbf5] px-3 py-2">
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <span className="font-black text-[#006d36]">{cartEstimate.appliedOffer?.title ?? "Offer discount"}</span>
+                  <span className="font-black text-[#006d36]">-{formatPrice(cartEstimate.discountAmount)}</span>
+                </div>
+                {cartEstimate.appliedOffer?.discountText ? <p className="mt-1 text-xs font-semibold text-[#4e6256]">{cartEstimate.appliedOffer.discountText}</p> : null}
+              </div>
+            ) : null}
             {cartEstimate.taxAmount > 0 ? (
               <div className="mt-2 flex items-center justify-between text-sm text-[#5a625e]">
                 <span>Tax</span>
@@ -1283,6 +1295,11 @@ function OrderPlacedView({
           <span className="text-base font-black text-[#001c11]">Total amount</span>
           <span className="text-xl font-black text-[#006d36]">{formatPrice(order.totalAmount)}</span>
         </div>
+        {order.appliedOfferDiscountAmount > 0 ? (
+          <div className="mt-3 rounded-xl border border-[#bfe6cf] bg-[#f1fbf5] px-3 py-2 text-sm font-bold text-[#006d36]">
+            {order.appliedOfferTitle ?? "Offer applied"} saved {formatPrice(order.appliedOfferDiscountAmount)}
+          </div>
+        ) : null}
       </div>
 
       <div className="mt-4 grid gap-3">
@@ -1591,9 +1608,11 @@ function valueOrNull(value: string): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
-function calculateCartEstimate(subtotalAmount: number, settings: PublicQrMenu["billingSettings"]): CartEstimate {
+function calculateCartEstimate(subtotalAmount: number, settings: PublicQrMenu["billingSettings"], offers: PublicQrMenuOffer[]): CartEstimate {
   const subtotal = roundMoney(subtotalAmount);
-  const taxableAmount = subtotal;
+  const appliedOffer = selectBestAutoOffer(subtotal, offers);
+  const discountAmount = appliedOffer ? calculateOfferDiscount(subtotal, appliedOffer) : 0;
+  const taxableAmount = roundMoney(Math.max(0, subtotal - discountAmount));
   const taxRate = Math.max(0, settings.taxRate);
   let taxAmount = 0;
 
@@ -1606,7 +1625,7 @@ function calculateCartEstimate(subtotalAmount: number, settings: PublicQrMenu["b
 
   const serviceChargeAmount =
     settings.serviceChargeEnabled && settings.serviceChargeRate > 0
-      ? roundMoney((subtotal * Math.max(0, settings.serviceChargeRate)) / 100)
+      ? roundMoney((taxableAmount * Math.max(0, settings.serviceChargeRate)) / 100)
       : 0;
   const totalBeforeRounding = roundMoney((settings.taxMode === "Inclusive" ? taxableAmount : taxableAmount + taxAmount) + serviceChargeAmount);
   const roundedTotal = settings.roundingMode === "NearestRupee" ? Math.round(totalBeforeRounding) : totalBeforeRounding;
@@ -1614,12 +1633,44 @@ function calculateCartEstimate(subtotalAmount: number, settings: PublicQrMenu["b
 
   return {
     subtotalAmount: subtotal,
+    discountAmount,
+    appliedOffer,
     taxableAmount,
     taxAmount,
     serviceChargeAmount,
     roundingAmount,
     totalAmount: roundMoney(totalBeforeRounding + roundingAmount)
   };
+}
+
+function selectBestAutoOffer(subtotal: number, offers: PublicQrMenuOffer[]): PublicQrMenuOffer | null {
+  const eligible = offers
+    .filter((offer) => offer.autoApply && offer.discountTypeCode !== "DisplayOnly" && offer.discountValue > 0 && subtotal >= offer.minimumOrderAmount)
+    .map((offer) => ({ offer, discountAmount: calculateOfferDiscount(subtotal, offer) }))
+    .filter((entry) => entry.discountAmount > 0)
+    .sort((left, right) => {
+      if (right.discountAmount !== left.discountAmount) {
+        return right.discountAmount - left.discountAmount;
+      }
+
+      if (left.offer.displayOrder !== right.offer.displayOrder) {
+        return left.offer.displayOrder - right.offer.displayOrder;
+      }
+
+      return left.offer.title.localeCompare(right.offer.title);
+    });
+
+  return eligible[0]?.offer ?? null;
+}
+
+function calculateOfferDiscount(subtotal: number, offer: PublicQrMenuOffer): number {
+  if (subtotal <= 0 || offer.discountValue <= 0) {
+    return 0;
+  }
+
+  const rawDiscount = offer.discountTypeCode === "Percentage" ? roundMoney((subtotal * offer.discountValue) / 100) : roundMoney(offer.discountValue);
+  const cappedDiscount = offer.maxDiscountAmount !== null ? Math.min(rawDiscount, offer.maxDiscountAmount) : rawDiscount;
+  return roundMoney(Math.min(subtotal, Math.max(0, cappedDiscount)));
 }
 
 function roundMoney(value: number): number {

@@ -218,6 +218,8 @@ public sealed class SqlBillingRepository(ISqlConnectionFactory connectionFactory
             reader.GetString(reader.GetOrdinal("ServiceChargeName")),
             reader.GetDecimal(reader.GetOrdinal("ServiceChargeRate")),
             reader.GetBoolean(reader.GetOrdinal("DiscountEnabled")),
+            GetNullableGuid(reader, "AppliedBranchOfferId"),
+            GetNullableString(reader, "AppliedOfferTitle"),
             reader.GetString(reader.GetOrdinal("RefundStatusCode")),
             reader.GetDecimal(reader.GetOrdinal("RefundAmount")),
             GetNullableString(reader, "RefundReason"),
@@ -230,6 +232,12 @@ public sealed class SqlBillingRepository(ISqlConnectionFactory connectionFactory
     {
         var ordinal = reader.GetOrdinal(name);
         return reader.IsDBNull(ordinal) ? null : reader.GetString(ordinal);
+    }
+
+    private static Guid? GetNullableGuid(SqlDataReader reader, string name)
+    {
+        var ordinal = reader.GetOrdinal(name);
+        return reader.IsDBNull(ordinal) ? null : reader.GetGuid(ordinal);
     }
 
     private static DateTime? GetNullableDateTime(SqlDataReader reader, string name)

@@ -111,4 +111,9 @@ public sealed record PublicMenuOfferResponse(
     string? DiscountText,
     string? ImageUrl,
     string? ImageAltText,
-    int DisplayOrder);
+    int DisplayOrder,
+    string DiscountTypeCode,
+    decimal DiscountValue,
+    decimal MinimumOrderAmount,
+    decimal? MaxDiscountAmount,
+    bool AutoApply);

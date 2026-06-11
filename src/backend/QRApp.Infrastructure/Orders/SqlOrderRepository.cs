@@ -100,6 +100,9 @@ public sealed class SqlOrderRepository(ISqlConnectionFactory connectionFactory) 
             GetNullableString(reader, "Notes"),
             reader.GetDecimal(reader.GetOrdinal("SubtotalAmount")),
             reader.GetDecimal(reader.GetOrdinal("TotalAmount")),
+            GetNullableGuid(reader, "AppliedBranchOfferId"),
+            GetNullableString(reader, "AppliedOfferTitle"),
+            reader.GetDecimal(reader.GetOrdinal("AppliedOfferDiscountAmount")),
             reader.GetDateTime(reader.GetOrdinal("CreatedAtUtc")),
             reader.IsDBNull(reader.GetOrdinal("UpdatedAtUtc")) ? null : reader.GetDateTime(reader.GetOrdinal("UpdatedAtUtc")),
             Array.Empty<PublicOrderItemResponse>());

@@ -2538,7 +2538,12 @@ function toOfferInput(form: OfferForm) {
     imageAltText: form.imageUrl ? optional(form.imageAltText) ?? form.title.trim() : null,
     displayOrder: toPositiveNumber(form.displayOrder),
     startsAtUtc: null,
-    endsAtUtc: null
+    endsAtUtc: null,
+    discountTypeCode: "DisplayOnly" as const,
+    discountValue: 0,
+    minimumOrderAmount: 0,
+    maxDiscountAmount: null,
+    autoApply: false
   };
 }
 

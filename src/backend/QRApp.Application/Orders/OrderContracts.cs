@@ -32,6 +32,9 @@ public sealed record PublicOrderResponse(
     string? Notes,
     decimal SubtotalAmount,
     decimal TotalAmount,
+    Guid? AppliedBranchOfferId,
+    string? AppliedOfferTitle,
+    decimal AppliedOfferDiscountAmount,
     DateTime CreatedAtUtc,
     DateTime? UpdatedAtUtc,
     IReadOnlyCollection<PublicOrderItemResponse> Items);

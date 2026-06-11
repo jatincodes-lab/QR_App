@@ -243,11 +243,13 @@ export default function AdminOrdersPage() {
       return;
     }
 
-    const defaultServiceCharge = billingSettings?.serviceChargeEnabled ? roundMoney(order.subtotalAmount * billingSettings.serviceChargeRate / 100) : 0;
+    const appliedOfferDiscount = roundMoney(order.appliedOfferDiscountAmount ?? 0);
+    const serviceChargeBase = Math.max(0, order.subtotalAmount - appliedOfferDiscount);
+    const defaultServiceCharge = billingSettings?.serviceChargeEnabled ? roundMoney(serviceChargeBase * billingSettings.serviceChargeRate / 100) : 0;
     setBillDialog({
       order,
       bill: null,
-      discountAmount: "0",
+      discountAmount: String(appliedOfferDiscount),
       serviceChargeAmount: defaultServiceCharge.toFixed(2),
       paymentStatusCode: "Unpaid",
       paymentMethod: "",
@@ -264,7 +266,7 @@ export default function AdminOrdersPage() {
       setBillDialog({
         order,
         bill,
-        discountAmount: String(bill?.discountAmount ?? 0),
+        discountAmount: String(bill?.discountAmount ?? appliedOfferDiscount),
         serviceChargeAmount: String(bill?.serviceChargeAmount ?? defaultServiceCharge),
         paymentStatusCode: bill?.paymentStatusCode ?? "Unpaid",
         paymentMethod: bill?.paymentMethod ?? "",
@@ -547,6 +549,11 @@ function OrderCard({
           <p className="text-sm font-extrabold text-primary">{formatMoney(order.totalAmount)}</p>
         </div>
       </div>
+      {order.appliedOfferDiscountAmount > 0 ? (
+        <div className="mt-3 rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800">
+          {order.appliedOfferTitle ?? "Offer applied"} saved {formatMoney(order.appliedOfferDiscountAmount)}
+        </div>
+      ) : null}
       <div className="mt-3 rounded-lg bg-surface-container-low p-3 text-xs leading-5 text-on-surface-variant">
         {order.items.map((item) => (
           <div key={item.orderItemId}>
@@ -683,7 +690,7 @@ function BillDialog({
 
                   <div className="mt-4 grid gap-2 text-sm">
                     <BillLine label="Subtotal" value={formatMoney(bill?.subtotalAmount ?? state.order.subtotalAmount)} />
-                    <BillLine label="Discount" value={formatMoney(bill?.discountAmount ?? (Number(state.discountAmount) || 0))} />
+                    <BillLine label={bill?.appliedOfferTitle ?? state.order.appliedOfferTitle ?? "Discount"} value={formatMoney(bill?.discountAmount ?? (Number(state.discountAmount) || 0))} />
                     <BillLine label={bill ? `${bill.taxName} (${bill.taxRate}%, ${bill.taxMode.toLowerCase()})` : "Tax"} value={formatMoney(bill?.taxAmount ?? 0)} />
                     <BillLine label={bill?.serviceChargeName ?? "Service charge"} value={formatMoney(bill?.serviceChargeAmount ?? (Number(state.serviceChargeAmount) || 0))} />
                     <BillLine label="Rounding" value={formatMoney(bill?.roundingAmount ?? 0)} />
@@ -993,6 +1000,7 @@ function buildBillPrintHtml(branch: BranchListItem, order: AdminOrder, bill: Ord
     .join("");
   const paymentText = `${bill.paymentStatusCode}${bill.paymentMethod ? ` / ${bill.paymentMethod}` : ""}`;
   const refundText = bill.refundStatusCode === "NotRefunded" ? "" : `${bill.refundStatusCode} - ${formatMoney(bill.refundAmount)}`;
+  const discountLabel = bill.appliedOfferTitle ?? "Discount";
 
   return `<!doctype html>
 <html>
@@ -1066,7 +1074,7 @@ function buildBillPrintHtml(branch: BranchListItem, order: AdminOrder, bill: Ord
       </table>
       <section class="totals">
         <div class="line"><span>Subtotal</span><span>${formatMoney(bill.subtotalAmount)}</span></div>
-        ${bill.discountAmount > 0 ? `<div class="line"><span>Discount</span><span>-${formatMoney(bill.discountAmount)}</span></div>` : ""}
+        ${bill.discountAmount > 0 ? `<div class="line"><span>${escapeHtml(discountLabel)}</span><span>-${formatMoney(bill.discountAmount)}</span></div>` : ""}
         ${bill.taxAmount > 0 ? `<div class="line"><span>${escapeHtml(bill.taxName)} ${bill.taxRate}% ${escapeHtml(bill.taxMode)}</span><span>${formatMoney(bill.taxAmount)}</span></div>` : ""}
         ${bill.serviceChargeAmount > 0 ? `<div class="line"><span>${escapeHtml(bill.serviceChargeName)}</span><span>${formatMoney(bill.serviceChargeAmount)}</span></div>` : ""}
         ${Math.abs(bill.roundingAmount) >= 0.01 ? `<div class="line"><span>Rounding</span><span>${formatMoney(bill.roundingAmount)}</span></div>` : ""}

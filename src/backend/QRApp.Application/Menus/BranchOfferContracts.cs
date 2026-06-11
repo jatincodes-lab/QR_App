@@ -10,7 +10,12 @@ public sealed record CreateBranchOfferRequest(
     string? ImageAltText,
     int DisplayOrder,
     DateTime? StartsAtUtc = null,
-    DateTime? EndsAtUtc = null);
+    DateTime? EndsAtUtc = null,
+    string DiscountTypeCode = "DisplayOnly",
+    decimal DiscountValue = 0,
+    decimal MinimumOrderAmount = 0,
+    decimal? MaxDiscountAmount = null,
+    bool AutoApply = false);
 
 public sealed record UpdateBranchOfferRequest(
     string Title,
@@ -21,7 +26,12 @@ public sealed record UpdateBranchOfferRequest(
     int DisplayOrder,
     bool IsActive,
     DateTime? StartsAtUtc = null,
-    DateTime? EndsAtUtc = null);
+    DateTime? EndsAtUtc = null,
+    string DiscountTypeCode = "DisplayOnly",
+    decimal DiscountValue = 0,
+    decimal MinimumOrderAmount = 0,
+    decimal? MaxDiscountAmount = null,
+    bool AutoApply = false);
 
 public sealed record BranchOfferResponse(
     Guid BranchOfferId,
@@ -36,6 +46,11 @@ public sealed record BranchOfferResponse(
     bool IsActive,
     DateTime? StartsAtUtc,
     DateTime? EndsAtUtc,
+    string DiscountTypeCode,
+    decimal DiscountValue,
+    decimal MinimumOrderAmount,
+    decimal? MaxDiscountAmount,
+    bool AutoApply,
     DateTime CreatedAtUtc,
     DateTime? UpdatedAtUtc);
 

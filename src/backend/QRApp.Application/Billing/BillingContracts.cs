@@ -67,6 +67,8 @@ public sealed record OrderBillResponse(
     string ServiceChargeName,
     decimal ServiceChargeRate,
     bool DiscountEnabled,
+    Guid? AppliedBranchOfferId,
+    string? AppliedOfferTitle,
     string RefundStatusCode,
     decimal RefundAmount,
     string? RefundReason,
