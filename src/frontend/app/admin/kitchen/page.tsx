@@ -2,12 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { HubConnection } from "@microsoft/signalr";
-import { Bell, ChefHat, RefreshCw } from "lucide-react";
+import { Bell, ChefHat, Printer, RefreshCw } from "lucide-react";
 import { AdminShell } from "../../../components/admin-shell";
 import { EmptyBranchState, MetricCard, PageError, PageLoading } from "../../../components/admin-page-common";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
-import { getAdminOrders, updateAdminOrderStatus, type AdminOrder, type OrderStatusCode } from "../../../lib/api";
+import { getAdminOrders, updateAdminOrderStatus, type AdminOrder, type BranchListItem, type OrderStatusCode } from "../../../lib/api";
 import { useAdminWorkspace } from "../../../lib/admin-workspace";
 import { createAdminOrderConnection, stopConnection, type AdminOrderRealtimeEvent } from "../../../lib/realtime";
 
@@ -143,6 +143,26 @@ export default function AdminKitchenPage() {
     }
   }
 
+  function printKot(order: AdminOrder) {
+    if (!workspace.selectedBranch || !["Accepted", "Preparing", "Ready"].includes(order.orderStatusCode)) {
+      return;
+    }
+
+    const printWindow = window.open("", "_blank", "width=420,height=720");
+    if (!printWindow) {
+      window.alert("Print popup was blocked. Please allow popups for this site and try again.");
+      return;
+    }
+
+    printWindow.document.write(buildKotPrintHtml(workspace.selectedBranch, order));
+    printWindow.document.close();
+    printWindow.focus();
+    window.setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 250);
+  }
+
   const branchName = workspace.selectedBranch?.name ?? "Kitchen";
 
   return (
@@ -218,6 +238,7 @@ export default function AdminKitchenPage() {
                       orders={ordersByStatus[column.status] ?? []}
                       savingKey={savingKey}
                       onMove={moveOrder}
+                      onPrint={printKot}
                     />
                   ))}
                 </div>
@@ -234,12 +255,14 @@ function KitchenColumn({
   column,
   orders,
   savingKey,
-  onMove
+  onMove,
+  onPrint
 }: {
   column: { status: OrderStatusCode; title: string; helper: string };
   orders: AdminOrder[];
   savingKey: string | null;
   onMove: (order: AdminOrder, status: OrderStatusCode) => void;
+  onPrint: (order: AdminOrder) => void;
 }) {
   return (
     <section className="min-h-48 rounded-lg border border-outline-variant/70 bg-surface-container-low p-3">
@@ -257,14 +280,24 @@ function KitchenColumn({
             No {column.title.toLowerCase()} orders
           </div>
         ) : (
-          orders.map((order) => <KitchenTicket key={order.orderId} order={order} savingKey={savingKey} onMove={onMove} />)
+          orders.map((order) => <KitchenTicket key={order.orderId} order={order} savingKey={savingKey} onMove={onMove} onPrint={onPrint} />)
         )}
       </div>
     </section>
   );
 }
 
-function KitchenTicket({ order, savingKey, onMove }: { order: AdminOrder; savingKey: string | null; onMove: (order: AdminOrder, status: OrderStatusCode) => void }) {
+function KitchenTicket({
+  order,
+  savingKey,
+  onMove,
+  onPrint
+}: {
+  order: AdminOrder;
+  savingKey: string | null;
+  onMove: (order: AdminOrder, status: OrderStatusCode) => void;
+  onPrint: (order: AdminOrder) => void;
+}) {
   const nextStatus = KitchenNextStatus[order.orderStatusCode as OrderStatusCode];
   const minutesWaiting = Math.max(0, Math.round((Date.now() - new Date(order.createdAtUtc).getTime()) / 60000));
 
@@ -291,11 +324,17 @@ function KitchenTicket({ order, savingKey, onMove }: { order: AdminOrder; saving
 
       {order.notes ? <p className="mt-3 rounded-lg bg-surface-container-low p-3 text-xs font-semibold text-on-surface-variant">Order note: {order.notes}</p> : null}
 
-      {nextStatus ? (
-        <Button type="button" className="mt-4 h-12 w-full" disabled={savingKey === order.orderId} onClick={() => onMove(order, nextStatus)}>
-          {`Move to ${nextStatus}`}
+      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        <Button type="button" variant="outline" className="h-12 w-full" onClick={() => onPrint(order)}>
+          <Printer size={16} />
+          Print KOT
         </Button>
-      ) : null}
+        {nextStatus ? (
+          <Button type="button" className="h-12 w-full" disabled={savingKey === order.orderId} onClick={() => onMove(order, nextStatus)}>
+            {`Move to ${nextStatus}`}
+          </Button>
+        ) : null}
+      </div>
     </article>
   );
 }
@@ -312,6 +351,98 @@ function formatKitchenDate(value: string): string {
   return new Intl.DateTimeFormat("en-IN", {
     timeStyle: "short"
   }).format(new Date(value));
+}
+
+function formatKitchenPrintDate(value: string): string {
+  return new Intl.DateTimeFormat("en-IN", {
+    dateStyle: "medium",
+    timeStyle: "short"
+  }).format(new Date(value));
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function buildKotPrintHtml(branch: BranchListItem, order: AdminOrder): string {
+  const branchAddress = [branch.addressLine1, branch.addressLine2, branch.city, branch.state, branch.postalCode].filter(Boolean).join(", ");
+  const rows = order.items.length > 0
+    ? order.items
+        .map(
+          (item) => `<div class="item">
+            <div class="qty">${item.quantity}x</div>
+            <div class="details">
+              <p>${escapeHtml(formatKitchenItemName(item.menuItemName, item.variantName))}</p>
+              ${item.itemNote ? `<strong>NOTE: ${escapeHtml(item.itemNote)}</strong>` : ""}
+            </div>
+          </div>`
+        )
+        .join("")
+    : `<div class="empty">No items found for this KOT.</div>`;
+
+  return `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>KOT-${shortOrderCode(order.orderId)}</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; background: #eeeeee; color: #111; font-family: Arial, Helvetica, sans-serif; }
+      main { width: 80mm; margin: 0 auto; background: #fff; padding: 5mm 4mm 6mm; }
+      h1, h2, p { margin: 0; }
+      h1 { font-size: 19px; font-weight: 900; line-height: 1.15; text-align: center; text-transform: uppercase; }
+      .muted { color: #555; font-size: 10.5px; line-height: 1.35; text-align: center; }
+      .kot-title { border-bottom: 3px solid #111; border-top: 3px solid #111; margin-top: 10px; padding: 8px 0; text-align: center; }
+      .kot-title h2 { font-size: 22px; font-weight: 900; letter-spacing: 0.22em; }
+      .kot-title p { font-size: 12px; font-weight: 900; margin-top: 2px; }
+      .meta { border: 2px solid #111; display: grid; gap: 5px; margin-top: 10px; padding: 8px; }
+      .line { display: flex; font-size: 12px; justify-content: space-between; gap: 10px; }
+      .line strong { text-align: right; }
+      .status { background: #111; color: #fff; font-size: 12px; font-weight: 900; margin-top: 8px; padding: 7px; text-align: center; text-transform: uppercase; }
+      .items { border-bottom: 2px solid #111; border-top: 2px solid #111; margin-top: 12px; }
+      .item { display: grid; grid-template-columns: 12mm minmax(0, 1fr); gap: 7px; padding: 9px 0; }
+      .item + .item { border-top: 1px dashed #999; }
+      .qty { border: 2px solid #111; display: grid; font-size: 17px; font-weight: 900; min-height: 10mm; place-items: center; }
+      .details p { font-size: 16px; font-weight: 900; line-height: 1.18; overflow-wrap: anywhere; text-transform: uppercase; }
+      .details strong { background: #fff3cd; border: 1px solid #111; display: block; font-size: 12px; line-height: 1.25; margin-top: 5px; overflow-wrap: anywhere; padding: 5px; }
+      .order-note { border: 2px solid #111; font-size: 12px; font-weight: 900; line-height: 1.35; margin-top: 10px; overflow-wrap: anywhere; padding: 7px; }
+      .empty { font-size: 13px; font-weight: 900; padding: 12px 0; text-align: center; }
+      .footer { border-top: 1px dashed #111; margin-top: 12px; padding-top: 8px; text-align: center; }
+      @media print {
+        @page { size: 80mm auto; margin: 0; }
+        body { background: #fff; }
+        main { margin: 0; padding: 4mm 3mm; width: 80mm; }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>${escapeHtml(branch.name)}</h1>
+      ${branchAddress ? `<p class="muted">${escapeHtml(branchAddress)}</p>` : ""}
+      <div class="kot-title">
+        <h2>KOT</h2>
+        <p>#${shortOrderCode(order.orderId)}</p>
+      </div>
+      <section class="meta">
+        <div class="line"><span>Table</span><strong>${escapeHtml(order.tableName)}</strong></div>
+        <div class="line"><span>Order time</span><strong>${escapeHtml(formatKitchenPrintDate(order.createdAtUtc))}</strong></div>
+        <div class="line"><span>Customer</span><strong>${escapeHtml(order.customerName || "Guest")}</strong></div>
+      </section>
+      <div class="status">${escapeHtml(order.orderStatusCode)}</div>
+      <section class="items">${rows}</section>
+      ${order.notes ? `<div class="order-note">ORDER NOTE: ${escapeHtml(order.notes)}</div>` : ""}
+      <div class="footer">
+        <p class="muted">Kitchen copy - no prices</p>
+        <p class="muted">Printed ${escapeHtml(formatKitchenPrintDate(new Date().toISOString()))}</p>
+      </div>
+    </main>
+  </body>
+</html>`;
 }
 
 function playOrderTone() {

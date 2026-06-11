@@ -22,6 +22,7 @@ import {
   updateWaiterCallStatus,
   type AdminOrder,
   type BranchBillingSettings,
+  type BranchListItem,
   type OrderBill,
   type OrderStatusCode,
   type PaymentStatusCode,
@@ -278,15 +279,18 @@ export default function AdminOrdersPage() {
       return;
     }
 
-    const printWindow = window.open("", "_blank", "width=520,height=720");
+    const printWindow = window.open("", "_blank", "width=420,height=720");
     if (!printWindow) {
       return;
     }
 
-    printWindow.document.write(buildBillPrintHtml(workspace.selectedBranch.name, billDialog.order, billDialog.bill));
+    printWindow.document.write(buildBillPrintHtml(workspace.selectedBranch, billDialog.order, billDialog.bill));
     printWindow.document.close();
     printWindow.focus();
-    printWindow.print();
+    window.setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 250);
   }
 
   const branchName = workspace.selectedBranch?.name ?? "Orders";
@@ -565,7 +569,13 @@ function BillDialog({
                       </select>
                     </Field>
                     <Field label="Method">
-                      <Input value={state.paymentMethod} onChange={(event) => onChange({ ...state, paymentMethod: event.target.value })} placeholder="Cash, UPI, card" />
+                      <select value={state.paymentMethod} onChange={(event) => onChange({ ...state, paymentMethod: event.target.value })} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
+                        <option value="">Select method</option>
+                        <option value="Cash">Cash</option>
+                        <option value="UPI">UPI</option>
+                        <option value="Card">Card</option>
+                        <option value="Online">Online</option>
+                      </select>
                     </Field>
                     <Button type="button" variant="outline" onClick={onSavePayment} disabled={!bill || isSavingPayment}>
                       {isSavingPayment ? <Loader2 size={16} className="animate-spin" /> : null}
@@ -682,17 +692,22 @@ function escapeHtml(value: string): string {
     .replaceAll("'", "&#039;");
 }
 
-function buildBillPrintHtml(branchName: string, order: AdminOrder, bill: OrderBill): string {
+function buildBillPrintHtml(branch: BranchListItem, order: AdminOrder, bill: OrderBill): string {
+  const branchAddress = [branch.addressLine1, branch.addressLine2, branch.city, branch.state, branch.postalCode].filter(Boolean).join(", ");
   const rows = order.items
     .map(
       (item) => `<tr>
-        <td>${escapeHtml(formatAdminOrderItemName(item.menuItemName, item.variantName))}</td>
+        <td>
+          <strong>${escapeHtml(formatAdminOrderItemName(item.menuItemName, item.variantName))}</strong>
+          ${item.itemNote ? `<span>Note: ${escapeHtml(item.itemNote)}</span>` : ""}
+        </td>
         <td>${item.quantity}</td>
         <td>${formatMoney(item.unitPrice)}</td>
         <td>${formatMoney(item.lineTotal)}</td>
       </tr>`
     )
     .join("");
+  const paymentText = `${bill.paymentStatusCode}${bill.paymentMethod ? ` / ${bill.paymentMethod}` : ""}`;
 
   return `<!doctype html>
 <html>
@@ -700,37 +715,83 @@ function buildBillPrintHtml(branchName: string, order: AdminOrder, bill: OrderBi
     <meta charset="utf-8" />
     <title>${escapeHtml(bill.billNumber)}</title>
     <style>
-      body { margin: 0; color: #151515; font-family: Arial, sans-serif; }
-      main { margin: 0 auto; max-width: 520px; padding: 24px; }
-      h1, p { margin: 0; }
-      .muted { color: #555; font-size: 12px; }
-      table { border-collapse: collapse; margin-top: 18px; width: 100%; }
-      th, td { border-bottom: 1px solid #ddd; padding: 8px 0; text-align: left; font-size: 13px; }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: #eeeeee; color: #161616; font-family: Arial, Helvetica, sans-serif; }
+      main { width: 80mm; margin: 0 auto; background: #fff; padding: 5mm 4mm 6mm; }
+      h1, h2, p { margin: 0; }
+      h1 { font-size: 20px; font-weight: 900; letter-spacing: 0.08em; line-height: 1.15; text-align: center; text-transform: uppercase; }
+      .center { text-align: center; }
+      .muted { color: #555; font-size: 11px; line-height: 1.35; }
+      .top-mark { align-items: center; display: flex; gap: 8px; justify-content: center; margin-bottom: 8px; }
+      .top-mark span { background: #161616; display: block; height: 2px; width: 26px; }
+      .brand-dot { border: 2px solid #161616; border-radius: 999px; display: grid; font-size: 12px; font-weight: 900; height: 34px; place-items: center; width: 34px; }
+      .subhead { margin-top: 4px; text-align: center; }
+      .receipt-title { background: #161616; color: #fff; margin-top: 12px; padding: 8px 10px; text-align: center; }
+      .receipt-title h2 { font-size: 13px; font-weight: 900; letter-spacing: 0.18em; }
+      .receipt-title p { color: #e8e8e8; font-size: 10px; font-weight: 700; margin-top: 2px; }
+      .meta-box { border: 1px solid #161616; display: grid; gap: 5px; margin-top: 10px; padding: 8px; }
+      .line { display: flex; justify-content: space-between; gap: 10px; }
+      .meta-box .line { font-size: 11px; }
+      .meta-box strong { text-align: right; }
+      table { border-collapse: collapse; margin-top: 12px; width: 100%; }
+      thead th { border-bottom: 2px solid #161616; border-top: 2px solid #161616; font-size: 10px; padding: 6px 0; text-align: left; }
+      tbody td { border-bottom: 1px dashed #9a9a9a; font-size: 11px; padding: 7px 0; vertical-align: top; }
       th:nth-child(n+2), td:nth-child(n+2) { text-align: right; }
-      .totals { margin-top: 18px; display: grid; gap: 8px; font-size: 14px; }
-      .line { display: flex; justify-content: space-between; gap: 16px; }
-      .grand { border-top: 2px solid #151515; padding-top: 10px; font-size: 18px; font-weight: 800; }
-      @media print { @page { margin: 12mm; } main { padding: 0; } }
+      td:first-child { padding-right: 6px; width: 44%; }
+      td strong { display: block; line-height: 1.25; overflow-wrap: anywhere; }
+      td span { color: #555; display: block; font-size: 9.5px; line-height: 1.25; margin-top: 2px; overflow-wrap: anywhere; }
+      .totals { border-bottom: 2px solid #161616; border-top: 2px solid #161616; display: grid; gap: 6px; margin-top: 12px; padding: 9px 0; font-size: 12px; }
+      .grand { align-items: center; background: #f0f0f0; font-size: 17px; font-weight: 900; margin-top: 2px; padding: 8px; }
+      .payment { border: 2px solid #161616; font-size: 12px; font-weight: 900; margin-top: 10px; padding: 8px; text-align: center; text-transform: uppercase; }
+      .barcode { display: flex; gap: 2px; height: 36px; justify-content: center; margin-top: 12px; overflow: hidden; }
+      .barcode span { background: #161616; display: block; height: 36px; }
+      .barcode span:nth-child(3n) { width: 1px; }
+      .barcode span:nth-child(3n+1) { width: 3px; }
+      .barcode span:nth-child(3n+2) { width: 2px; }
+      .footer { border-top: 1px dashed #161616; margin-top: 10px; padding-top: 8px; text-align: center; }
+      @media print {
+        @page { size: 80mm auto; margin: 0; }
+        body { background: #fff; }
+        main { margin: 0; padding: 4mm 3mm; width: 80mm; }
+      }
     </style>
   </head>
   <body>
     <main>
-      <h1>${escapeHtml(branchName)}</h1>
-      <p class="muted">Bill ${escapeHtml(bill.billNumber)} - ${escapeHtml(order.tableName)} - ${formatAdminDate(bill.createdAtUtc)}</p>
-      <p class="muted">Customer: ${escapeHtml(order.customerName || "Guest")}</p>
+      <div class="top-mark"><span></span><div class="brand-dot">QR</div><span></span></div>
+      <h1>${escapeHtml(branch.name)}</h1>
+      <div class="subhead">
+        ${branchAddress ? `<p class="muted">${escapeHtml(branchAddress)}</p>` : ""}
+        ${branch.phoneNumber ? `<p class="muted">Phone: ${escapeHtml(branch.phoneNumber)}</p>` : ""}
+      </div>
+      <div class="receipt-title">
+        <h2>TAX INVOICE</h2>
+        <p>${escapeHtml(bill.billNumber)}</p>
+      </div>
+      <section class="meta-box">
+        <div class="line"><span>Order</span><strong>#${shortOrderCode(order.orderId)}</strong></div>
+        <div class="line"><span>Table</span><strong>${escapeHtml(order.tableName)}</strong></div>
+        <div class="line"><span>Date</span><strong>${escapeHtml(formatAdminDate(bill.createdAtUtc))}</strong></div>
+        <div class="line"><span>Customer</span><strong>${escapeHtml(order.customerName || "Guest")}</strong></div>
+      </section>
       <table>
-        <thead><tr><th>Item</th><th>Qty</th><th>Rate</th><th>Total</th></tr></thead>
+        <thead><tr><th>ITEM</th><th>QTY</th><th>RATE</th><th>AMT</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
       <section class="totals">
         <div class="line"><span>Subtotal</span><span>${formatMoney(bill.subtotalAmount)}</span></div>
-        <div class="line"><span>Discount</span><span>${formatMoney(bill.discountAmount)}</span></div>
-        <div class="line"><span>${escapeHtml(bill.taxName)} (${bill.taxRate}%, ${escapeHtml(bill.taxMode)})</span><span>${formatMoney(bill.taxAmount)}</span></div>
-        <div class="line"><span>${escapeHtml(bill.serviceChargeName)}</span><span>${formatMoney(bill.serviceChargeAmount)}</span></div>
-        <div class="line"><span>Rounding</span><span>${formatMoney(bill.roundingAmount)}</span></div>
+        ${bill.discountAmount > 0 ? `<div class="line"><span>Discount</span><span>-${formatMoney(bill.discountAmount)}</span></div>` : ""}
+        ${bill.taxAmount > 0 ? `<div class="line"><span>${escapeHtml(bill.taxName)} ${bill.taxRate}% ${escapeHtml(bill.taxMode)}</span><span>${formatMoney(bill.taxAmount)}</span></div>` : ""}
+        ${bill.serviceChargeAmount > 0 ? `<div class="line"><span>${escapeHtml(bill.serviceChargeName)}</span><span>${formatMoney(bill.serviceChargeAmount)}</span></div>` : ""}
+        ${Math.abs(bill.roundingAmount) >= 0.01 ? `<div class="line"><span>Rounding</span><span>${formatMoney(bill.roundingAmount)}</span></div>` : ""}
         <div class="line grand"><span>Total</span><span>${formatMoney(bill.totalAmount)}</span></div>
-        <div class="line"><span>Payment</span><span>${escapeHtml(bill.paymentStatusCode)}${bill.paymentMethod ? ` - ${escapeHtml(bill.paymentMethod)}` : ""}</span></div>
       </section>
+      <div class="payment">Payment: ${escapeHtml(paymentText)}</div>
+      <div class="barcode">${Array.from({ length: 32 }, () => "<span></span>").join("")}</div>
+      <div class="footer">
+        <p class="muted">Thank you. Please visit again.</p>
+        <p class="muted">Powered by Qrave</p>
+      </div>
     </main>
   </body>
 </html>`;
