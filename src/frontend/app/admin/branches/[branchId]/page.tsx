@@ -9,6 +9,7 @@ import {
   ChefHat,
   ChevronRight,
   Download,
+  Eye,
   Loader2,
   Plus,
   Power,
@@ -24,7 +25,8 @@ import {
   ClipboardList,
   Clock3,
   Flame,
-  PackageCheck
+  PackageCheck,
+  X
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
@@ -36,6 +38,7 @@ import { Alert, AlertDescription } from "../../../../components/ui/alert";
 import { Badge } from "../../../../components/ui/badge";
 import { Button } from "../../../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../../components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../../components/ui/dialog";
 import { Input } from "../../../../components/ui/input";
 import { Label } from "../../../../components/ui/label";
 import { Skeleton } from "../../../../components/ui/skeleton";
@@ -146,6 +149,14 @@ type FeedbackState = {
   message: string;
 };
 
+type QrPreviewState = {
+  table: BranchTable;
+  branchName: string;
+  contactLine: string;
+  url: string;
+  placardDataUrl: string;
+};
+
 type WorkspaceTab = "profile" | "tables";
 
 const EmptyCategoryForm: CategoryForm = { name: "", displayOrder: "1" };
@@ -228,6 +239,7 @@ export default function AdminBranchDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<FeedbackState | null>(null);
+  const [qrPreview, setQrPreview] = useState<QrPreviewState | null>(null);
   const [highlightedOrderIds, setHighlightedOrderIds] = useState<Set<string>>(new Set());
   const [highlightedWaiterCallIds, setHighlightedWaiterCallIds] = useState<Set<string>>(new Set());
   const [soundAlertsEnabled, setSoundAlertsEnabled] = useState(false);
@@ -789,20 +801,43 @@ export default function AdminBranchDetailPage() {
     showSuccess("QR menu link copied.");
   }
 
+  async function buildTableQrPreview(table: BranchTable): Promise<QrPreviewState> {
+    const url = getQrMenuUrl(table);
+    const qrDataUrl = await QRCode.toDataURL(url, {
+      errorCorrectionLevel: "M",
+      margin: 2,
+      width: 720
+    });
+    const branchName = branch?.name ?? "Qrave";
+    const contactLine = getQrContactLine(branch);
+    const placardDataUrl = await buildQrPlacardDataUrl(branchName, contactLine, table.name, url, qrDataUrl);
+
+    return {
+      table,
+      branchName,
+      contactLine,
+      url,
+      placardDataUrl
+    };
+  }
+
+  async function handleViewQr(table: BranchTable) {
+    setFeedback({ type: "loading", message: "Preparing QR preview..." });
+
+    try {
+      setQrPreview(await buildTableQrPreview(table));
+      showSuccess("QR preview ready.");
+    } catch {
+      showError("Could not prepare the QR preview. Please try again.");
+    }
+  }
+
   async function handleDownloadQr(table: BranchTable) {
     try {
-      const url = getQrMenuUrl(table);
-      const qrDataUrl = await QRCode.toDataURL(url, {
-        errorCorrectionLevel: "M",
-        margin: 2,
-        width: 720
-      });
-      const branchName = branch?.name ?? "Qrave";
-      const contactLine = getQrContactLine(branch);
-      const dataUrl = await buildQrPlacardDataUrl(branchName, contactLine, table.name, url, qrDataUrl);
+      const preview = await buildTableQrPreview(table);
       const link = document.createElement("a");
-      link.href = dataUrl;
-      link.download = `${safeFileName(branchName)}-${safeFileName(table.name)}-table-qr.png`;
+      link.href = preview.placardDataUrl;
+      link.download = `${safeFileName(preview.branchName)}-${safeFileName(table.name)}-table-qr.png`;
       link.click();
       showSuccess("Table QR placard downloaded.");
     } catch {
@@ -812,12 +847,7 @@ export default function AdminBranchDetailPage() {
 
   async function handlePrintQr(table: BranchTable) {
     try {
-      const url = getQrMenuUrl(table);
-      const dataUrl = await QRCode.toDataURL(url, {
-        errorCorrectionLevel: "M",
-        margin: 2,
-        width: 768
-      });
+      const preview = await buildTableQrPreview(table);
       const printWindow = window.open("", "_blank", "width=520,height=720");
 
       if (!printWindow) {
@@ -825,10 +855,8 @@ export default function AdminBranchDetailPage() {
         return;
       }
 
-      const branchName = branch?.name ?? "Qrave";
-      const contactLine = getQrContactLine(branch);
-      const title = `${branchName} - ${table.name}`;
-      printWindow.document.write(buildQrPrintHtml(title, branchName, contactLine, table.name, url, dataUrl));
+      const title = `${preview.branchName} - ${preview.table.name}`;
+      printWindow.document.write(buildQrPrintHtml(title, preview.table.name, preview.placardDataUrl));
       printWindow.document.close();
       printWindow.focus();
       printWindow.print();
@@ -952,6 +980,7 @@ export default function AdminBranchDetailPage() {
                   onFormChange={setTableForm}
                   onCreateTable={handleCreateTable}
                   onCopyQrLink={handleCopyQrLink}
+                  onViewQr={handleViewQr}
                   onDownloadQr={handleDownloadQr}
                   onPrintQr={handlePrintQr}
                   onDeactivateTable={handleDeactivateTable}
@@ -963,6 +992,15 @@ export default function AdminBranchDetailPage() {
           </>
         )}
       </div>
+      {qrPreview ? (
+        <QrPreviewDialog
+          preview={qrPreview}
+          onClose={() => setQrPreview(null)}
+          onCopyLink={() => void handleCopyQrLink(qrPreview.table)}
+          onDownload={() => void handleDownloadQr(qrPreview.table)}
+          onPrint={() => void handlePrintQr(qrPreview.table)}
+        />
+      ) : null}
       <FloatingFeedback feedback={feedback} onClose={() => setFeedback(null)} />
     </AdminShell>
   );
@@ -2125,6 +2163,65 @@ function ClosedOrderRow({ order }: { order: AdminOrder }) {
   );
 }
 
+function QrPreviewDialog({
+  preview,
+  onClose,
+  onCopyLink,
+  onDownload,
+  onPrint
+}: {
+  preview: QrPreviewState;
+  onClose: () => void;
+  onCopyLink: () => void;
+  onDownload: () => void;
+  onPrint: () => void;
+}) {
+  return (
+    <Dialog>
+      <DialogContent className="max-w-3xl bg-surface-container-lowest p-0">
+        <div className="flex items-start justify-between gap-3 border-b border-outline-variant/30 px-5 py-4">
+          <DialogHeader className="min-w-0">
+            <DialogTitle className="truncate text-primary">QR preview - {preview.table.name}</DialogTitle>
+            <DialogDescription className="truncate">{preview.branchName}</DialogDescription>
+          </DialogHeader>
+          <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Close QR preview">
+            <X size={18} />
+          </Button>
+        </div>
+
+        <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_16rem]">
+          <div className="rounded-lg border border-outline-variant/40 bg-surface-container-low p-3">
+            <img src={preview.placardDataUrl} alt={`Printable QR placard for ${preview.table.name}`} className="mx-auto h-auto max-h-[70vh] w-full max-w-sm object-contain" />
+          </div>
+
+          <aside className="space-y-4">
+            <div className="rounded-lg border border-outline-variant/40 bg-white p-4">
+              <p className="text-xs font-bold uppercase tracking-[0.08em] text-on-surface-variant">Table</p>
+              <p className="mt-1 text-lg font-extrabold text-on-surface">{preview.table.name}</p>
+              <p className="mt-3 break-all text-xs leading-5 text-on-surface-variant">{preview.url}</p>
+            </div>
+
+            <div className="grid gap-2">
+              <Button type="button" onClick={onPrint}>
+                <Printer size={16} />
+                Print
+              </Button>
+              <Button type="button" variant="outline" onClick={onDownload}>
+                <Download size={16} />
+                Download PNG
+              </Button>
+              <Button type="button" variant="outline" onClick={onCopyLink}>
+                <Copy size={16} />
+                Copy Link
+              </Button>
+            </div>
+          </aside>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function TablesPanel({
   tables,
   form,
@@ -2132,6 +2229,7 @@ function TablesPanel({
   onFormChange,
   onCreateTable,
   onCopyQrLink,
+  onViewQr,
   onDownloadQr,
   onPrintQr,
   onDeactivateTable,
@@ -2143,6 +2241,7 @@ function TablesPanel({
   onFormChange: (form: TableForm) => void;
   onCreateTable: (event: FormEvent<HTMLFormElement>) => void;
   onCopyQrLink: (table: BranchTable) => void;
+  onViewQr: (table: BranchTable) => void;
   onDownloadQr: (table: BranchTable) => void;
   onPrintQr: (table: BranchTable) => void;
   onDeactivateTable: (table: BranchTable) => void;
@@ -2189,6 +2288,10 @@ function TablesPanel({
                   <Button type="button" variant="outline" size="sm" onClick={() => onCopyQrLink(table)}>
                     <Copy size={15} />
                     Copy Link
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => onViewQr(table)}>
+                    <Eye size={15} />
+                    View
                   </Button>
                   <Button type="button" variant="outline" size="sm" onClick={() => onDownloadQr(table)}>
                     <Download size={15} />
@@ -2734,12 +2837,9 @@ function drawCenteredText(context: CanvasRenderingContext2D, text: string, x: nu
   context.fillText(text, x, y, maxWidth);
 }
 
-function buildQrPrintHtml(title: string, branchName: string, contactLine: string, tableName: string, url: string, qrDataUrl: string): string {
+function buildQrPrintHtml(title: string, tableName: string, placardDataUrl: string): string {
   const safeTitle = escapeHtml(title);
-  const safeBranchName = escapeHtml(branchName);
-  const safeContactLine = escapeHtml(contactLine);
   const safeTableName = escapeHtml(tableName);
-  const safeUrl = escapeHtml(url);
 
   return `<!doctype html>
 <html>
@@ -2750,86 +2850,43 @@ function buildQrPrintHtml(title: string, branchName: string, contactLine: string
       body {
         margin: 0;
         font-family: Arial, sans-serif;
-        color: #151515;
+        background: #ffffff;
       }
       .sheet {
         display: grid;
-        min-height: 100vh;
+        min-height: 100dvh;
         place-items: center;
-        padding: 24px;
-        text-align: center;
-      }
-      .placard {
-        box-sizing: border-box;
-        width: min(92vw, 520px);
-        min-height: min(92vh, 760px);
-        border: 4px solid #d9d4c8;
-        padding: 36px 28px;
-      }
-      .scan {
-        margin: 0 0 18px;
-        color: #1f4f46;
-        font-size: 48px;
-        font-weight: 800;
-        letter-spacing: 0.08em;
-      }
-      .branch {
-        margin: 0 0 8px;
-        font-size: 32px;
-        font-weight: 700;
-      }
-      .contact {
-        margin: 0 0 22px;
-        color: #555;
-        font-size: 15px;
-        overflow-wrap: anywhere;
-      }
-      .table {
-        margin: 0 0 24px;
-        font-size: 20px;
-        font-weight: 600;
+        padding: 16px;
       }
       img {
-        width: min(70vw, 340px);
+        display: block;
+        width: min(92vw, 520px);
         height: auto;
       }
-      .hint {
-        margin: 24px auto 0;
-        max-width: 360px;
-        color: #333;
-        font-size: 16px;
-        line-height: 1.5;
-      }
-      .url {
-        margin: 16px auto 0;
-        max-width: 420px;
-        overflow-wrap: anywhere;
-        color: #555;
-        font-size: 13px;
-      }
       @media print {
-        .sheet {
-          min-height: auto;
-          padding: 10mm;
+        @page {
+          margin: 10mm;
+          size: A4 portrait;
         }
-        .placard {
-          width: 100%;
-          min-height: 257mm;
+        body {
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+        .sheet {
+          min-height: 0;
+          padding: 0;
+        }
+        img {
+          max-height: 277mm;
+          width: auto;
+          max-width: 190mm;
         }
       }
     </style>
   </head>
   <body>
     <main class="sheet">
-      <section class="placard">
-        <p class="scan">SCAN ME</p>
-        <h1 class="branch">${safeBranchName}</h1>
-        <p class="contact">${safeContactLine}</p>
-        <p class="table">${safeTableName}</p>
-        <img src="${qrDataUrl}" alt="QR code for ${safeTableName}" />
-        <p class="hint">Scan this QR code to view the menu and place your order.</p>
-        <p class="url">${safeUrl}</p>
-      </section>
+      <img src="${placardDataUrl}" alt="Printable QR placard for ${safeTableName}" />
     </main>
   </body>
 </html>`;
