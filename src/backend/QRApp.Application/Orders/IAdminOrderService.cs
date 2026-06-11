@@ -15,5 +15,6 @@ public interface IAdminOrderService
         Guid branchId,
         Guid orderId,
         UpdateAdminOrderStatusRequest request,
+        Guid changedByUserId,
         CancellationToken cancellationToken);
 }

@@ -53,6 +53,7 @@ public sealed class SqlAdminOrderRepository(ISqlConnectionFactory connectionFact
         Guid orderId,
         string orderStatusCode,
         string? reason,
+        Guid changedByUserId,
         CancellationToken cancellationToken)
     {
         await using var connection = (SqlConnection)connectionFactory.CreateConnection();
@@ -67,6 +68,7 @@ public sealed class SqlAdminOrderRepository(ISqlConnectionFactory connectionFact
         command.AddGuid("@OrderId", orderId);
         command.AddString("@OrderStatusCode", orderStatusCode, 32);
         command.AddString("@Reason", reason, 300);
+        command.AddGuid("@ChangedByUserId", changedByUserId);
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         if (!await reader.ReadAsync(cancellationToken))

@@ -19,6 +19,7 @@ public static class AdminOrderEndpoints
         group.MapGet("/branches/{branchId:guid}/orders/{orderId:guid}/bill", GetBillAsync);
         group.MapPost("/branches/{branchId:guid}/orders/{orderId:guid}/bill", GenerateBillAsync);
         group.MapPut("/branches/{branchId:guid}/orders/{orderId:guid}/bill/payment-status", UpdateBillPaymentStatusAsync);
+        group.MapPut("/branches/{branchId:guid}/orders/{orderId:guid}/bill/refund-status", UpdateBillRefundStatusAsync);
 
         return app;
     }
@@ -63,7 +64,7 @@ public static class AdminOrderEndpoints
     {
         try
         {
-            var result = await service.UpdateStatusAsync(tenantContext.TenantId, branchId, orderId, request, cancellationToken);
+            var result = await service.UpdateStatusAsync(tenantContext.TenantId, branchId, orderId, request, tenantContext.UserId, cancellationToken);
             if (!result.IsSuccess)
             {
                 return ApiProblemResponses.Validation(result.Errors);
@@ -192,6 +193,34 @@ public static class AdminOrderEndpoints
         {
             loggerFactory.CreateLogger(nameof(AdminOrderEndpoints)).LogError(ex, "Failed to update bill payment status for order {OrderId}.", orderId);
             return ApiProblemResponses.ServerError("Bill payment status could not be updated.");
+        }
+    }
+
+    private static async Task<IResult> UpdateBillRefundStatusAsync(
+        Guid branchId,
+        Guid orderId,
+        UpdateOrderBillRefundStatusRequest request,
+        ITenantContext tenantContext,
+        IBillingService service,
+        ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await service.UpdateRefundStatusAsync(tenantContext.TenantId, branchId, orderId, request, tenantContext.UserId, cancellationToken);
+            return result.IsSuccess ? Results.Ok(result.Value) : ApiProblemResponses.Validation(result.Errors);
+        }
+        catch (Exception ex)
+        when (ex is SqlException)
+        {
+            var sqlException = (SqlException)ex;
+            loggerFactory.CreateLogger(nameof(AdminOrderEndpoints)).LogWarning(sqlException, "Database rejected bill refund status update for order {OrderId}.", orderId);
+            return SqlProblemMapper.ToProblem(sqlException);
+        }
+        catch (Exception ex)
+        {
+            loggerFactory.CreateLogger(nameof(AdminOrderEndpoints)).LogError(ex, "Failed to update bill refund status for order {OrderId}.", orderId);
+            return ApiProblemResponses.ServerError("Bill refund status could not be updated.");
         }
     }
 

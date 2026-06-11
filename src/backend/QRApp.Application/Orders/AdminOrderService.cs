@@ -30,6 +30,7 @@ public sealed class AdminOrderService(IAdminOrderRepository repository) : IAdmin
         Guid branchId,
         Guid orderId,
         UpdateAdminOrderStatusRequest request,
+        Guid changedByUserId,
         CancellationToken cancellationToken)
     {
         var status = TextRules.CleanRequired(request.OrderStatusCode);
@@ -46,8 +47,14 @@ public sealed class AdminOrderService(IAdminOrderRepository repository) : IAdmin
                 new ValidationFailure(nameof(UpdateAdminOrderStatusRequest.Reason), "Status reason cannot exceed 300 characters."));
         }
 
+        if (string.Equals(status, "Cancelled", StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(reason))
+        {
+            return OperationResult<AdminOrderResponse>.Failed(
+                new ValidationFailure(nameof(UpdateAdminOrderStatusRequest.Reason), "Cancellation reason is required."));
+        }
+
         var normalized = AllowedStatuses.First(item => string.Equals(item, status, StringComparison.OrdinalIgnoreCase));
-        var order = await repository.UpdateStatusAsync(tenantId, branchId, orderId, normalized, reason, cancellationToken);
+        var order = await repository.UpdateStatusAsync(tenantId, branchId, orderId, normalized, reason, changedByUserId, cancellationToken);
         return OperationResult<AdminOrderResponse>.Success(order);
     }
 }

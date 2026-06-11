@@ -142,6 +142,8 @@ export type RoundingMode = "None" | "NearestRupee";
 
 export type PaymentStatusCode = "Unpaid" | "Paid" | "PartiallyPaid" | "Voided";
 
+export type RefundStatusCode = "NotRefunded" | "PartiallyRefunded" | "Refunded";
+
 export type BranchBillingSettings = {
   branchBillingSettingsId: string;
   tenantId: string;
@@ -352,6 +354,10 @@ export type OrderBill = {
   serviceChargeName: string;
   serviceChargeRate: number;
   discountEnabled: boolean;
+  refundStatusCode: RefundStatusCode;
+  refundAmount: number;
+  refundReason: string | null;
+  refundedAtUtc: string | null;
   createdAtUtc: string;
   updatedAtUtc: string | null;
 };
@@ -647,6 +653,12 @@ export type GenerateOrderBillInput = {
 export type UpdateOrderBillPaymentStatusInput = {
   paymentStatusCode: PaymentStatusCode;
   paymentMethod: string | null;
+  reason: string | null;
+};
+
+export type UpdateOrderBillRefundStatusInput = {
+  refundStatusCode: RefundStatusCode;
+  refundAmount: number;
   reason: string | null;
 };
 
@@ -967,6 +979,14 @@ export async function generateOrderBill(branchId: string, orderId: string, input
 
 export async function updateOrderBillPaymentStatus(branchId: string, orderId: string, input: UpdateOrderBillPaymentStatusInput): Promise<OrderBill> {
   return request<OrderBill>(`/api/v1/admin/branches/${branchId}/orders/${orderId}/bill/payment-status`, {
+    method: "PUT",
+    body: input,
+    requireAuth: true
+  });
+}
+
+export async function updateOrderBillRefundStatus(branchId: string, orderId: string, input: UpdateOrderBillRefundStatusInput): Promise<OrderBill> {
+  return request<OrderBill>(`/api/v1/admin/branches/${branchId}/orders/${orderId}/bill/refund-status`, {
     method: "PUT",
     body: input,
     requireAuth: true

@@ -141,6 +141,38 @@ public sealed class SqlBillingRepository(ISqlConnectionFactory connectionFactory
         throw new DataException("OrderBill_UpdatePaymentStatus did not return a bill row.");
     }
 
+    public async Task<OrderBillResponse> UpdateRefundStatusAsync(
+        Guid tenantId,
+        Guid branchId,
+        Guid orderId,
+        UpdateOrderBillRefundStatusRequest request,
+        Guid changedByUserId,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = (SqlConnection)connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new SqlCommand(StoredProcedures.OrderBillUpdateRefundStatus, connection)
+        {
+            CommandType = CommandType.StoredProcedure
+        };
+
+        command.AddGuid("@TenantId", tenantId);
+        command.AddGuid("@BranchId", branchId);
+        command.AddGuid("@OrderId", orderId);
+        command.AddString("@RefundStatusCode", request.RefundStatusCode, 32);
+        command.AddDecimal("@RefundAmount", request.RefundAmount, 10, 2);
+        command.AddString("@Reason", request.Reason, 300);
+        command.AddGuid("@ChangedByUserId", changedByUserId);
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (await reader.ReadAsync(cancellationToken))
+        {
+            return ReadBill(reader);
+        }
+
+        throw new DataException("OrderBill_UpdateRefundStatus did not return a bill row.");
+    }
+
     private static BranchBillingSettingsResponse ReadSettings(SqlDataReader reader)
     {
         return new BranchBillingSettingsResponse(
@@ -186,6 +218,10 @@ public sealed class SqlBillingRepository(ISqlConnectionFactory connectionFactory
             reader.GetString(reader.GetOrdinal("ServiceChargeName")),
             reader.GetDecimal(reader.GetOrdinal("ServiceChargeRate")),
             reader.GetBoolean(reader.GetOrdinal("DiscountEnabled")),
+            reader.GetString(reader.GetOrdinal("RefundStatusCode")),
+            reader.GetDecimal(reader.GetOrdinal("RefundAmount")),
+            GetNullableString(reader, "RefundReason"),
+            GetNullableDateTime(reader, "RefundedAtUtc"),
             reader.GetDateTime(reader.GetOrdinal("CreatedAtUtc")),
             reader.IsDBNull(reader.GetOrdinal("UpdatedAtUtc")) ? null : reader.GetDateTime(reader.GetOrdinal("UpdatedAtUtc")));
     }
@@ -194,5 +230,11 @@ public sealed class SqlBillingRepository(ISqlConnectionFactory connectionFactory
     {
         var ordinal = reader.GetOrdinal(name);
         return reader.IsDBNull(ordinal) ? null : reader.GetString(ordinal);
+    }
+
+    private static DateTime? GetNullableDateTime(SqlDataReader reader, string name)
+    {
+        var ordinal = reader.GetOrdinal(name);
+        return reader.IsDBNull(ordinal) ? null : reader.GetDateTime(ordinal);
     }
 }

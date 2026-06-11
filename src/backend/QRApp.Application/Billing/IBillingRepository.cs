@@ -28,4 +28,12 @@ public interface IBillingRepository
         UpdateOrderBillPaymentStatusRequest request,
         Guid changedByUserId,
         CancellationToken cancellationToken);
+
+    Task<OrderBillResponse> UpdateRefundStatusAsync(
+        Guid tenantId,
+        Guid branchId,
+        Guid orderId,
+        UpdateOrderBillRefundStatusRequest request,
+        Guid changedByUserId,
+        CancellationToken cancellationToken);
 }

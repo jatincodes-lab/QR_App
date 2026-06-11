@@ -53,6 +53,7 @@ internal static class StoredProcedures
     public const string OrderBillGetByOrder = "dbo.OrderBill_GetByOrder";
     public const string OrderBillGenerate = "dbo.OrderBill_Generate";
     public const string OrderBillUpdatePaymentStatus = "dbo.OrderBill_UpdatePaymentStatus";
+    public const string OrderBillUpdateRefundStatus = "dbo.OrderBill_UpdateRefundStatus";
 
     public const string ReportOrderSummary = "dbo.Report_OrderSummary";
     public const string ReportOrders = "dbo.Report_Orders";

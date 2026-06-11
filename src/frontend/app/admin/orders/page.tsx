@@ -2,7 +2,7 @@
 
 import { ReactNode, useEffect, useMemo, useState } from "react";
 import type { HubConnection } from "@microsoft/signalr";
-import { ClipboardList, Loader2, Printer, ReceiptText, RefreshCw, Store, Users, X } from "lucide-react";
+import { Ban, ClipboardList, Loader2, Printer, ReceiptText, RefreshCw, Store, Users, X } from "lucide-react";
 import { AdminShell } from "../../../components/admin-shell";
 import { EmptyBranchState, MetricCard, PageError, PageLoading } from "../../../components/admin-page-common";
 import { Badge } from "../../../components/ui/badge";
@@ -19,6 +19,7 @@ import {
   getWaiterCalls,
   updateAdminOrderStatus,
   updateOrderBillPaymentStatus,
+  updateOrderBillRefundStatus,
   updateWaiterCallStatus,
   type AdminOrder,
   type BranchBillingSettings,
@@ -26,6 +27,7 @@ import {
   type OrderBill,
   type OrderStatusCode,
   type PaymentStatusCode,
+  type RefundStatusCode,
   type WaiterCall,
   type WaiterCallStatusCode
 } from "../../../lib/api";
@@ -53,7 +55,17 @@ type BillDialogState = {
   paymentStatusCode: PaymentStatusCode;
   paymentMethod: string;
   reason: string;
+  paymentReason: string;
+  refundStatusCode: RefundStatusCode;
+  refundAmount: string;
+  refundReason: string;
   isLoading: boolean;
+};
+
+type OrderActionDialogState = {
+  order: AdminOrder;
+  status: OrderStatusCode;
+  reason: string;
 };
 
 export default function AdminOrdersPage() {
@@ -62,6 +74,7 @@ export default function AdminOrdersPage() {
   const [waiterCalls, setWaiterCalls] = useState<WaiterCall[]>([]);
   const [billingSettings, setBillingSettings] = useState<BranchBillingSettings | null>(null);
   const [billDialog, setBillDialog] = useState<BillDialogState | null>(null);
+  const [orderAction, setOrderAction] = useState<OrderActionDialogState | null>(null);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [liveState, setLiveState] = useState<"connecting" | "live" | "offline">("offline");
   const [savingKey, setSavingKey] = useState<string | null>(null);
@@ -165,19 +178,47 @@ export default function AdminOrdersPage() {
     }
   }
 
-  async function moveOrder(order: AdminOrder, status: OrderStatusCode) {
-    if (!workspace.selectedBranch) {
+  function requestMoveOrder(order: AdminOrder, status: OrderStatusCode) {
+    if (status === "Cancelled") {
+      setOrderAction({ order, status, reason: "" });
       return;
+    }
+
+    void moveOrder(order, status);
+  }
+
+  async function moveOrder(order: AdminOrder, status: OrderStatusCode, reason: string | null = null): Promise<boolean> {
+    if (!workspace.selectedBranch) {
+      return false;
     }
 
     setSavingKey(order.orderId);
     try {
-      const updated = await updateAdminOrderStatus(workspace.selectedBranch.branchId, order.orderId, status);
+      const updated = await updateAdminOrderStatus(workspace.selectedBranch.branchId, order.orderId, status, reason);
       setOrders((current) => current.map((item) => (item.orderId === updated.orderId ? updated : item)));
+      return true;
     } catch (caught) {
       workspace.handleApiError(caught);
+      return false;
     } finally {
       setSavingKey(null);
+    }
+  }
+
+  async function confirmOrderAction() {
+    if (!orderAction) {
+      return;
+    }
+
+    const reason = orderAction.reason.trim();
+    if (!reason) {
+      workspace.setWorkspaceError("Cancellation reason is required.");
+      return;
+    }
+
+    const wasUpdated = await moveOrder(orderAction.order, orderAction.status, reason);
+    if (wasUpdated) {
+      setOrderAction(null);
     }
   }
 
@@ -211,6 +252,10 @@ export default function AdminOrdersPage() {
       paymentStatusCode: "Unpaid",
       paymentMethod: "",
       reason: "",
+      paymentReason: "",
+      refundStatusCode: "NotRefunded",
+      refundAmount: "0",
+      refundReason: "",
       isLoading: true
     });
 
@@ -224,6 +269,10 @@ export default function AdminOrdersPage() {
         paymentStatusCode: bill?.paymentStatusCode ?? "Unpaid",
         paymentMethod: bill?.paymentMethod ?? "",
         reason: "",
+        paymentReason: "",
+        refundStatusCode: bill?.refundStatusCode ?? "NotRefunded",
+        refundAmount: String(bill?.refundAmount ?? 0),
+        refundReason: bill?.refundReason ?? "",
         isLoading: false
       });
     } catch (caught) {
@@ -246,7 +295,16 @@ export default function AdminOrdersPage() {
       });
 
       setOrders((current) => current.map((order) => (order.orderId === bill.orderId ? { ...order, totalAmount: bill.totalAmount } : order)));
-      setBillDialog({ ...billDialog, bill, paymentStatusCode: bill.paymentStatusCode, paymentMethod: bill.paymentMethod ?? "", isLoading: false });
+      setBillDialog({
+        ...billDialog,
+        bill,
+        paymentStatusCode: bill.paymentStatusCode,
+        paymentMethod: bill.paymentMethod ?? "",
+        refundStatusCode: bill.refundStatusCode,
+        refundAmount: String(bill.refundAmount),
+        refundReason: bill.refundReason ?? "",
+        isLoading: false
+      });
     } catch (caught) {
       workspace.handleApiError(caught);
     } finally {
@@ -259,14 +317,70 @@ export default function AdminOrdersPage() {
       return;
     }
 
+    const paymentReason = billDialog.paymentReason.trim();
+    if (billDialog.paymentStatusCode === "Voided" && !paymentReason) {
+      workspace.setWorkspaceError("Void reason is required.");
+      return;
+    }
+
     setSavingKey(`payment-${billDialog.order.orderId}`);
     try {
       const bill = await updateOrderBillPaymentStatus(workspace.selectedBranch.branchId, billDialog.order.orderId, {
         paymentStatusCode: billDialog.paymentStatusCode,
         paymentMethod: billDialog.paymentMethod.trim() || null,
-        reason: billDialog.reason.trim() || null
+        reason: paymentReason || null
       });
-      setBillDialog({ ...billDialog, bill, paymentStatusCode: bill.paymentStatusCode, paymentMethod: bill.paymentMethod ?? "", reason: "" });
+      setBillDialog({ ...billDialog, bill, paymentStatusCode: bill.paymentStatusCode, paymentMethod: bill.paymentMethod ?? "", paymentReason: "" });
+    } catch (caught) {
+      workspace.handleApiError(caught);
+    } finally {
+      setSavingKey(null);
+    }
+  }
+
+  async function saveRefundStatus() {
+    if (!workspace.selectedBranch || !billDialog?.bill) {
+      return;
+    }
+
+    const refundAmount = roundMoney(Number(billDialog.refundAmount) || 0);
+    const totalAmount = roundMoney(billDialog.bill.totalAmount);
+    const reason = billDialog.refundReason.trim();
+
+    if (billDialog.refundStatusCode !== "NotRefunded" && !reason) {
+      workspace.setWorkspaceError("Refund reason is required.");
+      return;
+    }
+
+    if (billDialog.refundStatusCode === "NotRefunded" && refundAmount !== 0) {
+      workspace.setWorkspaceError("Refund amount must be 0 when status is not refunded.");
+      return;
+    }
+
+    if (billDialog.refundStatusCode === "PartiallyRefunded" && (refundAmount <= 0 || refundAmount >= totalAmount)) {
+      workspace.setWorkspaceError("Partial refund amount must be greater than 0 and less than the bill total.");
+      return;
+    }
+
+    if (billDialog.refundStatusCode === "Refunded" && refundAmount !== totalAmount) {
+      workspace.setWorkspaceError("Full refund amount must equal the bill total.");
+      return;
+    }
+
+    setSavingKey(`refund-${billDialog.order.orderId}`);
+    try {
+      const bill = await updateOrderBillRefundStatus(workspace.selectedBranch.branchId, billDialog.order.orderId, {
+        refundStatusCode: billDialog.refundStatusCode,
+        refundAmount,
+        reason: reason || null
+      });
+      setBillDialog({
+        ...billDialog,
+        bill,
+        refundStatusCode: bill.refundStatusCode,
+        refundAmount: String(bill.refundAmount),
+        refundReason: bill.refundReason ?? ""
+      });
     } catch (caught) {
       workspace.handleApiError(caught);
     } finally {
@@ -359,7 +473,7 @@ export default function AdminOrdersPage() {
                   ) : activeOrders.length === 0 ? (
                     <EmptyPanel title="No active orders" text="New QR orders will appear here." />
                   ) : (
-                    activeOrders.map((order) => <OrderCard key={order.orderId} order={order} savingKey={savingKey} onBill={openBill} onMove={moveOrder} />)
+                    activeOrders.map((order) => <OrderCard key={order.orderId} order={order} savingKey={savingKey} onBill={openBill} onMove={requestMoveOrder} />)
                   )}
                 </CardContent>
               </Card>
@@ -392,6 +506,16 @@ export default function AdminOrdersPage() {
           onGenerate={generateBill}
           onPrint={printBill}
           onSavePayment={savePaymentStatus}
+          onSaveRefund={saveRefundStatus}
+        />
+      ) : null}
+      {orderAction ? (
+        <OrderActionDialog
+          action={orderAction}
+          savingKey={savingKey}
+          onChange={setOrderAction}
+          onClose={() => setOrderAction(null)}
+          onConfirm={confirmOrderAction}
         />
       ) : null}
     </AdminShell>
@@ -441,6 +565,12 @@ function OrderCard({
           <ReceiptText size={15} />
           Bill
         </Button>
+        {!["Completed", "Cancelled"].includes(order.orderStatusCode) ? (
+          <Button type="button" size="sm" variant="outline" disabled={savingKey === order.orderId} onClick={() => onMove(order, "Cancelled")}>
+            <Ban size={15} />
+            Cancel
+          </Button>
+        ) : null}
       </div>
     </article>
   );
@@ -453,7 +583,8 @@ function BillDialog({
   onClose,
   onGenerate,
   onPrint,
-  onSavePayment
+  onSavePayment,
+  onSaveRefund
 }: {
   state: BillDialogState;
   savingKey: string | null;
@@ -462,10 +593,12 @@ function BillDialog({
   onGenerate: () => void;
   onPrint: () => void;
   onSavePayment: () => void;
+  onSaveRefund: () => void;
 }) {
   const bill = state.bill;
   const isGenerating = savingKey === `bill-${state.order.orderId}`;
   const isSavingPayment = savingKey === `payment-${state.order.orderId}`;
+  const isSavingRefund = savingKey === `refund-${state.order.orderId}`;
 
   return (
     <Dialog>
@@ -497,6 +630,7 @@ function BillDialog({
                   <BillMetric label="Subtotal" value={formatMoney(state.order.subtotalAmount)} />
                   <BillMetric label="Bill total" value={formatMoney(bill?.totalAmount ?? state.order.totalAmount)} />
                   <BillMetric label="Payment" value={bill?.paymentStatusCode ?? "Draft"} />
+                  {bill?.refundStatusCode !== "NotRefunded" ? <BillMetric label="Refund" value={`${bill?.refundStatusCode} ${formatMoney(bill?.refundAmount ?? 0)}`} /> : null}
                 </div>
 
                 <div className="rounded-lg border border-outline-variant/60 bg-white">
@@ -577,9 +711,72 @@ function BillDialog({
                         <option value="Online">Online</option>
                       </select>
                     </Field>
+                    <Field label={state.paymentStatusCode === "Voided" ? "Void reason" : "Payment note"}>
+                      <Input
+                        value={state.paymentReason}
+                        onChange={(event) => onChange({ ...state, paymentReason: event.target.value })}
+                        placeholder={state.paymentStatusCode === "Voided" ? "Required" : "Optional"}
+                      />
+                    </Field>
                     <Button type="button" variant="outline" onClick={onSavePayment} disabled={!bill || isSavingPayment}>
                       {isSavingPayment ? <Loader2 size={16} className="animate-spin" /> : null}
                       Save payment
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="mt-4 rounded-lg border border-outline-variant/60 bg-white p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-extrabold text-on-surface">Refund</p>
+                      <p className="mt-1 text-xs text-on-surface-variant">Record full or partial refunds with an audit reason.</p>
+                    </div>
+                    <Badge variant={bill?.refundStatusCode === "NotRefunded" ? "outline" : "secondary"}>
+                      {bill?.refundStatusCode ?? "No bill"}
+                    </Badge>
+                  </div>
+                  <div className="mt-3 grid gap-3">
+                    <Field label="Status">
+                      <select
+                        value={state.refundStatusCode}
+                        onChange={(event) => {
+                          const refundStatusCode = event.target.value as RefundStatusCode;
+                          onChange({
+                            ...state,
+                            refundStatusCode,
+                            refundAmount: refundStatusCode === "Refunded" && bill ? String(bill.totalAmount) : refundStatusCode === "NotRefunded" ? "0" : state.refundAmount
+                          });
+                        }}
+                        className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                        disabled={!bill}
+                      >
+                        <option value="NotRefunded">Not refunded</option>
+                        <option value="PartiallyRefunded">Partial refund</option>
+                        <option value="Refunded">Refunded</option>
+                      </select>
+                    </Field>
+                    <Field label="Amount">
+                      <Input
+                        type="number"
+                        min="0"
+                        max={bill?.totalAmount}
+                        step="0.01"
+                        value={state.refundAmount}
+                        onChange={(event) => onChange({ ...state, refundAmount: event.target.value })}
+                        disabled={!bill || state.refundStatusCode === "Refunded" || state.refundStatusCode === "NotRefunded"}
+                      />
+                    </Field>
+                    <Field label={state.refundStatusCode === "NotRefunded" ? "Refund reason" : "Refund reason required"}>
+                      <Input
+                        value={state.refundReason}
+                        onChange={(event) => onChange({ ...state, refundReason: event.target.value })}
+                        placeholder={state.refundStatusCode === "NotRefunded" ? "Optional" : "Required"}
+                        disabled={!bill || state.refundStatusCode === "NotRefunded"}
+                      />
+                    </Field>
+                    <Button type="button" variant="outline" onClick={onSaveRefund} disabled={!bill || isSavingRefund}>
+                      {isSavingRefund ? <Loader2 size={16} className="animate-spin" /> : null}
+                      Save refund
                     </Button>
                   </div>
                 </div>
@@ -625,6 +822,93 @@ function WaiterCallCard({ call, savingKey, onMove }: { call: WaiterCall; savingK
         </Button>
       ) : null}
     </article>
+  );
+}
+
+function OrderActionDialog({
+  action,
+  savingKey,
+  onChange,
+  onClose,
+  onConfirm
+}: {
+  action: OrderActionDialogState;
+  savingKey: string | null;
+  onChange: (action: OrderActionDialogState) => void;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  const isSaving = savingKey === action.order.orderId;
+  const reasonLength = action.reason.trim().length;
+
+  return (
+    <Dialog>
+      <DialogContent className="max-w-lg overflow-hidden bg-white p-0">
+        <div className="border-b border-outline-variant/60 bg-surface-container-low px-5 py-4">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <span className="grid h-9 w-9 place-items-center rounded-full bg-destructive/10 text-destructive">
+                <Ban size={18} />
+              </span>
+              Cancel order
+            </DialogTitle>
+            <DialogDescription>This will close the order and void any unpaid bill linked to it.</DialogDescription>
+          </DialogHeader>
+        </div>
+
+        <div className="grid gap-4 p-5">
+          <div className="rounded-lg border border-outline-variant/70 bg-surface-container-low p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-extrabold text-on-surface">{action.order.tableName} - #{shortOrderCode(action.order.orderId)}</p>
+                <p className="mt-1 text-xs text-on-surface-variant">{action.order.customerName || "Guest"} - {formatAdminDate(action.order.createdAtUtc)}</p>
+              </div>
+              <Badge variant="outline">{action.order.orderStatusCode}</Badge>
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-normal text-on-surface-variant">Items</p>
+                <p className="mt-1 font-extrabold text-on-surface">{action.order.items.length}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs font-bold uppercase tracking-normal text-on-surface-variant">Value</p>
+                <p className="mt-1 font-extrabold text-primary">{formatMoney(action.order.totalAmount)}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-1.5">
+            <div className="flex items-center justify-between gap-3">
+              <Label>Cancellation reason</Label>
+              <span className={`text-xs font-bold ${reasonLength > 300 ? "text-destructive" : "text-on-surface-variant"}`}>{reasonLength}/300</span>
+            </div>
+            <textarea
+              value={action.reason}
+              onChange={(event) => onChange({ ...action, reason: event.target.value })}
+              placeholder="Required, for example: customer requested cancellation"
+              maxLength={320}
+              autoFocus
+              className="min-h-28 resize-none rounded-md border border-input bg-background px-3 py-2 text-sm text-on-surface shadow-sm outline-none transition-colors placeholder:text-on-surface-variant/70 focus:border-primary focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-50"
+            />
+            <p className="text-xs text-on-surface-variant">This reason is saved in order history and bill audit.</p>
+          </div>
+
+          <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-xs font-semibold text-destructive">
+            Cancelled orders cannot be moved back to active status.
+          </div>
+        </div>
+
+        <div className="flex flex-col-reverse gap-2 border-t border-outline-variant/60 bg-white px-5 py-4 sm:flex-row sm:justify-end">
+          <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
+            Keep order
+          </Button>
+          <Button type="button" variant="destructive" onClick={onConfirm} disabled={isSaving || reasonLength === 0 || reasonLength > 300}>
+            {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Ban size={16} />}
+            Confirm cancel
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -708,6 +992,7 @@ function buildBillPrintHtml(branch: BranchListItem, order: AdminOrder, bill: Ord
     )
     .join("");
   const paymentText = `${bill.paymentStatusCode}${bill.paymentMethod ? ` / ${bill.paymentMethod}` : ""}`;
+  const refundText = bill.refundStatusCode === "NotRefunded" ? "" : `${bill.refundStatusCode} - ${formatMoney(bill.refundAmount)}`;
 
   return `<!doctype html>
 <html>
@@ -743,6 +1028,7 @@ function buildBillPrintHtml(branch: BranchListItem, order: AdminOrder, bill: Ord
       .totals { border-bottom: 2px solid #161616; border-top: 2px solid #161616; display: grid; gap: 6px; margin-top: 12px; padding: 9px 0; font-size: 12px; }
       .grand { align-items: center; background: #f0f0f0; font-size: 17px; font-weight: 900; margin-top: 2px; padding: 8px; }
       .payment { border: 2px solid #161616; font-size: 12px; font-weight: 900; margin-top: 10px; padding: 8px; text-align: center; text-transform: uppercase; }
+      .refund { border: 1px dashed #161616; font-size: 11px; font-weight: 900; margin-top: 8px; padding: 7px; text-align: center; text-transform: uppercase; }
       .barcode { display: flex; gap: 2px; height: 36px; justify-content: center; margin-top: 12px; overflow: hidden; }
       .barcode span { background: #161616; display: block; height: 36px; }
       .barcode span:nth-child(3n) { width: 1px; }
@@ -787,6 +1073,7 @@ function buildBillPrintHtml(branch: BranchListItem, order: AdminOrder, bill: Ord
         <div class="line grand"><span>Total</span><span>${formatMoney(bill.totalAmount)}</span></div>
       </section>
       <div class="payment">Payment: ${escapeHtml(paymentText)}</div>
+      ${refundText ? `<div class="refund">Refund: ${escapeHtml(refundText)}</div>` : ""}
       <div class="barcode">${Array.from({ length: 32 }, () => "<span></span>").join("")}</div>
       <div class="footer">
         <p class="muted">Thank you. Please visit again.</p>

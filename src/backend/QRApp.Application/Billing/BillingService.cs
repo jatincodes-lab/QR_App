@@ -8,6 +8,7 @@ public sealed class BillingService(IBillingRepository repository) : IBillingServ
     private static readonly HashSet<string> TaxModes = new(StringComparer.OrdinalIgnoreCase) { "Exclusive", "Inclusive" };
     private static readonly HashSet<string> RoundingModes = new(StringComparer.OrdinalIgnoreCase) { "None", "NearestRupee" };
     private static readonly HashSet<string> PaymentStatuses = new(StringComparer.OrdinalIgnoreCase) { "Unpaid", "Paid", "PartiallyPaid", "Voided" };
+    private static readonly HashSet<string> RefundStatuses = new(StringComparer.OrdinalIgnoreCase) { "NotRefunded", "PartiallyRefunded", "Refunded" };
 
     public Task<BranchBillingSettingsResponse?> GetSettingsAsync(Guid tenantId, Guid branchId, CancellationToken cancellationToken)
     {
@@ -97,6 +98,11 @@ public sealed class BillingService(IBillingRepository repository) : IBillingServ
             return OperationResult<OrderBillResponse>.Failed(new ValidationFailure(nameof(request.Reason), "Reason cannot exceed 300 characters."));
         }
 
+        if (string.Equals(status, "Voided", StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(reason))
+        {
+            return OperationResult<OrderBillResponse>.Failed(new ValidationFailure(nameof(request.Reason), "Void reason is required."));
+        }
+
         var normalized = request with
         {
             PaymentStatusCode = Normalize(PaymentStatuses, status),
@@ -105,6 +111,47 @@ public sealed class BillingService(IBillingRepository repository) : IBillingServ
         };
 
         var bill = await repository.UpdatePaymentStatusAsync(tenantId, branchId, orderId, normalized, changedByUserId, cancellationToken);
+        return OperationResult<OrderBillResponse>.Success(bill);
+    }
+
+    public async Task<OperationResult<OrderBillResponse>> UpdateRefundStatusAsync(
+        Guid tenantId,
+        Guid branchId,
+        Guid orderId,
+        UpdateOrderBillRefundStatusRequest request,
+        Guid changedByUserId,
+        CancellationToken cancellationToken)
+    {
+        var status = TextRules.CleanRequired(request.RefundStatusCode);
+        if (!RefundStatuses.Contains(status))
+        {
+            return OperationResult<OrderBillResponse>.Failed(new ValidationFailure(nameof(request.RefundStatusCode), "Refund status is invalid."));
+        }
+
+        if (request.RefundAmount < 0)
+        {
+            return OperationResult<OrderBillResponse>.Failed(new ValidationFailure(nameof(request.RefundAmount), "Refund amount cannot be negative."));
+        }
+
+        var reason = TextRules.CleanOptional(request.Reason);
+        if (reason?.Length > 300)
+        {
+            return OperationResult<OrderBillResponse>.Failed(new ValidationFailure(nameof(request.Reason), "Refund reason cannot exceed 300 characters."));
+        }
+
+        var normalizedStatus = Normalize(RefundStatuses, status);
+        if (normalizedStatus != "NotRefunded" && string.IsNullOrWhiteSpace(reason))
+        {
+            return OperationResult<OrderBillResponse>.Failed(new ValidationFailure(nameof(request.Reason), "Refund reason is required."));
+        }
+
+        var normalized = request with
+        {
+            RefundStatusCode = normalizedStatus,
+            Reason = reason
+        };
+
+        var bill = await repository.UpdateRefundStatusAsync(tenantId, branchId, orderId, normalized, changedByUserId, cancellationToken);
         return OperationResult<OrderBillResponse>.Success(bill);
     }
 

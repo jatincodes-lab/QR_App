@@ -39,6 +39,11 @@ public sealed record UpdateOrderBillPaymentStatusRequest(
     string? PaymentMethod,
     string? Reason);
 
+public sealed record UpdateOrderBillRefundStatusRequest(
+    string RefundStatusCode,
+    decimal RefundAmount,
+    string? Reason);
+
 public sealed record OrderBillResponse(
     Guid OrderBillId,
     Guid TenantId,
@@ -62,5 +67,9 @@ public sealed record OrderBillResponse(
     string ServiceChargeName,
     decimal ServiceChargeRate,
     bool DiscountEnabled,
+    string RefundStatusCode,
+    decimal RefundAmount,
+    string? RefundReason,
+    DateTime? RefundedAtUtc,
     DateTime CreatedAtUtc,
     DateTime? UpdatedAtUtc);
