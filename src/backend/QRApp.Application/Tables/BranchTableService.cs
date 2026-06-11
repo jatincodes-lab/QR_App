@@ -135,6 +135,15 @@ public sealed class BranchTableService(IBranchTableRepository repository, IBranc
                 first.RequireCustomerName,
                 first.RequireCustomerWhatsApp,
                 first.WaiterCallEnabled),
+            new PublicQrBillingSettingsResponse(
+                first.TaxEnabled,
+                first.TaxName,
+                first.TaxRate,
+                first.TaxMode,
+                first.ServiceChargeEnabled,
+                first.ServiceChargeName,
+                first.ServiceChargeRate,
+                first.RoundingMode),
             categories)
         {
             Offers = offers

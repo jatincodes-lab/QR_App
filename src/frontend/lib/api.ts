@@ -136,11 +136,46 @@ export type BranchOrderSettings = {
   updatedAtUtc: string | null;
 };
 
+export type TaxMode = "Exclusive" | "Inclusive";
+
+export type RoundingMode = "None" | "NearestRupee";
+
+export type PaymentStatusCode = "Unpaid" | "Paid" | "PartiallyPaid" | "Voided";
+
+export type BranchBillingSettings = {
+  branchBillingSettingsId: string;
+  tenantId: string;
+  branchId: string;
+  taxEnabled: boolean;
+  taxName: string;
+  taxRate: number;
+  taxMode: TaxMode;
+  serviceChargeEnabled: boolean;
+  serviceChargeName: string;
+  serviceChargeRate: number;
+  discountEnabled: boolean;
+  staffCanApplyDiscount: boolean;
+  roundingMode: RoundingMode;
+  createdAtUtc: string;
+  updatedAtUtc: string | null;
+};
+
 export type PublicQrOrderSettings = {
   enableDirectQrOrdering: boolean;
   requireCustomerName: boolean;
   requireCustomerWhatsApp: boolean;
   waiterCallEnabled: boolean;
+};
+
+export type PublicQrBillingSettings = {
+  taxEnabled: boolean;
+  taxName: string;
+  taxRate: number;
+  taxMode: TaxMode;
+  serviceChargeEnabled: boolean;
+  serviceChargeName: string;
+  serviceChargeRate: number;
+  roundingMode: RoundingMode;
 };
 
 export type PublicQrMenuItem = {
@@ -186,6 +221,7 @@ export type PublicQrMenu = {
   tableName: string;
   qrToken: string;
   orderSettings: PublicQrOrderSettings;
+  billingSettings: PublicQrBillingSettings;
   categories: PublicQrMenuCategory[];
   offers: PublicQrMenuOffer[];
 };
@@ -291,6 +327,33 @@ export type AdminOrder = {
   createdAtUtc: string;
   updatedAtUtc: string | null;
   items: AdminOrderItem[];
+};
+
+export type OrderBill = {
+  orderBillId: string;
+  tenantId: string;
+  branchId: string;
+  orderId: string;
+  billNumber: string;
+  paymentStatusCode: PaymentStatusCode;
+  paymentMethod: string | null;
+  subtotalAmount: number;
+  discountAmount: number;
+  taxableAmount: number;
+  taxAmount: number;
+  serviceChargeAmount: number;
+  roundingAmount: number;
+  totalAmount: number;
+  taxEnabled: boolean;
+  taxName: string;
+  taxRate: number;
+  taxMode: TaxMode;
+  serviceChargeEnabled: boolean;
+  serviceChargeName: string;
+  serviceChargeRate: number;
+  discountEnabled: boolean;
+  createdAtUtc: string;
+  updatedAtUtc: string | null;
 };
 
 export type OrderStatusCode = "Placed" | "Accepted" | "Preparing" | "Ready" | "Served" | "Completed" | "Cancelled";
@@ -562,6 +625,31 @@ export type SaveBranchOrderSettingsInput = {
   waiterCallEnabled: boolean;
 };
 
+export type SaveBranchBillingSettingsInput = {
+  taxEnabled: boolean;
+  taxName: string;
+  taxRate: number;
+  taxMode: TaxMode;
+  serviceChargeEnabled: boolean;
+  serviceChargeName: string;
+  serviceChargeRate: number;
+  discountEnabled: boolean;
+  staffCanApplyDiscount: boolean;
+  roundingMode: RoundingMode;
+};
+
+export type GenerateOrderBillInput = {
+  discountAmount: number;
+  serviceChargeAmount: number;
+  overrideReason: string | null;
+};
+
+export type UpdateOrderBillPaymentStatusInput = {
+  paymentStatusCode: PaymentStatusCode;
+  paymentMethod: string | null;
+  reason: string | null;
+};
+
 export async function login(email: string, password: string): Promise<LoginResponse> {
   return request<LoginResponse>("/api/v1/auth/login", {
     method: "POST",
@@ -827,6 +915,60 @@ export async function updateAdminOrderStatus(
   return request<AdminOrder>(`/api/v1/admin/branches/${branchId}/orders/${orderId}/status`, {
     method: "PUT",
     body: { orderStatusCode, reason },
+    requireAuth: true
+  });
+}
+
+export async function getBranchBillingSettings(branchId: string): Promise<BranchBillingSettings | null> {
+  try {
+    return await request<BranchBillingSettings>(`/api/v1/admin/branches/${branchId}/billing-settings`, {
+      method: "GET",
+      requireAuth: true
+    });
+  } catch (caught) {
+    if (caught instanceof ApiError && caught.status === 404) {
+      return null;
+    }
+
+    throw caught;
+  }
+}
+
+export async function saveBranchBillingSettings(branchId: string, input: SaveBranchBillingSettingsInput): Promise<BranchBillingSettings> {
+  return request<BranchBillingSettings>(`/api/v1/admin/branches/${branchId}/billing-settings`, {
+    method: "PUT",
+    body: input,
+    requireAuth: true
+  });
+}
+
+export async function getOrderBill(branchId: string, orderId: string): Promise<OrderBill | null> {
+  try {
+    return await request<OrderBill>(`/api/v1/admin/branches/${branchId}/orders/${orderId}/bill`, {
+      method: "GET",
+      requireAuth: true
+    });
+  } catch (caught) {
+    if (caught instanceof ApiError && caught.status === 404) {
+      return null;
+    }
+
+    throw caught;
+  }
+}
+
+export async function generateOrderBill(branchId: string, orderId: string, input: GenerateOrderBillInput): Promise<OrderBill> {
+  return request<OrderBill>(`/api/v1/admin/branches/${branchId}/orders/${orderId}/bill`, {
+    method: "POST",
+    body: input,
+    requireAuth: true
+  });
+}
+
+export async function updateOrderBillPaymentStatus(branchId: string, orderId: string, input: UpdateOrderBillPaymentStatusInput): Promise<OrderBill> {
+  return request<OrderBill>(`/api/v1/admin/branches/${branchId}/orders/${orderId}/bill/payment-status`, {
+    method: "PUT",
+    body: input,
     requireAuth: true
   });
 }

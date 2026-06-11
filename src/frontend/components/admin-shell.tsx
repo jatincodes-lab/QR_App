@@ -96,13 +96,8 @@ export function AdminShell({
   selectedBranchId = ""
 }: AdminShellProps) {
   const router = useRouter();
-  const [isCollapsed, setIsCollapsed] = useState(() => {
-    if (typeof window === "undefined") {
-      return false;
-    }
-
-    return window.localStorage.getItem(SidebarCollapsedStorageKey) === "true";
-  });
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [roleCode, setRoleCode] = useState<string | null>(null);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
@@ -115,7 +110,6 @@ export function AdminShell({
   const notificationRef = useRef<HTMLDivElement | null>(null);
   const searchRef = useRef<HTMLDivElement | null>(null);
   const canSelectBranch = branches.length > 0 && Boolean(onSelectedBranchChange);
-  const roleCode = getCurrentRoleCode();
   const visibleNavGroups = navGroups
     .map((group) => ({
       ...group,
@@ -125,6 +119,11 @@ export function AdminShell({
   const unreadCount = useMemo(() => notifications.filter((notification) => !notification.isRead).length, [notifications]);
   const trimmedSearchQuery = searchQuery.trim();
   const showSearchDropdown = isSearchFocused && trimmedSearchQuery.length >= 2;
+
+  useEffect(() => {
+    setIsCollapsed(window.localStorage.getItem(SidebarCollapsedStorageKey) === "true");
+    setRoleCode(getCurrentRoleCode());
+  }, []);
 
   useEffect(() => {
     void loadNotifications();

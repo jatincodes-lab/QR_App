@@ -2,6 +2,7 @@ using Microsoft.Data.SqlClient;
 using QRApp.Api.Errors;
 using QRApp.Api.Hubs;
 using QRApp.Application.Auth;
+using QRApp.Application.Billing;
 using QRApp.Application.Notifications;
 using QRApp.Application.Orders;
 
@@ -15,6 +16,9 @@ public static class AdminOrderEndpoints
 
         group.MapGet("/branches/{branchId:guid}/orders", GetOrdersAsync);
         group.MapPut("/branches/{branchId:guid}/orders/{orderId:guid}/status", UpdateStatusAsync);
+        group.MapGet("/branches/{branchId:guid}/orders/{orderId:guid}/bill", GetBillAsync);
+        group.MapPost("/branches/{branchId:guid}/orders/{orderId:guid}/bill", GenerateBillAsync);
+        group.MapPut("/branches/{branchId:guid}/orders/{orderId:guid}/bill/payment-status", UpdateBillPaymentStatusAsync);
 
         return app;
     }
@@ -102,5 +106,99 @@ public static class AdminOrderEndpoints
     private static string ShortId(Guid id)
     {
         return id.ToString("N")[^6..].ToUpperInvariant();
+    }
+
+    private static async Task<IResult> GetBillAsync(
+        Guid branchId,
+        Guid orderId,
+        ITenantContext tenantContext,
+        IBillingService service,
+        ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var bill = await service.GetOrderBillAsync(tenantContext.TenantId, branchId, orderId, cancellationToken);
+            return bill is null ? ApiProblemResponses.NotFound("Bill was not found for this order.") : Results.Ok(bill);
+        }
+        catch (Exception ex)
+        when (ex is SqlException)
+        {
+            var sqlException = (SqlException)ex;
+            loggerFactory.CreateLogger(nameof(AdminOrderEndpoints)).LogWarning(sqlException, "Database failed while reading bill for order {OrderId}.", orderId);
+            return SqlProblemMapper.ToProblem(sqlException);
+        }
+    }
+
+    private static async Task<IResult> GenerateBillAsync(
+        Guid branchId,
+        Guid orderId,
+        GenerateOrderBillRequest request,
+        ITenantContext tenantContext,
+        IBillingService service,
+        ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (request.DiscountAmount > 0 && !CanRoleApplyDiscount(tenantContext.RoleCode))
+            {
+                var settings = await service.GetSettingsAsync(tenantContext.TenantId, branchId, cancellationToken);
+                if (settings?.StaffCanApplyDiscount != true)
+                {
+                    return ApiProblemResponses.Forbidden("Your staff role cannot apply bill discounts for this branch.");
+                }
+            }
+
+            var result = await service.GenerateOrderBillAsync(tenantContext.TenantId, branchId, orderId, request, tenantContext.UserId, cancellationToken);
+            return result.IsSuccess ? Results.Ok(result.Value) : ApiProblemResponses.Validation(result.Errors);
+        }
+        catch (Exception ex)
+        when (ex is SqlException)
+        {
+            var sqlException = (SqlException)ex;
+            loggerFactory.CreateLogger(nameof(AdminOrderEndpoints)).LogWarning(sqlException, "Database rejected bill generation for order {OrderId}.", orderId);
+            return SqlProblemMapper.ToProblem(sqlException);
+        }
+        catch (Exception ex)
+        {
+            loggerFactory.CreateLogger(nameof(AdminOrderEndpoints)).LogError(ex, "Failed to generate bill for order {OrderId}.", orderId);
+            return ApiProblemResponses.ServerError("Bill could not be generated.");
+        }
+    }
+
+    private static async Task<IResult> UpdateBillPaymentStatusAsync(
+        Guid branchId,
+        Guid orderId,
+        UpdateOrderBillPaymentStatusRequest request,
+        ITenantContext tenantContext,
+        IBillingService service,
+        ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await service.UpdatePaymentStatusAsync(tenantContext.TenantId, branchId, orderId, request, tenantContext.UserId, cancellationToken);
+            return result.IsSuccess ? Results.Ok(result.Value) : ApiProblemResponses.Validation(result.Errors);
+        }
+        catch (Exception ex)
+        when (ex is SqlException)
+        {
+            var sqlException = (SqlException)ex;
+            loggerFactory.CreateLogger(nameof(AdminOrderEndpoints)).LogWarning(sqlException, "Database rejected bill payment status update for order {OrderId}.", orderId);
+            return SqlProblemMapper.ToProblem(sqlException);
+        }
+        catch (Exception ex)
+        {
+            loggerFactory.CreateLogger(nameof(AdminOrderEndpoints)).LogError(ex, "Failed to update bill payment status for order {OrderId}.", orderId);
+            return ApiProblemResponses.ServerError("Bill payment status could not be updated.");
+        }
+    }
+
+    private static bool CanRoleApplyDiscount(string roleCode)
+    {
+        return string.Equals(roleCode, "owner", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(roleCode, "admin", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(roleCode, "manager", StringComparison.OrdinalIgnoreCase);
     }
 }

@@ -12,14 +12,12 @@ import { useAdminWorkspace } from "../../../lib/admin-workspace";
 import { createAdminOrderConnection, stopConnection, type AdminOrderRealtimeEvent } from "../../../lib/realtime";
 
 const KitchenNextStatus: Partial<Record<OrderStatusCode, OrderStatusCode>> = {
-  Placed: "Accepted",
   Accepted: "Preparing",
   Preparing: "Ready",
   Ready: "Served"
 };
 
 const KitchenColumns: { status: OrderStatusCode; title: string; helper: string }[] = [
-  { status: "Placed", title: "Placed", helper: "Accept these first" },
   { status: "Accepted", title: "Accepted", helper: "Ready to prep" },
   { status: "Preparing", title: "Preparing", helper: "Being cooked" },
   { status: "Ready", title: "Ready", helper: "Send to table" }
@@ -33,8 +31,8 @@ export default function AdminKitchenPage() {
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [newOrderNotice, setNewOrderNotice] = useState(false);
 
-  const kitchenOrders = useMemo(() => orders.filter((order) => ["Placed", "Accepted", "Preparing", "Ready"].includes(order.orderStatusCode)), [orders]);
-  const placedCount = useMemo(() => kitchenOrders.filter((order) => order.orderStatusCode === "Placed").length, [kitchenOrders]);
+  const kitchenOrders = useMemo(() => orders.filter((order) => ["Accepted", "Preparing", "Ready"].includes(order.orderStatusCode)), [orders]);
+  const acceptedCount = useMemo(() => kitchenOrders.filter((order) => order.orderStatusCode === "Accepted").length, [kitchenOrders]);
   const readyCount = useMemo(() => kitchenOrders.filter((order) => order.orderStatusCode === "Ready").length, [kitchenOrders]);
   const ordersByStatus = useMemo(
     () =>
@@ -119,7 +117,7 @@ export default function AdminKitchenPage() {
 
   function handleRealtimeOrder(event: AdminOrderRealtimeEvent, branchId: string) {
     if (event.branchId === branchId) {
-      if (event.orderStatusCode === "Placed") {
+      if (event.orderStatusCode === "Accepted") {
         setNewOrderNotice(true);
         playOrderTone();
         window.setTimeout(() => setNewOrderNotice(false), 7_000);
@@ -187,14 +185,14 @@ export default function AdminKitchenPage() {
           <>
             <section className="grid gap-4 md:grid-cols-3">
               <MetricCard icon={<ChefHat size={20} />} label="Kitchen tickets" value={isLoading ? "..." : String(kitchenOrders.length)} />
-              <MetricCard icon={<Bell size={20} />} label="New placed" value={isLoading ? "..." : String(placedCount)} />
+              <MetricCard icon={<Bell size={20} />} label="Accepted" value={isLoading ? "..." : String(acceptedCount)} />
               <MetricCard icon={<RefreshCw size={20} />} label="Ready" value={isLoading ? "..." : String(readyCount)} />
             </section>
 
             {newOrderNotice ? (
               <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-950 shadow-sm">
                 <Bell size={18} />
-                <p className="text-sm font-extrabold">New order received</p>
+                <p className="text-sm font-extrabold">New kitchen ticket received</p>
               </div>
             ) : null}
 
@@ -209,10 +207,10 @@ export default function AdminKitchenPage() {
               ) : kitchenOrders.length === 0 ? (
                 <div className="rounded-lg border border-dashed border-outline-variant/70 bg-surface-container-low p-8 text-center">
                   <p className="text-sm font-bold text-on-surface">No active kitchen tickets</p>
-                  <p className="mt-1 text-sm text-on-surface-variant">Placed orders will appear here automatically.</p>
+                  <p className="mt-1 text-sm text-on-surface-variant">Accepted orders will appear here automatically.</p>
                 </div>
               ) : (
-                <div className="grid gap-4 xl:grid-cols-4">
+                <div className="grid gap-4 xl:grid-cols-3">
                   {KitchenColumns.map((column) => (
                     <KitchenColumn
                       key={column.status}
@@ -250,7 +248,7 @@ function KitchenColumn({
           <h3 className="text-sm font-extrabold uppercase tracking-[0.08em] text-on-surface">{column.title}</h3>
           <p className="mt-1 text-xs font-semibold text-on-surface-variant">{column.helper}</p>
         </div>
-        <Badge variant={column.status === "Ready" ? "success" : column.status === "Placed" ? "secondary" : "outline"}>{orders.length}</Badge>
+        <Badge variant={column.status === "Ready" ? "success" : "outline"}>{orders.length}</Badge>
       </div>
 
       <div className="grid gap-3">
@@ -295,7 +293,7 @@ function KitchenTicket({ order, savingKey, onMove }: { order: AdminOrder; saving
 
       {nextStatus ? (
         <Button type="button" className="mt-4 h-12 w-full" disabled={savingKey === order.orderId} onClick={() => onMove(order, nextStatus)}>
-          {nextStatus === "Accepted" ? "Accept order" : `Move to ${nextStatus}`}
+          {`Move to ${nextStatus}`}
         </Button>
       ) : null}
     </article>

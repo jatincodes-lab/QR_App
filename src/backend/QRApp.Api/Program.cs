@@ -277,6 +277,7 @@ static bool IsBranchOperationalPath(string path)
            path.Contains("/tables", StringComparison.OrdinalIgnoreCase) ||
            path.Contains("/orders", StringComparison.OrdinalIgnoreCase) ||
            path.Contains("/order-settings", StringComparison.OrdinalIgnoreCase) ||
+           path.Contains("/billing-settings", StringComparison.OrdinalIgnoreCase) ||
            path.Contains("/waiter-calls", StringComparison.OrdinalIgnoreCase);
 }
 

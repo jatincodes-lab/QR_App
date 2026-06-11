@@ -48,6 +48,11 @@ internal static class StoredProcedures
     public const string AdminOrderGetListByBranch = "dbo.AdminOrder_GetListByBranch";
     public const string AdminOrderGetItemsByBranch = "dbo.AdminOrder_GetItemsByBranch";
     public const string AdminOrderUpdateStatus = "dbo.AdminOrder_UpdateStatus";
+    public const string BranchBillingSettingsGetByBranch = "dbo.BranchBillingSettings_GetByBranch";
+    public const string BranchBillingSettingsSave = "dbo.BranchBillingSettings_Save";
+    public const string OrderBillGetByOrder = "dbo.OrderBill_GetByOrder";
+    public const string OrderBillGenerate = "dbo.OrderBill_Generate";
+    public const string OrderBillUpdatePaymentStatus = "dbo.OrderBill_UpdatePaymentStatus";
 
     public const string ReportOrderSummary = "dbo.Report_OrderSummary";
     public const string ReportOrders = "dbo.Report_Orders";

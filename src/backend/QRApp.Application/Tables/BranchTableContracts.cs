@@ -23,6 +23,16 @@ public sealed record PublicQrOrderSettingsResponse(
     bool RequireCustomerWhatsApp,
     bool WaiterCallEnabled);
 
+public sealed record PublicQrBillingSettingsResponse(
+    bool TaxEnabled,
+    string TaxName,
+    decimal TaxRate,
+    string TaxMode,
+    bool ServiceChargeEnabled,
+    string ServiceChargeName,
+    decimal ServiceChargeRate,
+    string RoundingMode);
+
 public sealed record PublicQrMenuResponse(
     Guid BranchId,
     string BranchName,
@@ -31,6 +41,7 @@ public sealed record PublicQrMenuResponse(
     string TableName,
     string QrToken,
     PublicQrOrderSettingsResponse OrderSettings,
+    PublicQrBillingSettingsResponse BillingSettings,
     IReadOnlyCollection<PublicMenuCategoryResponse> Categories)
 {
     public IReadOnlyCollection<PublicMenuOfferResponse> Offers { get; init; } = Array.Empty<PublicMenuOfferResponse>();
@@ -47,6 +58,14 @@ public sealed record PublicQrMenuRecord(
     bool RequireCustomerName,
     bool RequireCustomerWhatsApp,
     bool WaiterCallEnabled,
+    bool TaxEnabled,
+    string TaxName,
+    decimal TaxRate,
+    string TaxMode,
+    bool ServiceChargeEnabled,
+    string ServiceChargeName,
+    decimal ServiceChargeRate,
+    string RoundingMode,
     Guid? MenuCategoryId,
     string? CategoryName,
     int? CategoryDisplayOrder,

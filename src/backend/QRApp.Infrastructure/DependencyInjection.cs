@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using QRApp.Application.Auth;
+using QRApp.Application.Billing;
 using QRApp.Application.Branches;
 using QRApp.Application.BranchOrderSettings;
 using QRApp.Application.Campaigns;
@@ -13,6 +14,7 @@ using QRApp.Application.Tables;
 using QRApp.Application.Tenants;
 using QRApp.Application.WaiterCalls;
 using QRApp.Infrastructure.Auth;
+using QRApp.Infrastructure.Billing;
 using QRApp.Infrastructure.Branches;
 using QRApp.Infrastructure.BranchOrderSettings;
 using QRApp.Infrastructure.Campaigns;
@@ -35,6 +37,7 @@ public static class DependencyInjection
     {
         services.AddSingleton<ISqlConnectionFactory, SqlConnectionFactory>();
         services.AddScoped<IAuthRepository, SqlAuthRepository>();
+        services.AddScoped<IBillingRepository, SqlBillingRepository>();
         services.AddScoped<ITenantRepository, SqlTenantRepository>();
         services.AddScoped<IBranchRepository, SqlBranchRepository>();
         services.AddScoped<IBranchOrderSettingsRepository, SqlBranchOrderSettingsRepository>();

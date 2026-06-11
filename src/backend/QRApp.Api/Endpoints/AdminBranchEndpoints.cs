@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.Data.SqlClient;
 using QRApp.Api.Errors;
 using QRApp.Application.Auth;
+using QRApp.Application.Billing;
 using QRApp.Application.Branches;
 using QRApp.Application.BranchOrderSettings;
 
@@ -22,6 +23,8 @@ public static class AdminBranchEndpoints
         group.MapPost("/branches/{branchId:guid}/order-settings", CreateBranchOrderSettingsAsync);
         group.MapGet("/branches/{branchId:guid}/order-settings", GetBranchOrderSettingsAsync);
         group.MapPut("/branches/{branchId:guid}/order-settings", UpdateBranchOrderSettingsAsync);
+        group.MapGet("/branches/{branchId:guid}/billing-settings", GetBranchBillingSettingsAsync);
+        group.MapPut("/branches/{branchId:guid}/billing-settings", SaveBranchBillingSettingsAsync);
 
         return app;
     }
@@ -227,6 +230,54 @@ public static class AdminBranchEndpoints
         {
             loggerFactory.CreateLogger(nameof(AdminBranchEndpoints)).LogError(ex, "Failed to update admin order settings for branch {BranchId}.", branchId);
             return ApiProblemResponses.ServerError("Branch order settings could not be updated.");
+        }
+    }
+
+    private static async Task<IResult> GetBranchBillingSettingsAsync(
+        Guid branchId,
+        ITenantContext tenantContext,
+        IBillingService service,
+        ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var settings = await service.GetSettingsAsync(tenantContext.TenantId, branchId, cancellationToken);
+            return settings is null ? ApiProblemResponses.NotFound("Branch billing settings were not found.") : Results.Ok(settings);
+        }
+        catch (Exception ex)
+        when (ex is SqlException)
+        {
+            var sqlException = (SqlException)ex;
+            loggerFactory.CreateLogger(nameof(AdminBranchEndpoints)).LogWarning(sqlException, "Database failed while reading billing settings for branch {BranchId}.", branchId);
+            return SqlProblemMapper.ToProblem(sqlException);
+        }
+    }
+
+    private static async Task<IResult> SaveBranchBillingSettingsAsync(
+        Guid branchId,
+        SaveBranchBillingSettingsRequest request,
+        ITenantContext tenantContext,
+        IBillingService service,
+        ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await service.SaveSettingsAsync(tenantContext.TenantId, branchId, request, cancellationToken);
+            return result.IsSuccess ? Results.Ok(result.Value) : ApiProblemResponses.Validation(result.Errors);
+        }
+        catch (Exception ex)
+        when (ex is SqlException)
+        {
+            var sqlException = (SqlException)ex;
+            loggerFactory.CreateLogger(nameof(AdminBranchEndpoints)).LogWarning(sqlException, "Database rejected billing settings update for branch {BranchId}.", branchId);
+            return SqlProblemMapper.ToProblem(sqlException);
+        }
+        catch (Exception ex)
+        {
+            loggerFactory.CreateLogger(nameof(AdminBranchEndpoints)).LogError(ex, "Failed to save billing settings for branch {BranchId}.", branchId);
+            return ApiProblemResponses.ServerError("Branch billing settings could not be saved.");
         }
     }
 }

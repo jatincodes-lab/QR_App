@@ -22,7 +22,7 @@ export function createAdminOrderConnection(): HubConnection {
       accessTokenFactory: () => getAccessToken() ?? ""
     })
     .withAutomaticReconnect()
-    .configureLogging(LogLevel.Warning)
+    .configureLogging(LogLevel.None)
     .build();
 }
 

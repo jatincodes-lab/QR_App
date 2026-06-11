@@ -1,20 +1,30 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { ReactNode, useEffect, useMemo, useState } from "react";
 import type { HubConnection } from "@microsoft/signalr";
-import { ClipboardList, RefreshCw, Store, Users } from "lucide-react";
+import { ClipboardList, Loader2, Printer, ReceiptText, RefreshCw, Store, Users, X } from "lucide-react";
 import { AdminShell } from "../../../components/admin-shell";
 import { EmptyBranchState, MetricCard, PageError, PageLoading } from "../../../components/admin-page-common";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../components/ui/dialog";
+import { Input } from "../../../components/ui/input";
+import { Label } from "../../../components/ui/label";
 import {
+  generateOrderBill,
   getAdminOrders,
+  getBranchBillingSettings,
+  getOrderBill,
   getWaiterCalls,
   updateAdminOrderStatus,
+  updateOrderBillPaymentStatus,
   updateWaiterCallStatus,
   type AdminOrder,
+  type BranchBillingSettings,
+  type OrderBill,
   type OrderStatusCode,
+  type PaymentStatusCode,
   type WaiterCall,
   type WaiterCallStatusCode
 } from "../../../lib/api";
@@ -34,10 +44,23 @@ const WaiterNextStatus: Partial<Record<WaiterCallStatusCode, WaiterCallStatusCod
   Acknowledged: "Resolved"
 };
 
+type BillDialogState = {
+  order: AdminOrder;
+  bill: OrderBill | null;
+  discountAmount: string;
+  serviceChargeAmount: string;
+  paymentStatusCode: PaymentStatusCode;
+  paymentMethod: string;
+  reason: string;
+  isLoading: boolean;
+};
+
 export default function AdminOrdersPage() {
   const workspace = useAdminWorkspace();
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [waiterCalls, setWaiterCalls] = useState<WaiterCall[]>([]);
+  const [billingSettings, setBillingSettings] = useState<BranchBillingSettings | null>(null);
+  const [billDialog, setBillDialog] = useState<BillDialogState | null>(null);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [liveState, setLiveState] = useState<"connecting" | "live" | "offline">("offline");
   const [savingKey, setSavingKey] = useState<string | null>(null);
@@ -50,6 +73,7 @@ export default function AdminOrdersPage() {
     if (!workspace.selectedBranch) {
       setOrders([]);
       setWaiterCalls([]);
+      setBillingSettings(null);
       return;
     }
 
@@ -129,9 +153,10 @@ export default function AdminOrdersPage() {
     setIsLoadingOrders(true);
 
     try {
-      const [orderResponse, callResponse] = await Promise.all([getAdminOrders(branchId, true), getWaiterCalls(branchId, true)]);
+      const [orderResponse, callResponse, billingResponse] = await Promise.all([getAdminOrders(branchId, true), getWaiterCalls(branchId, true), getBranchBillingSettings(branchId)]);
       setOrders(orderResponse);
       setWaiterCalls(callResponse);
+      setBillingSettings(billingResponse);
     } catch (caught) {
       workspace.handleApiError(caught);
     } finally {
@@ -169,6 +194,99 @@ export default function AdminOrdersPage() {
     } finally {
       setSavingKey(null);
     }
+  }
+
+  async function openBill(order: AdminOrder) {
+    if (!workspace.selectedBranch) {
+      return;
+    }
+
+    const defaultServiceCharge = billingSettings?.serviceChargeEnabled ? roundMoney(order.subtotalAmount * billingSettings.serviceChargeRate / 100) : 0;
+    setBillDialog({
+      order,
+      bill: null,
+      discountAmount: "0",
+      serviceChargeAmount: defaultServiceCharge.toFixed(2),
+      paymentStatusCode: "Unpaid",
+      paymentMethod: "",
+      reason: "",
+      isLoading: true
+    });
+
+    try {
+      const bill = await getOrderBill(workspace.selectedBranch.branchId, order.orderId);
+      setBillDialog({
+        order,
+        bill,
+        discountAmount: String(bill?.discountAmount ?? 0),
+        serviceChargeAmount: String(bill?.serviceChargeAmount ?? defaultServiceCharge),
+        paymentStatusCode: bill?.paymentStatusCode ?? "Unpaid",
+        paymentMethod: bill?.paymentMethod ?? "",
+        reason: "",
+        isLoading: false
+      });
+    } catch (caught) {
+      workspace.handleApiError(caught);
+      setBillDialog(null);
+    }
+  }
+
+  async function generateBill() {
+    if (!workspace.selectedBranch || !billDialog) {
+      return;
+    }
+
+    setSavingKey(`bill-${billDialog.order.orderId}`);
+    try {
+      const bill = await generateOrderBill(workspace.selectedBranch.branchId, billDialog.order.orderId, {
+        discountAmount: Number(billDialog.discountAmount) || 0,
+        serviceChargeAmount: Number(billDialog.serviceChargeAmount) || 0,
+        overrideReason: billDialog.reason.trim() || null
+      });
+
+      setOrders((current) => current.map((order) => (order.orderId === bill.orderId ? { ...order, totalAmount: bill.totalAmount } : order)));
+      setBillDialog({ ...billDialog, bill, paymentStatusCode: bill.paymentStatusCode, paymentMethod: bill.paymentMethod ?? "", isLoading: false });
+    } catch (caught) {
+      workspace.handleApiError(caught);
+    } finally {
+      setSavingKey(null);
+    }
+  }
+
+  async function savePaymentStatus() {
+    if (!workspace.selectedBranch || !billDialog?.bill) {
+      return;
+    }
+
+    setSavingKey(`payment-${billDialog.order.orderId}`);
+    try {
+      const bill = await updateOrderBillPaymentStatus(workspace.selectedBranch.branchId, billDialog.order.orderId, {
+        paymentStatusCode: billDialog.paymentStatusCode,
+        paymentMethod: billDialog.paymentMethod.trim() || null,
+        reason: billDialog.reason.trim() || null
+      });
+      setBillDialog({ ...billDialog, bill, paymentStatusCode: bill.paymentStatusCode, paymentMethod: bill.paymentMethod ?? "", reason: "" });
+    } catch (caught) {
+      workspace.handleApiError(caught);
+    } finally {
+      setSavingKey(null);
+    }
+  }
+
+  function printBill() {
+    if (!workspace.selectedBranch || !billDialog?.bill) {
+      return;
+    }
+
+    const printWindow = window.open("", "_blank", "width=520,height=720");
+    if (!printWindow) {
+      return;
+    }
+
+    printWindow.document.write(buildBillPrintHtml(workspace.selectedBranch.name, billDialog.order, billDialog.bill));
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
   }
 
   const branchName = workspace.selectedBranch?.name ?? "Orders";
@@ -237,7 +355,7 @@ export default function AdminOrdersPage() {
                   ) : activeOrders.length === 0 ? (
                     <EmptyPanel title="No active orders" text="New QR orders will appear here." />
                   ) : (
-                    activeOrders.map((order) => <OrderCard key={order.orderId} order={order} savingKey={savingKey} onMove={moveOrder} />)
+                    activeOrders.map((order) => <OrderCard key={order.orderId} order={order} savingKey={savingKey} onBill={openBill} onMove={moveOrder} />)
                   )}
                 </CardContent>
               </Card>
@@ -261,11 +379,32 @@ export default function AdminOrdersPage() {
           </>
         )}
       </div>
+      {billDialog ? (
+        <BillDialog
+          state={billDialog}
+          savingKey={savingKey}
+          onChange={setBillDialog}
+          onClose={() => setBillDialog(null)}
+          onGenerate={generateBill}
+          onPrint={printBill}
+          onSavePayment={savePaymentStatus}
+        />
+      ) : null}
     </AdminShell>
   );
 }
 
-function OrderCard({ order, savingKey, onMove }: { order: AdminOrder; savingKey: string | null; onMove: (order: AdminOrder, status: OrderStatusCode) => void }) {
+function OrderCard({
+  order,
+  savingKey,
+  onBill,
+  onMove
+}: {
+  order: AdminOrder;
+  savingKey: string | null;
+  onBill: (order: AdminOrder) => void;
+  onMove: (order: AdminOrder, status: OrderStatusCode) => void;
+}) {
   const nextStatus = OrderNextStatus[order.orderStatusCode as OrderStatusCode];
 
   return (
@@ -288,12 +427,172 @@ function OrderCard({ order, savingKey, onMove }: { order: AdminOrder; savingKey:
           </div>
         ))}
       </div>
-      {nextStatus ? (
-        <Button type="button" size="sm" className="mt-3" disabled={savingKey === order.orderId} onClick={() => onMove(order, nextStatus)}>
-          Move to {nextStatus}
+      <div className="mt-3 flex flex-wrap gap-2">
+        {nextStatus ? (
+          <Button type="button" size="sm" disabled={savingKey === order.orderId} onClick={() => onMove(order, nextStatus)}>
+            Move to {nextStatus}
+          </Button>
+        ) : null}
+        <Button type="button" size="sm" variant="outline" onClick={() => onBill(order)}>
+          <ReceiptText size={15} />
+          Bill
         </Button>
-      ) : null}
+      </div>
     </article>
+  );
+}
+
+function BillDialog({
+  state,
+  savingKey,
+  onChange,
+  onClose,
+  onGenerate,
+  onPrint,
+  onSavePayment
+}: {
+  state: BillDialogState;
+  savingKey: string | null;
+  onChange: (state: BillDialogState) => void;
+  onClose: () => void;
+  onGenerate: () => void;
+  onPrint: () => void;
+  onSavePayment: () => void;
+}) {
+  const bill = state.bill;
+  const isGenerating = savingKey === `bill-${state.order.orderId}`;
+  const isSavingPayment = savingKey === `payment-${state.order.orderId}`;
+
+  return (
+    <Dialog>
+      <DialogContent className="max-w-5xl overflow-hidden bg-surface-container-lowest p-0">
+        <div className="flex items-start justify-between gap-4 border-b border-outline-variant/50 bg-white px-5 py-4">
+          <DialogHeader className="min-w-0">
+            <DialogTitle className="flex items-center gap-2 text-primary">
+              <ReceiptText size={20} />
+              Bill for {state.order.tableName}
+            </DialogTitle>
+            <DialogDescription className="truncate">
+              #{shortOrderCode(state.order.orderId)} - {state.order.customerName || "Guest"} - {formatAdminDate(state.order.createdAtUtc)}
+            </DialogDescription>
+          </DialogHeader>
+          <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Close bill dialog">
+            <X size={18} />
+          </Button>
+        </div>
+
+        {state.isLoading ? (
+          <div className="grid min-h-72 place-items-center">
+            <PageLoading />
+          </div>
+        ) : (
+          <div>
+            <div className="grid max-h-[70vh] gap-0 overflow-y-auto lg:grid-cols-[minmax(0,1fr)_24rem]">
+              <section className="space-y-4 p-5">
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <BillMetric label="Subtotal" value={formatMoney(state.order.subtotalAmount)} />
+                  <BillMetric label="Bill total" value={formatMoney(bill?.totalAmount ?? state.order.totalAmount)} />
+                  <BillMetric label="Payment" value={bill?.paymentStatusCode ?? "Draft"} />
+                </div>
+
+                <div className="rounded-lg border border-outline-variant/60 bg-white">
+                  <div className="flex items-center justify-between gap-3 border-b border-outline-variant/40 px-4 py-3">
+                    <div>
+                      <p className="text-sm font-extrabold text-on-surface">Order items</p>
+                      <p className="mt-0.5 text-xs text-on-surface-variant">{state.order.items.length} line items</p>
+                    </div>
+                    <Badge variant="outline">{state.order.orderStatusCode}</Badge>
+                  </div>
+                  <div className="divide-y divide-outline-variant/30">
+                    {state.order.items.map((item) => (
+                      <div key={item.orderItemId} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 px-4 py-3">
+                        <div className="min-w-0">
+                          <p className="break-words text-sm font-bold text-on-surface">{formatAdminOrderItemName(item.menuItemName, item.variantName)}</p>
+                          {item.itemNote ? <p className="mt-1 break-words text-xs font-semibold text-primary">Note: {item.itemNote}</p> : null}
+                          <p className="mt-1 text-xs text-on-surface-variant">{item.quantity} x {formatMoney(item.unitPrice)}</p>
+                        </div>
+                        <p className="text-sm font-extrabold text-on-surface">{formatMoney(item.lineTotal)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-outline-variant/60 bg-white p-4">
+                  <p className="text-sm font-extrabold text-on-surface">Adjust bill</p>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                    <Field label="Discount">
+                      <Input type="number" min="0" step="0.01" value={state.discountAmount} onChange={(event) => onChange({ ...state, discountAmount: event.target.value })} />
+                    </Field>
+                    <Field label="Service charge">
+                      <Input type="number" min="0" step="0.01" value={state.serviceChargeAmount} onChange={(event) => onChange({ ...state, serviceChargeAmount: event.target.value })} />
+                    </Field>
+                    <Field label="Reason">
+                      <Input value={state.reason} onChange={(event) => onChange({ ...state, reason: event.target.value })} placeholder="Optional" />
+                    </Field>
+                  </div>
+                </div>
+              </section>
+
+              <aside className="border-t border-outline-variant/50 bg-white p-5 lg:border-l lg:border-t-0">
+                <div className="rounded-lg border border-outline-variant/60 bg-surface-container-low p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-normal text-on-surface-variant">Bill</p>
+                      <p className="mt-1 text-lg font-extrabold text-primary">{bill?.billNumber ?? "Not generated"}</p>
+                    </div>
+                    <Badge variant={bill?.paymentStatusCode === "Paid" ? "success" : "outline"}>{bill?.paymentStatusCode ?? "Draft"}</Badge>
+                  </div>
+
+                  <div className="mt-4 grid gap-2 text-sm">
+                    <BillLine label="Subtotal" value={formatMoney(bill?.subtotalAmount ?? state.order.subtotalAmount)} />
+                    <BillLine label="Discount" value={formatMoney(bill?.discountAmount ?? (Number(state.discountAmount) || 0))} />
+                    <BillLine label={bill ? `${bill.taxName} (${bill.taxRate}%, ${bill.taxMode.toLowerCase()})` : "Tax"} value={formatMoney(bill?.taxAmount ?? 0)} />
+                    <BillLine label={bill?.serviceChargeName ?? "Service charge"} value={formatMoney(bill?.serviceChargeAmount ?? (Number(state.serviceChargeAmount) || 0))} />
+                    <BillLine label="Rounding" value={formatMoney(bill?.roundingAmount ?? 0)} />
+                    <BillLine label="Grand total" value={formatMoney(bill?.totalAmount ?? state.order.totalAmount)} strong />
+                  </div>
+                </div>
+
+                <div className="mt-4 rounded-lg border border-outline-variant/60 bg-white p-4">
+                  <p className="text-sm font-extrabold text-on-surface">Payment</p>
+                  <div className="mt-3 grid gap-3">
+                    <Field label="Status">
+                      <select value={state.paymentStatusCode} onChange={(event) => onChange({ ...state, paymentStatusCode: event.target.value as PaymentStatusCode })} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
+                        <option value="Unpaid">Unpaid</option>
+                        <option value="Paid">Paid</option>
+                        <option value="PartiallyPaid">Partially paid</option>
+                        <option value="Voided">Voided</option>
+                      </select>
+                    </Field>
+                    <Field label="Method">
+                      <Input value={state.paymentMethod} onChange={(event) => onChange({ ...state, paymentMethod: event.target.value })} placeholder="Cash, UPI, card" />
+                    </Field>
+                    <Button type="button" variant="outline" onClick={onSavePayment} disabled={!bill || isSavingPayment}>
+                      {isSavingPayment ? <Loader2 size={16} className="animate-spin" /> : null}
+                      Save payment
+                    </Button>
+                  </div>
+                </div>
+              </aside>
+            </div>
+
+            <div className="flex flex-col-reverse gap-2 border-t border-outline-variant/50 bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-end">
+              <Button type="button" variant="outline" onClick={onClose}>
+                Close
+              </Button>
+              <Button type="button" variant="outline" onClick={onPrint} disabled={!bill}>
+                <Printer size={16} />
+                Print
+              </Button>
+              <Button type="button" onClick={onGenerate} disabled={isGenerating}>
+                {isGenerating ? <Loader2 size={16} className="animate-spin" /> : <ReceiptText size={16} />}
+                {bill ? "Regenerate bill" : "Generate bill"}
+              </Button>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -328,6 +627,33 @@ function EmptyPanel({ text, title }: { text: string; title: string }) {
   );
 }
 
+function Field({ children, label }: { children: ReactNode; label: string }) {
+  return (
+    <div className="grid gap-1.5">
+      <Label>{label}</Label>
+      {children}
+    </div>
+  );
+}
+
+function BillMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs font-bold uppercase tracking-normal text-on-surface-variant">{label}</p>
+      <p className="mt-1 text-sm font-extrabold text-on-surface">{value}</p>
+    </div>
+  );
+}
+
+function BillLine({ label, strong, value }: { label: string; strong?: boolean; value: string }) {
+  return (
+    <div className={`flex items-center justify-between gap-3 ${strong ? "border-t border-outline-variant/50 pt-2 text-base font-extrabold" : ""}`}>
+      <span>{label}</span>
+      <span>{value}</span>
+    </div>
+  );
+}
+
 function formatAdminOrderItemName(name: string, variantName: string | null): string {
   return variantName ? `${name} - ${variantName}` : name;
 }
@@ -341,4 +667,71 @@ function formatAdminDate(value: string): string {
     dateStyle: "medium",
     timeStyle: "short"
   }).format(new Date(value));
+}
+
+function roundMoney(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function buildBillPrintHtml(branchName: string, order: AdminOrder, bill: OrderBill): string {
+  const rows = order.items
+    .map(
+      (item) => `<tr>
+        <td>${escapeHtml(formatAdminOrderItemName(item.menuItemName, item.variantName))}</td>
+        <td>${item.quantity}</td>
+        <td>${formatMoney(item.unitPrice)}</td>
+        <td>${formatMoney(item.lineTotal)}</td>
+      </tr>`
+    )
+    .join("");
+
+  return `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>${escapeHtml(bill.billNumber)}</title>
+    <style>
+      body { margin: 0; color: #151515; font-family: Arial, sans-serif; }
+      main { margin: 0 auto; max-width: 520px; padding: 24px; }
+      h1, p { margin: 0; }
+      .muted { color: #555; font-size: 12px; }
+      table { border-collapse: collapse; margin-top: 18px; width: 100%; }
+      th, td { border-bottom: 1px solid #ddd; padding: 8px 0; text-align: left; font-size: 13px; }
+      th:nth-child(n+2), td:nth-child(n+2) { text-align: right; }
+      .totals { margin-top: 18px; display: grid; gap: 8px; font-size: 14px; }
+      .line { display: flex; justify-content: space-between; gap: 16px; }
+      .grand { border-top: 2px solid #151515; padding-top: 10px; font-size: 18px; font-weight: 800; }
+      @media print { @page { margin: 12mm; } main { padding: 0; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>${escapeHtml(branchName)}</h1>
+      <p class="muted">Bill ${escapeHtml(bill.billNumber)} - ${escapeHtml(order.tableName)} - ${formatAdminDate(bill.createdAtUtc)}</p>
+      <p class="muted">Customer: ${escapeHtml(order.customerName || "Guest")}</p>
+      <table>
+        <thead><tr><th>Item</th><th>Qty</th><th>Rate</th><th>Total</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <section class="totals">
+        <div class="line"><span>Subtotal</span><span>${formatMoney(bill.subtotalAmount)}</span></div>
+        <div class="line"><span>Discount</span><span>${formatMoney(bill.discountAmount)}</span></div>
+        <div class="line"><span>${escapeHtml(bill.taxName)} (${bill.taxRate}%, ${escapeHtml(bill.taxMode)})</span><span>${formatMoney(bill.taxAmount)}</span></div>
+        <div class="line"><span>${escapeHtml(bill.serviceChargeName)}</span><span>${formatMoney(bill.serviceChargeAmount)}</span></div>
+        <div class="line"><span>Rounding</span><span>${formatMoney(bill.roundingAmount)}</span></div>
+        <div class="line grand"><span>Total</span><span>${formatMoney(bill.totalAmount)}</span></div>
+        <div class="line"><span>Payment</span><span>${escapeHtml(bill.paymentStatusCode)}${bill.paymentMethod ? ` - ${escapeHtml(bill.paymentMethod)}` : ""}</span></div>
+      </section>
+    </main>
+  </body>
+</html>`;
 }

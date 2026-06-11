@@ -47,6 +47,15 @@ type CartLine = {
   quantity: number;
 };
 
+type CartEstimate = {
+  subtotalAmount: number;
+  taxableAmount: number;
+  taxAmount: number;
+  serviceChargeAmount: number;
+  roundingAmount: number;
+  totalAmount: number;
+};
+
 type ActiveView = "menu" | "cart" | "customerOrders";
 
 type SubmitState =
@@ -109,6 +118,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
   const cartLines = Object.values(cart);
   const cartCount = cartLines.reduce((total, line) => total + line.quantity, 0);
   const cartTotal = cartLines.reduce((total, line) => total + getCartLinePrice(line) * line.quantity, 0);
+  const cartEstimate = useMemo(() => calculateCartEstimate(cartTotal, currentMenu.billingSettings), [cartTotal, currentMenu.billingSettings]);
   const canOrder = currentMenu.orderSettings.enableDirectQrOrdering;
   const canCallWaiter = currentMenu.orderSettings.waiterCallEnabled;
   const itemCount = categories.reduce((total, category) => total + category.items.length, 0);
@@ -439,6 +449,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
           menuItemById={menuItemById}
           cartCount={cartCount}
           cartLines={cartLines}
+          cartEstimate={cartEstimate}
           cartTotal={cartTotal}
           customerName={customerName}
           customerPhoneCountryCode={customerPhoneCountryCode}
@@ -512,7 +523,7 @@ export function QrMenuClient({ menu }: { menu: PublicQrMenu }) {
           {canOrder && cartCount > 0 ? (
             <CheckoutBar
               cartCount={cartCount}
-              cartTotal={cartTotal}
+              totalAmount={cartEstimate.totalAmount}
               pulseKey={barPulseKey}
               recentItem={recentItem ?? cartLines[cartLines.length - 1]?.item ?? null}
               onOpen={() => setActiveView("cart")}
@@ -912,13 +923,13 @@ function FlyingCartItem({ item }: { item: PublicQrMenuItem }) {
 
 function CheckoutBar({
   cartCount,
-  cartTotal,
+  totalAmount,
   pulseKey,
   recentItem,
   onOpen
 }: {
   cartCount: number;
-  cartTotal: number;
+  totalAmount: number;
   pulseKey: number;
   recentItem: PublicQrMenuItem | null;
   onOpen: () => void;
@@ -942,7 +953,7 @@ function CheckoutBar({
             <span className="mt-0.5 block truncate text-xs font-semibold uppercase tracking-[0.12em] text-white/55">{recentItem?.name ?? `${cartCount} selected items`}</span>
           </span>
           <span className="flex shrink-0 items-center gap-3 text-xl font-black">
-            {formatPrice(cartTotal)}
+            {formatPrice(totalAmount)}
             <span className="grid h-11 w-11 place-items-center rounded-full bg-[#00743a]">
               <ChevronRight className="h-6 w-6" aria-hidden="true" />
             </span>
@@ -956,6 +967,7 @@ function CheckoutBar({
 function CartPage({
   cartCount,
   cartLines,
+  cartEstimate,
   cartTotal,
   customerName,
   customerPhoneCountryCode,
@@ -981,6 +993,7 @@ function CartPage({
 }: {
   cartCount: number;
   cartLines: CartLine[];
+  cartEstimate: CartEstimate;
   cartTotal: number;
   customerName: string;
   customerPhoneCountryCode: string;
@@ -1076,9 +1089,27 @@ function CartPage({
               <span>Subtotal</span>
               <span className="font-black text-[#001c11]">{formatPrice(cartTotal)}</span>
             </div>
+            {cartEstimate.taxAmount > 0 ? (
+              <div className="mt-2 flex items-center justify-between text-sm text-[#5a625e]">
+                <span>Tax</span>
+                <span className="font-black text-[#001c11]">{formatPrice(cartEstimate.taxAmount)}</span>
+              </div>
+            ) : null}
+            {cartEstimate.serviceChargeAmount > 0 ? (
+              <div className="mt-2 flex items-center justify-between text-sm text-[#5a625e]">
+                <span>Service charge</span>
+                <span className="font-black text-[#001c11]">{formatPrice(cartEstimate.serviceChargeAmount)}</span>
+              </div>
+            ) : null}
+            {Math.abs(cartEstimate.roundingAmount) >= 0.01 ? (
+              <div className="mt-2 flex items-center justify-between text-sm text-[#5a625e]">
+                <span>Rounding</span>
+                <span className="font-black text-[#001c11]">{formatSignedPrice(cartEstimate.roundingAmount)}</span>
+              </div>
+            ) : null}
             <div className="mt-3 flex items-center justify-between border-t border-[#e6eeea] pt-3">
               <span className="text-base font-black text-[#001c11]">Total amount</span>
-              <span className="text-xl font-black text-[#006d36]">{formatPrice(cartTotal)}</span>
+              <span className="text-xl font-black text-[#006d36]">{formatPrice(cartEstimate.totalAmount)}</span>
             </div>
           </div>
 
@@ -1560,6 +1591,41 @@ function valueOrNull(value: string): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+function calculateCartEstimate(subtotalAmount: number, settings: PublicQrMenu["billingSettings"]): CartEstimate {
+  const subtotal = roundMoney(subtotalAmount);
+  const taxableAmount = subtotal;
+  const taxRate = Math.max(0, settings.taxRate);
+  let taxAmount = 0;
+
+  if (settings.taxEnabled && taxRate > 0) {
+    taxAmount =
+      settings.taxMode === "Inclusive"
+        ? roundMoney(taxableAmount - taxableAmount / (1 + taxRate / 100))
+        : roundMoney((taxableAmount * taxRate) / 100);
+  }
+
+  const serviceChargeAmount =
+    settings.serviceChargeEnabled && settings.serviceChargeRate > 0
+      ? roundMoney((subtotal * Math.max(0, settings.serviceChargeRate)) / 100)
+      : 0;
+  const totalBeforeRounding = roundMoney((settings.taxMode === "Inclusive" ? taxableAmount : taxableAmount + taxAmount) + serviceChargeAmount);
+  const roundedTotal = settings.roundingMode === "NearestRupee" ? Math.round(totalBeforeRounding) : totalBeforeRounding;
+  const roundingAmount = roundMoney(roundedTotal - totalBeforeRounding);
+
+  return {
+    subtotalAmount: subtotal,
+    taxableAmount,
+    taxAmount,
+    serviceChargeAmount,
+    roundingAmount,
+    totalAmount: roundMoney(totalBeforeRounding + roundingAmount)
+  };
+}
+
+function roundMoney(value: number): number {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
 function getCartLineId(menuItemId: string, menuItemVariantId: string | null): string {
   return `${menuItemId}:${menuItemVariantId ?? "base"}`;
 }
@@ -1618,4 +1684,9 @@ function formatPrice(price: number): string {
     currency: "INR",
     maximumFractionDigits: 2
   }).format(price);
+}
+
+function formatSignedPrice(price: number): string {
+  const formatted = formatPrice(Math.abs(price));
+  return price < 0 ? `-${formatted}` : `+${formatted}`;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useState } from "react";
 import { Save, Settings, Store } from "lucide-react";
 import { AdminShell } from "../../../components/admin-shell";
 import { EmptyBranchState, PageError, PageLoading } from "../../../components/admin-page-common";
@@ -8,11 +8,17 @@ import { Alert, AlertDescription } from "../../../components/ui/alert";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../components/ui/card";
+import { Input } from "../../../components/ui/input";
+import { Label } from "../../../components/ui/label";
 import {
   createBranchOrderSettings,
+  getBranchBillingSettings,
   getBranchOrderSettings,
+  saveBranchBillingSettings,
   updateBranchOrderSettings,
+  type BranchBillingSettings,
   type BranchOrderSettings,
+  type SaveBranchBillingSettingsInput,
   type SaveBranchOrderSettingsInput
 } from "../../../lib/api";
 import { useAdminWorkspace } from "../../../lib/admin-workspace";
@@ -24,18 +30,36 @@ const DefaultSettings: SaveBranchOrderSettingsInput = {
   waiterCallEnabled: false
 };
 
+const DefaultBillingSettings: SaveBranchBillingSettingsInput = {
+  taxEnabled: false,
+  taxName: "GST",
+  taxRate: 0,
+  taxMode: "Exclusive",
+  serviceChargeEnabled: false,
+  serviceChargeName: "Service charge",
+  serviceChargeRate: 0,
+  discountEnabled: true,
+  staffCanApplyDiscount: false,
+  roundingMode: "NearestRupee"
+};
+
 export default function AdminSettingsPage() {
   const workspace = useAdminWorkspace();
   const [settings, setSettings] = useState<BranchOrderSettings | null>(null);
+  const [billingSettings, setBillingSettings] = useState<BranchBillingSettings | null>(null);
   const [form, setForm] = useState<SaveBranchOrderSettingsInput>(DefaultSettings);
+  const [billingForm, setBillingForm] = useState<SaveBranchBillingSettingsInput>(DefaultBillingSettings);
   const [isLoadingSettings, setIsLoadingSettings] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavingBilling, setIsSavingBilling] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     if (!workspace.selectedBranch) {
       setSettings(null);
+      setBillingSettings(null);
       setForm(DefaultSettings);
+      setBillingForm(DefaultBillingSettings);
       return;
     }
 
@@ -47,9 +71,11 @@ export default function AdminSettingsPage() {
     setNotice(null);
 
     try {
-      const response = await getBranchOrderSettings(branchId);
+      const [response, billingResponse] = await Promise.all([getBranchOrderSettings(branchId), getBranchBillingSettings(branchId)]);
       setSettings(response);
+      setBillingSettings(billingResponse);
       setForm(response ? toForm(response) : DefaultSettings);
+      setBillingForm(billingResponse ? toBillingForm(billingResponse) : DefaultBillingSettings);
     } catch (caught) {
       workspace.handleApiError(caught);
     } finally {
@@ -79,6 +105,33 @@ export default function AdminSettingsPage() {
       workspace.handleApiError(caught);
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  async function saveBillingSettings(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!workspace.selectedBranch) {
+      return;
+    }
+
+    setIsSavingBilling(true);
+    setNotice(null);
+
+    try {
+      const saved = await saveBranchBillingSettings(workspace.selectedBranch.branchId, {
+        ...billingForm,
+        taxRate: Number(billingForm.taxRate) || 0,
+        serviceChargeRate: Number(billingForm.serviceChargeRate) || 0
+      });
+
+      setBillingSettings(saved);
+      setBillingForm(toBillingForm(saved));
+      setNotice("Billing settings saved.");
+    } catch (caught) {
+      workspace.handleApiError(caught);
+    } finally {
+      setIsSavingBilling(false);
     }
   }
 
@@ -143,6 +196,7 @@ export default function AdminSettingsPage() {
               </CardContent>
             </Card>
 
+            <div className="space-y-4">
             <Card>
               <CardHeader>
                 <CardTitle>QR ordering controls</CardTitle>
@@ -168,10 +222,73 @@ export default function AdminSettingsPage() {
                 )}
               </CardContent>
             </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Billing defaults</CardTitle>
+                <CardDescription>These branch-level defaults are copied into each generated bill.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isLoadingSettings ? (
+                  <PageLoading />
+                ) : (
+                  <form onSubmit={saveBillingSettings} className="space-y-4">
+                    <Toggle label="Enable tax" description="Apply branch tax to generated bills." checked={billingForm.taxEnabled} onChange={(value) => setBillingForm({ ...billingForm, taxEnabled: value })} />
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <Field label="Tax name">
+                        <Input value={billingForm.taxName} onChange={(event) => setBillingForm({ ...billingForm, taxName: event.target.value })} />
+                      </Field>
+                      <Field label="Tax rate %">
+                        <Input type="number" min="0" max="100" step="0.001" value={billingForm.taxRate} onChange={(event) => setBillingForm({ ...billingForm, taxRate: Number(event.target.value) })} />
+                      </Field>
+                      <Field label="Tax mode">
+                        <select value={billingForm.taxMode} onChange={(event) => setBillingForm({ ...billingForm, taxMode: event.target.value as SaveBranchBillingSettingsInput["taxMode"] })} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
+                          <option value="Exclusive">Exclusive</option>
+                          <option value="Inclusive">Inclusive</option>
+                        </select>
+                      </Field>
+                    </div>
+
+                    <Toggle label="Enable service charge" description="Apply a service charge on generated bills." checked={billingForm.serviceChargeEnabled} onChange={(value) => setBillingForm({ ...billingForm, serviceChargeEnabled: value })} />
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Field label="Service charge label">
+                        <Input value={billingForm.serviceChargeName} onChange={(event) => setBillingForm({ ...billingForm, serviceChargeName: event.target.value })} />
+                      </Field>
+                      <Field label="Service charge %">
+                        <Input type="number" min="0" max="100" step="0.001" value={billingForm.serviceChargeRate} onChange={(event) => setBillingForm({ ...billingForm, serviceChargeRate: Number(event.target.value) })} />
+                      </Field>
+                    </div>
+
+                    <Toggle label="Allow discounts" description="Bills can include a manual discount." checked={billingForm.discountEnabled} onChange={(value) => setBillingForm({ ...billingForm, discountEnabled: value })} />
+                    <Toggle label="Staff can apply discounts" description="Allow non-owner staff to discount bills." checked={billingForm.staffCanApplyDiscount} onChange={(value) => setBillingForm({ ...billingForm, staffCanApplyDiscount: value })} />
+                    <Field label="Rounding">
+                      <select value={billingForm.roundingMode} onChange={(event) => setBillingForm({ ...billingForm, roundingMode: event.target.value as SaveBranchBillingSettingsInput["roundingMode"] })} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
+                        <option value="NearestRupee">Nearest rupee</option>
+                        <option value="None">No rounding</option>
+                      </select>
+                    </Field>
+
+                    <Button type="submit" disabled={isSavingBilling}>
+                      <Save size={18} />
+                      {isSavingBilling ? "Saving..." : "Save billing"}
+                    </Button>
+                  </form>
+                )}
+              </CardContent>
+            </Card>
+            </div>
           </section>
         )}
       </div>
     </AdminShell>
+  );
+}
+
+function Field({ children, label }: { children: ReactNode; label: string }) {
+  return (
+    <div className="grid gap-1.5">
+      <Label>{label}</Label>
+      {children}
+    </div>
   );
 }
 
@@ -193,5 +310,20 @@ function toForm(settings: BranchOrderSettings): SaveBranchOrderSettingsInput {
     requireCustomerName: settings.requireCustomerName,
     requireCustomerWhatsApp: settings.requireCustomerWhatsApp,
     waiterCallEnabled: settings.waiterCallEnabled
+  };
+}
+
+function toBillingForm(settings: BranchBillingSettings): SaveBranchBillingSettingsInput {
+  return {
+    taxEnabled: settings.taxEnabled,
+    taxName: settings.taxName,
+    taxRate: settings.taxRate,
+    taxMode: settings.taxMode,
+    serviceChargeEnabled: settings.serviceChargeEnabled,
+    serviceChargeName: settings.serviceChargeName,
+    serviceChargeRate: settings.serviceChargeRate,
+    discountEnabled: settings.discountEnabled,
+    staffCanApplyDiscount: settings.staffCanApplyDiscount,
+    roundingMode: settings.roundingMode
   };
 }
