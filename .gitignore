@@ -22,3 +22,7 @@ yarn-error.log*
 *.db
 *.sqlite
 *.bak
+
+database/deelido/
+database/images/
+src/frontend/tsconfig.tsbuildinfo
