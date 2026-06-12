@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardList,
+  CreditCard,
   Gift,
   LayoutDashboard,
   LogOut,
@@ -43,7 +44,7 @@ import { createAdminOrderConnection, stopConnection, type AdminOrderRealtimeEven
 const SidebarCollapsedStorageKey = "qrapp.admin.sidebarCollapsed";
 
 type AdminShellProps = {
-  active: "dashboard" | "branches" | "menu" | "orders" | "kitchen" | "offers" | "customers" | "campaigns" | "staff" | "reports" | "analytics" | "settings";
+  active: "dashboard" | "branches" | "menu" | "orders" | "kitchen" | "offers" | "customers" | "campaigns" | "staff" | "reports" | "analytics" | "billing" | "settings";
   branchName?: string;
   branches?: BranchListItem[];
   children: ReactNode;
@@ -81,6 +82,7 @@ const navGroups: { label: string; items: NavItem[] }[] = [
       { id: "campaigns", label: "Campaigns", helper: "WhatsApp", icon: Megaphone, href: "/admin/campaigns" },
       { id: "staff", label: "Staff", helper: "Access", icon: UserCog, href: "/admin/staff" },
       { id: "reports", label: "Reports", helper: "History", icon: ClipboardList, href: "/admin/reports" },
+      { id: "billing", label: "Billing", helper: "Access", icon: CreditCard, href: "/admin/billing" },
       { id: "settings", label: "Settings", helper: "Controls", icon: Settings, href: "/admin/settings" }
     ]
   }
@@ -685,6 +687,10 @@ function NavButton({ item, active, collapsed }: { item: NavItem; active: boolean
 }
 
 function canAccessNavItem(roleCode: string | null, itemId: AdminShellProps["active"]): boolean {
+  if (itemId === "billing") {
+    return roleCode === "owner";
+  }
+
   if (roleCode === "staff") {
     return ["orders", "kitchen", "settings"].includes(itemId);
   }

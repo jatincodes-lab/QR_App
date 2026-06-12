@@ -57,5 +57,41 @@ public sealed class TenantServiceTests
         {
             return Task.FromResult<TenantAccessStatusResponse?>(null);
         }
+
+        public Task<TenantSubscriptionResponse?> GetSubscriptionByTenantIdAsync(Guid tenantId, CancellationToken cancellationToken)
+        {
+            return Task.FromResult<TenantSubscriptionResponse?>(null);
+        }
+
+        public Task<TenantSubscriptionResponse> UpdateSubscriptionManualAsync(
+            Guid tenantId,
+            UpdateTenantSubscriptionRequest request,
+            CancellationToken cancellationToken)
+        {
+            var access = TenantAccessRules.CreateStatus(
+                tenantId,
+                request.PlanCode,
+                null,
+                request.TrialEndAtUtc,
+                request.SubscriptionStatusCode,
+                request.AccountStatusCode,
+                string.Equals(request.AccountStatusCode, "Active", StringComparison.OrdinalIgnoreCase),
+                DateTime.UtcNow);
+
+            return Task.FromResult(new TenantSubscriptionResponse(
+                tenantId,
+                "Cafe Demo",
+                "cafe-demo",
+                "owner@example.com",
+                request.PlanCode,
+                null,
+                request.TrialEndAtUtc,
+                request.SubscriptionStatusCode,
+                request.AccountStatusCode,
+                access.IsTenantActive,
+                DateTime.UtcNow,
+                request.SubscriptionNotes,
+                access));
+        }
     }
 }

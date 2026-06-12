@@ -184,6 +184,7 @@ app.MapAdminOrderEndpoints();
 app.MapAdminReportEndpoints();
 app.MapAdminCampaignEndpoints();
 app.MapAdminStaffEndpoints();
+app.MapAdminBillingEndpoints();
 app.MapFeedbackEndpoints();
 app.MapPublicMenuEndpoints();
 app.MapPublicQrEndpoints();
@@ -232,6 +233,11 @@ static async Task<bool> ShouldBlockForTenantAccessAsync(HttpContext context)
         return false;
     }
 
+    if (IsTenantAccessManagementPath(context.Request.Path))
+    {
+        return false;
+    }
+
     var service = context.RequestServices.GetRequiredService<ITenantAccessService>();
     TenantAccessStatusResponse? accessStatus = null;
 
@@ -264,6 +270,11 @@ static async Task<bool> ShouldBlockForTenantAccessAsync(HttpContext context)
 static bool IsAnonymousAuthPath(PathString path)
 {
     return path.StartsWithSegments("/api/v1/auth");
+}
+
+static bool IsTenantAccessManagementPath(PathString path)
+{
+    return path.StartsWithSegments("/api/v1/admin/billing");
 }
 
 static string? ReadQrTokenFromPublicPath(string path)

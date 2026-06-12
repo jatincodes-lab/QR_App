@@ -26,6 +26,7 @@ public static class DependencyInjection
         services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
         services.AddScoped<ITenantService, TenantService>();
         services.AddScoped<ITenantAccessService, TenantAccessService>();
+        services.AddScoped<ITenantSubscriptionService, TenantSubscriptionService>();
         services.AddScoped<IBranchService, BranchService>();
         services.AddScoped<IBranchOrderSettingsService, BranchOrderSettingsService>();
         services.AddScoped<ICampaignService, CampaignService>();

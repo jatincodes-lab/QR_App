@@ -43,6 +43,11 @@ internal static class SqlProblemMapper
             51802 => Conflict("Waiter call is disabled for this branch."),
             51803 => ApiProblemResponses.BadRequest("Waiter call status is invalid."),
             51804 => ApiProblemResponses.NotFound("Waiter call was not found for this tenant and branch."),
+            51901 => ApiProblemResponses.BadRequest("Plan code is invalid."),
+            51902 => ApiProblemResponses.BadRequest("Subscription status is invalid."),
+            51903 => ApiProblemResponses.BadRequest("Account status is invalid."),
+            51904 => ApiProblemResponses.BadRequest("Trial end date is required for trialing tenants."),
+            51905 => ApiProblemResponses.NotFound("Tenant was not found."),
 
             547 => ApiProblemResponses.BadRequest("The request violates a database relationship constraint."),
 

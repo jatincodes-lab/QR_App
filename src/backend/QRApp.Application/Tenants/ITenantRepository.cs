@@ -9,4 +9,11 @@ public interface ITenantRepository
     Task<TenantAccessStatusResponse?> GetAccessStatusByTenantIdAsync(Guid tenantId, CancellationToken cancellationToken);
 
     Task<TenantAccessStatusResponse?> GetAccessStatusByQrTokenAsync(string qrToken, CancellationToken cancellationToken);
+
+    Task<TenantSubscriptionResponse?> GetSubscriptionByTenantIdAsync(Guid tenantId, CancellationToken cancellationToken);
+
+    Task<TenantSubscriptionResponse> UpdateSubscriptionManualAsync(
+        Guid tenantId,
+        UpdateTenantSubscriptionRequest request,
+        CancellationToken cancellationToken);
 }

@@ -53,6 +53,43 @@ export type TenantAccessStatus = {
   message: string;
 };
 
+export type TenantSubscription = {
+  tenantId: string;
+  name: string;
+  slug: string;
+  ownerEmail: string;
+  planCode: string;
+  trialStartAtUtc: string | null;
+  trialEndAtUtc: string | null;
+  subscriptionStatusCode: SubscriptionStatusCode;
+  accountStatusCode: AccountStatusCode;
+  isTenantActive: boolean;
+  subscriptionUpdatedAtUtc: string | null;
+  subscriptionNotes: string | null;
+  accessStatus: TenantAccessStatus;
+};
+
+export type SubscriptionStatusCode = "Trialing" | "Active" | "ManualActive" | "PastDue" | "Suspended" | "Cancelled" | "Expired";
+
+export type AccountStatusCode = "Active" | "Inactive";
+
+export type UpdateTenantSubscriptionInput = {
+  planCode: string;
+  subscriptionStatusCode: SubscriptionStatusCode;
+  accountStatusCode: AccountStatusCode;
+  trialEndAtUtc: string | null;
+  subscriptionNotes: string | null;
+};
+
+export type ExtendTenantTrialInput = {
+  days: number;
+  subscriptionNotes: string | null;
+};
+
+export type TenantSubscriptionActionInput = {
+  subscriptionNotes: string | null;
+};
+
 export type BranchListItem = {
   branchId: string;
   tenantId: string;
@@ -1162,6 +1199,45 @@ export async function createStaffUser(input: CreateStaffUserInput): Promise<Staf
 export async function updateStaffUser(userId: string, input: UpdateStaffUserInput): Promise<StaffUser> {
   return request<StaffUser>(`/api/v1/admin/staff/${userId}`, {
     method: "PUT",
+    body: input,
+    requireAuth: true
+  });
+}
+
+export async function getTenantSubscription(): Promise<TenantSubscription> {
+  return request<TenantSubscription>("/api/v1/admin/billing/subscription", {
+    method: "GET",
+    requireAuth: true
+  });
+}
+
+export async function updateTenantSubscription(input: UpdateTenantSubscriptionInput): Promise<TenantSubscription> {
+  return request<TenantSubscription>("/api/v1/admin/billing/subscription", {
+    method: "PUT",
+    body: input,
+    requireAuth: true
+  });
+}
+
+export async function extendTenantTrial(input: ExtendTenantTrialInput): Promise<TenantSubscription> {
+  return request<TenantSubscription>("/api/v1/admin/billing/subscription/extend-trial", {
+    method: "POST",
+    body: input,
+    requireAuth: true
+  });
+}
+
+export async function reactivateTenantSubscription(input: TenantSubscriptionActionInput): Promise<TenantSubscription> {
+  return request<TenantSubscription>("/api/v1/admin/billing/subscription/reactivate", {
+    method: "POST",
+    body: input,
+    requireAuth: true
+  });
+}
+
+export async function suspendTenantSubscription(input: TenantSubscriptionActionInput): Promise<TenantSubscription> {
+  return request<TenantSubscription>("/api/v1/admin/billing/subscription/suspend", {
+    method: "POST",
     body: input,
     requireAuth: true
   });
