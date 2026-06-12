@@ -1,3 +1,5 @@
+using QRApp.Application.Tenants;
+
 namespace QRApp.Application.Auth;
 
 public sealed record RegisterTenantOwnerRequest(
@@ -20,7 +22,8 @@ public sealed record AuthenticatedUserResponse(
 public sealed record AuthenticatedTenantResponse(
     Guid TenantId,
     string Name,
-    string Slug);
+    string Slug,
+    TenantAccessStatusResponse AccessStatus);
 
 public sealed record AuthenticatedSessionResponse(
     AuthenticatedUserResponse User,
@@ -35,4 +38,10 @@ public sealed record LoginUserRecord(
     string TenantName,
     string TenantSlug,
     string RoleCode,
-    Guid? BranchId);
+    Guid? BranchId,
+    string PlanCode,
+    DateTime? TrialStartAtUtc,
+    DateTime? TrialEndAtUtc,
+    string SubscriptionStatusCode,
+    string AccountStatusCode,
+    bool IsTenantActive);

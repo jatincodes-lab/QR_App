@@ -5,5 +5,8 @@ public interface ITenantRepository
     Task<TenantResponse> CreateAsync(Guid tenantId, CreateTenantRequest request, CancellationToken cancellationToken);
 
     Task<TenantResponse?> GetByIdAsync(Guid tenantId, CancellationToken cancellationToken);
-}
 
+    Task<TenantAccessStatusResponse?> GetAccessStatusByTenantIdAsync(Guid tenantId, CancellationToken cancellationToken);
+
+    Task<TenantAccessStatusResponse?> GetAccessStatusByQrTokenAsync(string qrToken, CancellationToken cancellationToken);
+}

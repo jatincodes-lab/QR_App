@@ -4,6 +4,8 @@ internal static class StoredProcedures
 {
     public const string TenantCreate = "dbo.Tenant_Create";
     public const string TenantGetById = "dbo.Tenant_GetById";
+    public const string TenantAccessGetByTenantId = "dbo.TenantAccess_GetByTenantId";
+    public const string TenantAccessGetByQrToken = "dbo.TenantAccess_GetByQrToken";
 
     public const string AuthRegisterTenantOwner = "dbo.Auth_RegisterTenantOwner";
     public const string AuthGetUserByEmail = "dbo.Auth_GetUserByEmail";

@@ -1,4 +1,5 @@
 using QRApp.Application.Auth;
+using QRApp.Application.Tenants;
 
 namespace QRApp.Application.Tests.Auth;
 
@@ -49,7 +50,13 @@ public sealed class AuthServiceTests
                 "Cafe Demo",
                 "cafe-demo",
                 "owner",
-                null)
+                null,
+                "trial",
+                DateTime.UtcNow.AddDays(-1),
+                DateTime.UtcNow.AddDays(6),
+                "Trialing",
+                "Active",
+                true)
         };
         var service = new AuthService(repository, new FakePasswordHasher());
 
@@ -80,7 +87,19 @@ public sealed class AuthServiceTests
 
             return Task.FromResult(new AuthenticatedSessionResponse(
                 new AuthenticatedUserResponse(userId, request.OwnerEmail, request.OwnerDisplayName, tenantId, "owner", null),
-                new AuthenticatedTenantResponse(tenantId, request.TenantName, request.TenantSlug)));
+                new AuthenticatedTenantResponse(
+                    tenantId,
+                    request.TenantName,
+                    request.TenantSlug,
+                    TenantAccessRules.CreateStatus(
+                        tenantId,
+                        "trial",
+                        DateTime.UtcNow,
+                        DateTime.UtcNow.AddDays(7),
+                        "Trialing",
+                        "Active",
+                        true,
+                        DateTime.UtcNow))));
         }
 
         public Task<LoginUserRecord?> GetUserByEmailAsync(string email, CancellationToken cancellationToken)

@@ -63,6 +63,15 @@ internal static class ApiProblemResponses
             "https://httpstatuses.com/403");
     }
 
+    public static IResult PaymentRequired(string detail)
+    {
+        return Problem(
+            StatusCodes.Status402PaymentRequired,
+            "Account renewal required",
+            detail,
+            "https://httpstatuses.com/402");
+    }
+
     public static IResult ServerError(string detail)
     {
         return Problem(

@@ -37,7 +37,7 @@ import {
   type AdminSearchResult,
   type BranchListItem
 } from "../lib/api";
-import { getCurrentRoleCode } from "../lib/auth";
+import { getAdminSession, getCurrentRoleCode, type StoredAdminSession } from "../lib/auth";
 import { createAdminOrderConnection, stopConnection, type AdminOrderRealtimeEvent, type AdminWaiterCallRealtimeEvent } from "../lib/realtime";
 
 const SidebarCollapsedStorageKey = "qrapp.admin.sidebarCollapsed";
@@ -98,6 +98,7 @@ export function AdminShell({
   const router = useRouter();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [roleCode, setRoleCode] = useState<string | null>(null);
+  const [adminSession, setAdminSession] = useState<StoredAdminSession | null>(null);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
@@ -123,6 +124,7 @@ export function AdminShell({
   useEffect(() => {
     setIsCollapsed(window.localStorage.getItem(SidebarCollapsedStorageKey) === "true");
     setRoleCode(getCurrentRoleCode());
+    setAdminSession(getAdminSession());
   }, []);
 
   useEffect(() => {
@@ -471,7 +473,41 @@ export function AdminShell({
           </div>
         </header>
 
-        <main className="px-4 py-5 sm:px-6 lg:px-8 lg:py-8">{children}</main>
+        <main className="px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
+          <TenantAccessBanner session={adminSession} />
+          {children}
+        </main>
+      </div>
+    </div>
+  );
+}
+
+function TenantAccessBanner({ session }: { session: StoredAdminSession | null }) {
+  const access = session?.tenant.accessStatus;
+  if (!access) {
+    return null;
+  }
+
+  const isEndingSoon = access.subscriptionStatusCode === "Trialing" &&
+    access.trialDaysRemaining !== null &&
+    access.trialDaysRemaining <= 3;
+  if (access.isAccessAllowed && !isEndingSoon) {
+    return null;
+  }
+
+  return (
+    <div
+      className={`mb-5 rounded-xl border px-4 py-3 text-sm font-semibold ${
+        access.isAccessAllowed
+          ? "border-amber-200 bg-amber-50 text-amber-950"
+          : "border-red-200 bg-red-50 text-red-900"
+      }`}
+    >
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <p>{access.message}</p>
+        <span className="text-xs font-bold uppercase tracking-wide opacity-75">
+          {access.planCode} / {access.subscriptionStatusCode}
+        </span>
       </div>
     </div>
   );

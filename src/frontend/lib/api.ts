@@ -34,7 +34,23 @@ export type LoginResponse = {
     tenantId: string;
     name: string;
     slug: string;
+    accessStatus: TenantAccessStatus;
   };
+};
+
+export type TenantAccessStatus = {
+  tenantId: string;
+  planCode: string;
+  trialStartAtUtc: string | null;
+  trialEndAtUtc: string | null;
+  subscriptionStatusCode: string;
+  accountStatusCode: string;
+  isTenantActive: boolean;
+  isAccountActive: boolean;
+  isTrialExpired: boolean;
+  isAccessAllowed: boolean;
+  trialDaysRemaining: number | null;
+  message: string;
 };
 
 export type BranchListItem = {

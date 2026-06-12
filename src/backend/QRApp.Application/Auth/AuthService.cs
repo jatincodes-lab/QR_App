@@ -1,4 +1,5 @@
 using QRApp.Application.Common;
+using QRApp.Application.Tenants;
 using QRApp.Shared.Results;
 
 namespace QRApp.Application.Auth;
@@ -94,8 +95,18 @@ public sealed class AuthService(IAuthRepository authRepository, IPasswordHasher 
 
     private static AuthenticatedSessionResponse ToSession(LoginUserRecord user)
     {
+        var accessStatus = TenantAccessRules.CreateStatus(
+            user.TenantId,
+            user.PlanCode,
+            user.TrialStartAtUtc,
+            user.TrialEndAtUtc,
+            user.SubscriptionStatusCode,
+            user.AccountStatusCode,
+            user.IsTenantActive,
+            DateTime.UtcNow);
+
         return new AuthenticatedSessionResponse(
             new AuthenticatedUserResponse(user.UserId, user.Email, user.DisplayName, user.TenantId, user.RoleCode, user.BranchId),
-            new AuthenticatedTenantResponse(user.TenantId, user.TenantName, user.TenantSlug));
+            new AuthenticatedTenantResponse(user.TenantId, user.TenantName, user.TenantSlug, accessStatus));
     }
 }

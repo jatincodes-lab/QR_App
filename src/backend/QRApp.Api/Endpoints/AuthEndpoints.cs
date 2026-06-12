@@ -15,12 +15,17 @@ public static class AuthEndpoints
         auth.MapPost("/register-owner", RegisterOwnerAsync).AllowAnonymous();
         auth.MapPost("/login", LoginAsync).AllowAnonymous();
 
-        app.MapGet("/api/v1/me", [Authorize] (ITenantContext tenantContext) =>
+        app.MapGet("/api/v1/me", [Authorize] async (
+            ITenantContext tenantContext,
+            QRApp.Application.Tenants.ITenantAccessService tenantAccessService,
+            CancellationToken cancellationToken) =>
         {
+            var accessStatus = await tenantAccessService.GetByTenantIdAsync(tenantContext.TenantId, cancellationToken);
             return Results.Ok(new CurrentUserContextResponse(
                 tenantContext.UserId,
                 tenantContext.TenantId,
-                tenantContext.RoleCode));
+                tenantContext.RoleCode,
+                accessStatus));
         });
 
         return app;
@@ -93,5 +98,9 @@ public static class AuthEndpoints
         AuthenticatedUserResponse User,
         AuthenticatedTenantResponse Tenant);
 
-    private sealed record CurrentUserContextResponse(Guid UserId, Guid TenantId, string RoleCode);
+    private sealed record CurrentUserContextResponse(
+        Guid UserId,
+        Guid TenantId,
+        string RoleCode,
+        QRApp.Application.Tenants.TenantAccessStatusResponse? AccessStatus);
 }

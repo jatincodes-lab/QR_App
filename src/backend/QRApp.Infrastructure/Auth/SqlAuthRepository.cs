@@ -62,13 +62,28 @@ public sealed class SqlAuthRepository(ISqlConnectionFactory connectionFactory) :
                 reader.GetString(reader.GetOrdinal("TenantName")),
                 reader.GetString(reader.GetOrdinal("TenantSlug")),
                 reader.GetString(reader.GetOrdinal("RoleCode")),
-                GetNullableGuid(reader, "BranchId"))
+                GetNullableGuid(reader, "BranchId"),
+                ReadStringOrDefault(reader, "PlanCode", "trial"),
+                ReadNullableDateTime(reader, "TrialStartAtUtc"),
+                ReadNullableDateTime(reader, "TrialEndAtUtc"),
+                ReadStringOrDefault(reader, "SubscriptionStatusCode", "Trialing"),
+                ReadStringOrDefault(reader, "AccountStatusCode", "Active"),
+                !HasColumn(reader, "IsTenantActive") || reader.GetBoolean(reader.GetOrdinal("IsTenantActive")))
             : null;
     }
 
     private static AuthenticatedSessionResponse ReadSession(SqlDataReader reader)
     {
         var tenantId = reader.GetGuid(reader.GetOrdinal("TenantId"));
+        var accessStatus = QRApp.Application.Tenants.TenantAccessRules.CreateStatus(
+            tenantId,
+            ReadStringOrDefault(reader, "PlanCode", "trial"),
+            ReadNullableDateTime(reader, "TrialStartAtUtc"),
+            ReadNullableDateTime(reader, "TrialEndAtUtc"),
+            ReadStringOrDefault(reader, "SubscriptionStatusCode", "Trialing"),
+            ReadStringOrDefault(reader, "AccountStatusCode", "Active"),
+            !HasColumn(reader, "IsTenantActive") || reader.GetBoolean(reader.GetOrdinal("IsTenantActive")),
+            DateTime.UtcNow);
 
         return new AuthenticatedSessionResponse(
             new AuthenticatedUserResponse(
@@ -81,13 +96,36 @@ public sealed class SqlAuthRepository(ISqlConnectionFactory connectionFactory) :
             new AuthenticatedTenantResponse(
                 tenantId,
                 reader.GetString(reader.GetOrdinal("TenantName")),
-                reader.GetString(reader.GetOrdinal("TenantSlug"))));
+                reader.GetString(reader.GetOrdinal("TenantSlug")),
+                accessStatus));
     }
 
     private static Guid? GetNullableGuid(SqlDataReader reader, string name)
     {
         var ordinal = reader.GetOrdinal(name);
         return reader.IsDBNull(ordinal) ? null : reader.GetGuid(ordinal);
+    }
+
+    private static DateTime? ReadNullableDateTime(SqlDataReader reader, string name)
+    {
+        if (!HasColumn(reader, name))
+        {
+            return null;
+        }
+
+        var ordinal = reader.GetOrdinal(name);
+        return reader.IsDBNull(ordinal) ? null : reader.GetDateTime(ordinal);
+    }
+
+    private static string ReadStringOrDefault(SqlDataReader reader, string name, string fallback)
+    {
+        if (!HasColumn(reader, name))
+        {
+            return fallback;
+        }
+
+        var ordinal = reader.GetOrdinal(name);
+        return reader.IsDBNull(ordinal) ? fallback : reader.GetString(ordinal);
     }
 
     private static bool HasColumn(SqlDataReader reader, string name)

@@ -11,3 +11,16 @@ public sealed record TenantResponse(
     DateTime CreatedAtUtc,
     DateTime? UpdatedAtUtc);
 
+public sealed record TenantAccessStatusResponse(
+    Guid TenantId,
+    string PlanCode,
+    DateTime? TrialStartAtUtc,
+    DateTime? TrialEndAtUtc,
+    string SubscriptionStatusCode,
+    string AccountStatusCode,
+    bool IsTenantActive,
+    bool IsAccountActive,
+    bool IsTrialExpired,
+    bool IsAccessAllowed,
+    int? TrialDaysRemaining,
+    string Message);

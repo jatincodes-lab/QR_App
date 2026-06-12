@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../..
 import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
 import { ApiError, registerOwner } from "../../../lib/api";
-import { getAccessToken, setAccessToken } from "../../../lib/auth";
+import { getAccessToken, setAccessToken, setAdminSession } from "../../../lib/auth";
 import { firstInvalid, validateEmail, validatePassword, validateRequired, validateSlug } from "../../../lib/validation";
 
 export default function AdminRegisterPage() {
@@ -67,6 +67,7 @@ export default function AdminRegisterPage() {
         password
       });
       setAccessToken(response.accessToken);
+      setAdminSession({ tenant: response.tenant });
       router.replace("/admin/setup");
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : "Account could not be created. Please try again.");

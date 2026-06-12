@@ -47,6 +47,15 @@ public sealed class TenantServiceTests
         {
             return Task.FromResult<TenantResponse?>(null);
         }
+
+        public Task<TenantAccessStatusResponse?> GetAccessStatusByTenantIdAsync(Guid tenantId, CancellationToken cancellationToken)
+        {
+            return Task.FromResult<TenantAccessStatusResponse?>(null);
+        }
+
+        public Task<TenantAccessStatusResponse?> GetAccessStatusByQrTokenAsync(string qrToken, CancellationToken cancellationToken)
+        {
+            return Task.FromResult<TenantAccessStatusResponse?>(null);
+        }
     }
 }
-

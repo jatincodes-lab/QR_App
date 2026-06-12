@@ -10,6 +10,7 @@ using QRApp.Api.Hubs;
 using QRApp.Api.Media;
 using QRApp.Application;
 using QRApp.Application.Auth;
+using QRApp.Application.Tenants;
 using QRApp.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -142,6 +143,15 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.Use(async (context, next) =>
 {
+    if (await ShouldBlockForTenantAccessAsync(context))
+    {
+        return;
+    }
+
+    await next();
+});
+app.Use(async (context, next) =>
+{
     if (context.Request.Path.StartsWithSegments("/api/v1/admin") &&
         context.User.Identity?.IsAuthenticated == true &&
         !CanAccessAdminRequest(context))
@@ -213,6 +223,61 @@ static bool CanAccessAdminRequest(HttpContext context)
     var assignedBranchId = ReadOptionalGuidClaim(context.User, TokenClaims.BranchId);
     var requestedBranchId = ReadBranchIdFromPath(path) ?? ReadBranchIdFromQuery(context);
     return !assignedBranchId.HasValue || !requestedBranchId.HasValue || requestedBranchId.Value == assignedBranchId.Value;
+}
+
+static async Task<bool> ShouldBlockForTenantAccessAsync(HttpContext context)
+{
+    if (IsAnonymousAuthPath(context.Request.Path))
+    {
+        return false;
+    }
+
+    var service = context.RequestServices.GetRequiredService<ITenantAccessService>();
+    TenantAccessStatusResponse? accessStatus = null;
+
+    if (context.Request.Path.StartsWithSegments("/api/v1/admin") && context.User.Identity?.IsAuthenticated == true)
+    {
+        var tenantId = ReadOptionalGuidClaim(context.User, TokenClaims.TenantId);
+        if (tenantId.HasValue)
+        {
+            accessStatus = await service.GetByTenantIdAsync(tenantId.Value, context.RequestAborted);
+        }
+    }
+    else if (context.Request.Path.StartsWithSegments("/api/v1/public/qr"))
+    {
+        var qrToken = ReadQrTokenFromPublicPath(context.Request.Path.Value ?? string.Empty);
+        if (!string.IsNullOrWhiteSpace(qrToken))
+        {
+            accessStatus = await service.GetByQrTokenAsync(Uri.UnescapeDataString(qrToken), context.RequestAborted);
+        }
+    }
+
+    if (accessStatus is null || accessStatus.IsAccessAllowed)
+    {
+        return false;
+    }
+
+    await ApiProblemResponses.PaymentRequired(accessStatus.Message).ExecuteAsync(context);
+    return true;
+}
+
+static bool IsAnonymousAuthPath(PathString path)
+{
+    return path.StartsWithSegments("/api/v1/auth");
+}
+
+static string? ReadQrTokenFromPublicPath(string path)
+{
+    var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+    for (var index = 0; index < segments.Length - 1; index++)
+    {
+        if (string.Equals(segments[index], "qr", StringComparison.OrdinalIgnoreCase))
+        {
+            return segments[index + 1];
+        }
+    }
+
+    return null;
 }
 
 static bool IsBranchReadPath(HttpContext context, string path)

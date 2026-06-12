@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../..
 import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
 import { ApiError, login } from "../../../lib/api";
-import { getAccessToken, getCurrentRoleCode, setAccessToken } from "../../../lib/auth";
+import { getAccessToken, getCurrentRoleCode, setAccessToken, setAdminSession } from "../../../lib/auth";
 import { firstInvalid, validateEmail, validatePassword } from "../../../lib/validation";
 
 export default function AdminLoginPage() {
@@ -64,6 +64,7 @@ function AdminLoginContent() {
     try {
       const response = await login(email.trim(), password);
       setAccessToken(response.accessToken);
+      setAdminSession({ tenant: response.tenant });
       router.replace(defaultRouteForRole(getCurrentRoleCode()));
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : "Login failed. Please try again.");

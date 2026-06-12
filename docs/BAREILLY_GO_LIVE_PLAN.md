@@ -156,6 +156,26 @@ Bareilly launch offer:
 - At least 1 testimonial video collected.
 - At least 1 real case study written.
 
+## Post-Deploy Phase 2: Feedback And Reports Polish
+
+Target: Improve owner follow-up after the live demo is deployed and real feedback starts coming in.
+
+### Build
+
+- Feedback metrics in admin reports:
+  - Average rating
+  - Total feedback count
+  - Low ratings count
+  - Recent low-rating comments
+- Low-rating follow-up workflow:
+  - Filter ratings 1-2
+  - Show customer, table, and order context
+  - Quick WhatsApp follow-up when consent and number are available
+
+### Rule
+
+Do this after the demo is deployed and the basic feedback flow has real data. Do not block deployment on feedback reporting polish.
+
 ## Phase 6: Revenue Features After Pilot
 
 Target: Improve conversion and retention after real feedback.
