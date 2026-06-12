@@ -1,9 +1,9 @@
 "use client";
 
-import { AlertCircle, ArrowLeft, CheckCircle2, Clock3, RefreshCw, ReceiptText, Utensils } from "lucide-react";
+import { AlertCircle, ArrowLeft, CheckCircle2, Clock3, Loader2, RefreshCw, ReceiptText, Send, Star, Utensils } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ApiError, getPublicQrOrder, type PublicQrMenu, type PublicQrOrder } from "../../../../../lib/api";
+import { ApiError, createPublicOrderFeedback, getPublicOrderFeedback, getPublicQrOrder, type OrderFeedback, type PublicQrMenu, type PublicQrOrder } from "../../../../../lib/api";
 
 const StatusSteps = ["Placed", "Accepted", "Preparing", "Ready", "Served"] as const;
 
@@ -19,8 +19,13 @@ export function OrderTrackingClient({
   qrToken: string;
 }) {
   const [order, setOrder] = useState(initialOrder);
+  const [feedback, setFeedback] = useState<OrderFeedback | null>(null);
+  const [feedbackRating, setFeedbackRating] = useState(5);
+  const [feedbackComment, setFeedbackComment] = useState("");
+  const [isSavingFeedback, setIsSavingFeedback] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [feedbackError, setFeedbackError] = useState<string | null>(null);
   const currentStepIndex = useMemo(() => StatusSteps.findIndex((status) => status === order.orderStatusCode), [order.orderStatusCode]);
   const isCancelled = order.orderStatusCode === "Cancelled";
   const isCompleted = order.orderStatusCode === "Completed";
@@ -35,6 +40,15 @@ export function OrderTrackingClient({
     return () => window.clearInterval(timer);
   }, [orderId, qrToken]);
 
+  useEffect(() => {
+    if (!isCompleted) {
+      setFeedback(null);
+      return;
+    }
+
+    void loadFeedback();
+  }, [isCompleted, orderId, qrToken]);
+
   async function refreshOrder() {
     setIsRefreshing(true);
     setError(null);
@@ -45,6 +59,33 @@ export function OrderTrackingClient({
       setError(caught instanceof ApiError ? caught.message : "Could not refresh order status.");
     } finally {
       setIsRefreshing(false);
+    }
+  }
+
+  async function loadFeedback() {
+    setFeedbackError(null);
+    try {
+      setFeedback(await getPublicOrderFeedback(qrToken, orderId));
+    } catch (caught) {
+      setFeedbackError(caught instanceof ApiError ? caught.message : "Could not load feedback.");
+    }
+  }
+
+  async function submitFeedback() {
+    setIsSavingFeedback(true);
+    setFeedbackError(null);
+
+    try {
+      const saved = await createPublicOrderFeedback(qrToken, orderId, {
+        rating: feedbackRating,
+        comment: feedbackComment.trim() || null
+      });
+      setFeedback(saved);
+      setFeedbackComment("");
+    } catch (caught) {
+      setFeedbackError(caught instanceof ApiError ? caught.message : "Could not save feedback.");
+    } finally {
+      setIsSavingFeedback(false);
     }
   }
 
@@ -155,6 +196,67 @@ export function OrderTrackingClient({
         <p className="mt-2 text-xs font-bold uppercase text-on-surface-variant">Placed at</p>
         <p className="mt-1 text-sm font-black text-[#001c11]">{formatOrderDate(order.createdAtUtc)}</p>
       </div>
+
+      {isCompleted ? (
+        <div className="mt-4 rounded-2xl border border-[#d9e4df] bg-white p-4 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#f1fbf5] text-[#006d36]">
+              <Star className="h-5 w-5" aria-hidden="true" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-base font-black text-[#001c11]">Rate your experience</p>
+              <p className="mt-1 text-sm font-semibold leading-6 text-[#5a625e]">Your feedback goes directly to the restaurant owner.</p>
+            </div>
+          </div>
+
+          {feedback ? (
+            <div className="mt-4 rounded-xl border border-[#bfe6cf] bg-[#f1fbf5] p-3">
+              <div className="flex items-center gap-1 text-[#006d36]">
+                {Array.from({ length: feedback.rating }, (_, index) => (
+                  <Star key={index} className="h-4 w-4 fill-current" aria-hidden="true" />
+                ))}
+              </div>
+              <p className="mt-2 text-sm font-black text-[#001c11]">Thanks for your feedback.</p>
+              {feedback.comment ? <p className="mt-1 text-sm font-semibold leading-6 text-[#5a625e]">{feedback.comment}</p> : null}
+            </div>
+          ) : (
+            <div className="mt-4 grid gap-3">
+              <div className="flex items-center gap-2" aria-label={`${feedbackRating} star rating`}>
+                {[1, 2, 3, 4, 5].map((rating) => (
+                  <button
+                    key={rating}
+                    type="button"
+                    onClick={() => setFeedbackRating(rating)}
+                    className={`grid h-11 w-11 place-items-center rounded-full border ${
+                      rating <= feedbackRating ? "border-[#006d36] bg-[#f1fbf5] text-[#006d36]" : "border-[#d9e4df] bg-white text-[#9aa39f]"
+                    }`}
+                    aria-label={`${rating} star${rating === 1 ? "" : "s"}`}
+                  >
+                    <Star className={`h-5 w-5 ${rating <= feedbackRating ? "fill-current" : ""}`} aria-hidden="true" />
+                  </button>
+                ))}
+              </div>
+              <textarea
+                value={feedbackComment}
+                onChange={(event) => setFeedbackComment(event.target.value)}
+                maxLength={500}
+                placeholder="Optional comment"
+                className="min-h-24 w-full resize-none rounded-xl border border-[#d9e4df] bg-[#f8f9fa] px-3 py-3 text-sm font-semibold text-[#001c11] outline-none placeholder:text-[#8a948f] focus:border-[#006d36] focus:ring-2 focus:ring-[#006d36]/15"
+              />
+              {feedbackError ? <p className="text-sm font-semibold text-red-700">{feedbackError}</p> : null}
+              <button
+                type="button"
+                onClick={() => void submitFeedback()}
+                disabled={isSavingFeedback}
+                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#006d36] px-4 text-sm font-black text-white shadow-sm disabled:opacity-60"
+              >
+                {isSavingFeedback ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Send className="h-4 w-4" aria-hidden="true" />}
+                Submit feedback
+              </button>
+            </div>
+          )}
+        </div>
+      ) : null}
     </section>
   );
 }

@@ -126,6 +126,9 @@ public sealed class OrderServiceTests
                 request.Notes,
                 100m,
                 100m,
+                null,
+                null,
+                0m,
                 DateTime.UtcNow,
                 null,
                 []));
@@ -149,6 +152,9 @@ public sealed class OrderServiceTests
                 null,
                 100m,
                 100m,
+                null,
+                null,
+                0m,
                 DateTime.UtcNow,
                 DateTime.UtcNow,
                 []));

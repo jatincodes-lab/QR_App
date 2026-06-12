@@ -285,6 +285,38 @@ export type PublicQrOrder = {
   items: PublicQrOrderItem[];
 };
 
+export type OrderFeedback = {
+  orderFeedbackId: string;
+  tenantId: string;
+  branchId: string;
+  orderId: string;
+  customerId: string | null;
+  rating: number;
+  comment: string | null;
+  createdAtUtc: string;
+};
+
+export type CreateOrderFeedbackInput = {
+  rating: number;
+  comment: string | null;
+};
+
+export type AdminFeedback = {
+  orderFeedbackId: string;
+  tenantId: string;
+  branchId: string;
+  branchName: string;
+  orderId: string;
+  tableName: string;
+  customerId: string | null;
+  customerName: string | null;
+  customerWhatsApp: string | null;
+  rating: number;
+  comment: string | null;
+  orderCreatedAtUtc: string;
+  createdAtUtc: string;
+};
+
 export type PublicCustomerRecentOrderItem = {
   orderId: string;
   menuItemId: string;
@@ -725,6 +757,21 @@ export async function getPublicQrOrder(qrToken: string, orderId: string): Promis
   });
 }
 
+export async function getPublicOrderFeedback(qrToken: string, orderId: string): Promise<OrderFeedback | null> {
+  return request<OrderFeedback | null>(`/api/v1/public/qr/${encodeURIComponent(qrToken)}/orders/${encodeURIComponent(orderId)}/feedback`, {
+    method: "GET",
+    requireAuth: false
+  });
+}
+
+export async function createPublicOrderFeedback(qrToken: string, orderId: string, input: CreateOrderFeedbackInput): Promise<OrderFeedback> {
+  return request<OrderFeedback>(`/api/v1/public/qr/${encodeURIComponent(qrToken)}/orders/${encodeURIComponent(orderId)}/feedback`, {
+    method: "POST",
+    body: input,
+    requireAuth: false
+  });
+}
+
 export async function lookupPublicCustomer(qrToken: string, whatsapp: string): Promise<PublicCustomerLookup | null> {
   const customer = await request<PublicCustomerLookup | undefined>(`/api/v1/public/qr/${encodeURIComponent(qrToken)}/customers/lookup?whatsapp=${encodeURIComponent(whatsapp)}`, {
     method: "GET",
@@ -1041,6 +1088,14 @@ export async function getItemReport(filter: ReportFilterInput): Promise<ItemRepo
 
 export async function getCustomerReport(filter: ReportFilterInput): Promise<CustomerReport[]> {
   return request<CustomerReport[]>(`/api/v1/admin/reports/customers${toReportQuery(filter)}`, {
+    method: "GET",
+    requireAuth: true
+  });
+}
+
+export async function getAdminFeedback(branchId?: string): Promise<AdminFeedback[]> {
+  const query = branchId ? `?branchId=${encodeURIComponent(branchId)}` : "";
+  return request<AdminFeedback[]>(`/api/v1/admin/feedback${query}`, {
     method: "GET",
     requireAuth: true
   });

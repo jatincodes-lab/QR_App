@@ -174,6 +174,7 @@ app.MapAdminOrderEndpoints();
 app.MapAdminReportEndpoints();
 app.MapAdminCampaignEndpoints();
 app.MapAdminStaffEndpoints();
+app.MapFeedbackEndpoints();
 app.MapPublicMenuEndpoints();
 app.MapPublicQrEndpoints();
 app.MapPublicCustomerEndpoints();
@@ -250,6 +251,7 @@ static bool CanRoleAccessPath(string? roleCode, string path)
         return path.StartsWith("/api/v1/admin/branches", StringComparison.OrdinalIgnoreCase) && IsBranchOperationalPath(path) ||
                path.StartsWith("/api/v1/admin/media", StringComparison.OrdinalIgnoreCase) ||
                path.StartsWith("/api/v1/admin/reports", StringComparison.OrdinalIgnoreCase) ||
+               path.StartsWith("/api/v1/admin/feedback", StringComparison.OrdinalIgnoreCase) ||
                path.StartsWith("/api/v1/admin/campaigns", StringComparison.OrdinalIgnoreCase);
     }
 

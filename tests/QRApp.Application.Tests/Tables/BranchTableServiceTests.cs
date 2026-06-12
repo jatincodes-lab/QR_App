@@ -50,8 +50,8 @@ public sealed class BranchTableServiceTests
         {
             PublicRows =
             [
-                new PublicQrMenuRecord(branchId, "Cafe", null, tableId, "Table 1", "token-123456789012", true, true, false, true, categoryId, "Mains", 1, firstItemId, "Paneer Roll", null, 120m, 1),
-                new PublicQrMenuRecord(branchId, "Cafe", null, tableId, "Table 1", "token-123456789012", true, true, false, true, categoryId, "Mains", 1, secondItemId, "Veg Burger", "With fries", 180m, 2)
+                new PublicQrMenuRecord(branchId, "Cafe", null, tableId, "Table 1", "token-123456789012", true, true, false, true, false, "GST", 0m, "Exclusive", false, "Service charge", 0m, "None", categoryId, "Mains", 1, firstItemId, "Paneer Roll", null, 120m, 1),
+                new PublicQrMenuRecord(branchId, "Cafe", null, tableId, "Table 1", "token-123456789012", true, true, false, true, false, "GST", 0m, "Exclusive", false, "Service charge", 0m, "None", categoryId, "Mains", 1, secondItemId, "Veg Burger", "With fries", 180m, 2)
             ]
         };
         var service = new BranchTableService(repository, new FakeBranchOfferRepository());
@@ -77,7 +77,7 @@ public sealed class BranchTableServiceTests
         {
             PublicRows =
             [
-                new PublicQrMenuRecord(branchId, "Cafe", null, tableId, "Table 1", "demo-table-1", true, true, false, true, categoryId, "Beverages", 1, itemId, "Masala Tea", null, 25m, 1)
+                new PublicQrMenuRecord(branchId, "Cafe", null, tableId, "Table 1", "demo-table-1", true, true, false, true, false, "GST", 0m, "Exclusive", false, "Service charge", 0m, "None", categoryId, "Beverages", 1, itemId, "Masala Tea", null, 25m, 1)
             ]
         };
         var service = new BranchTableService(repository, new FakeBranchOfferRepository());

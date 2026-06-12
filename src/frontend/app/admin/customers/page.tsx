@@ -8,7 +8,7 @@ import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
-import { getCustomerReport, type CustomerReport, type OrderStatusCode, type ReportFilterInput } from "../../../lib/api";
+import { getAdminFeedback, getCustomerReport, type AdminFeedback, type CustomerReport, type OrderStatusCode, type ReportFilterInput } from "../../../lib/api";
 import { formatMoney, useAdminWorkspace } from "../../../lib/admin-workspace";
 import { firstInvalid, invalid, validateOptionalText, valid } from "../../../lib/validation";
 
@@ -63,6 +63,7 @@ export default function AdminCustomersPage() {
     search: ""
   });
   const [customers, setCustomers] = useState<CustomerReport[]>([]);
+  const [feedback, setFeedback] = useState<AdminFeedback[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<WhatsAppTemplateId>("repeatVisit");
@@ -78,10 +79,12 @@ export default function AdminCustomersPage() {
   useEffect(() => {
     if (!workspace.selectedBranch) {
       setCustomers([]);
+      setFeedback([]);
       return;
     }
 
     void loadCustomers(filter);
+    void loadFeedback(workspace.selectedBranch.branchId);
   }, [workspace.selectedBranch?.branchId]);
 
   async function loadCustomers(nextFilter: ReportFilterInput) {
@@ -92,6 +95,14 @@ export default function AdminCustomersPage() {
       workspace.handleApiError(caught);
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  async function loadFeedback(branchId: string) {
+    try {
+      setFeedback(await getAdminFeedback(branchId));
+    } catch (caught) {
+      workspace.handleApiError(caught);
     }
   }
 
@@ -110,6 +121,7 @@ export default function AdminCustomersPage() {
   }
 
   const metrics = getCustomerMetrics(customers);
+  const feedbackMetrics = getFeedbackMetrics(feedback);
   const branchName = workspace.selectedBranch?.name ?? "Customers";
   const selectedTemplate = WhatsAppTemplates.find((template) => template.id === selectedTemplateId) ?? WhatsAppTemplates[0];
   const optedInCustomers = customers.filter((customer) => customer.marketingConsent && toWhatsAppPhone(customer.customerWhatsApp)).length;
@@ -205,6 +217,24 @@ export default function AdminCustomersPage() {
               <MetricCard icon={<MessageCircle size={20} />} label="Can message" value={isLoading ? "..." : String(optedInCustomers)} />
               <MetricCard icon={<Star size={20} />} label="Total spent" value={isLoading ? "..." : formatMoney(metrics.totalValue)} />
             </section>
+
+            <Card>
+              <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle>Recent feedback</CardTitle>
+                  <p className="mt-1 text-sm text-on-surface-variant">
+                    {feedback.length > 0 ? `${feedback.length} reviews, ${feedbackMetrics.averageRating.toFixed(1)} average rating.` : "Completed order feedback will appear here."}
+                  </p>
+                </div>
+                <Badge variant="secondary" className="gap-1">
+                  <Star size={14} />
+                  {feedbackMetrics.averageRating > 0 ? feedbackMetrics.averageRating.toFixed(1) : "-"}
+                </Badge>
+              </CardHeader>
+              <CardContent>
+                <FeedbackList feedback={feedback} />
+              </CardContent>
+            </Card>
 
             <Card className="bg-surface-container-low/70">
               <CardContent className="grid min-h-[7.5rem] gap-5 px-5 py-6 sm:px-6 sm:py-7 lg:grid-cols-[minmax(15rem,0.7fr)_minmax(18rem,1fr)_auto] lg:items-center">
@@ -307,6 +337,42 @@ function CustomerList({ branchName, customers, template }: { branchName: string;
   );
 }
 
+function FeedbackList({ feedback }: { feedback: AdminFeedback[] }) {
+  if (feedback.length === 0) {
+    return (
+      <div className="rounded-xl border border-dashed border-outline-variant/70 bg-surface-container-low p-8 text-center">
+        <Star size={28} className="mx-auto text-on-surface-variant/70" />
+        <p className="mt-3 text-sm font-extrabold text-on-surface">No feedback yet</p>
+        <p className="mt-1 text-sm text-on-surface-variant">Customers can rate their experience after an order is completed.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-3 lg:grid-cols-2">
+      {feedback.slice(0, 8).map((item) => (
+        <article key={item.orderFeedbackId} className="rounded-xl border border-outline-variant/60 bg-white p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1 text-primary">
+                {Array.from({ length: 5 }, (_, index) => (
+                  <Star key={index} size={15} className={index < item.rating ? "fill-current" : "text-on-surface-variant/35"} />
+                ))}
+              </div>
+              <p className="mt-2 text-sm font-extrabold text-on-surface">{item.customerName || item.customerWhatsApp || "Guest customer"}</p>
+              <p className="mt-1 text-xs font-semibold text-on-surface-variant">
+                {item.tableName} - #{shortId(item.orderId)} - {formatDateTime(item.createdAtUtc)}
+              </p>
+            </div>
+            <Badge variant={item.rating >= 4 ? "success" : "outline"} className={item.rating <= 2 ? "border-red-200 bg-red-50 text-red-800" : undefined}>{item.rating}/5</Badge>
+          </div>
+          {item.comment ? <p className="mt-3 rounded-lg bg-surface-container-low p-3 text-sm font-semibold leading-6 text-on-surface-variant">{item.comment}</p> : null}
+        </article>
+      ))}
+    </div>
+  );
+}
+
 function CustomerCard({ branchName, customer, template }: { branchName: string; customer: CustomerReport; template: WhatsAppTemplate }) {
   return (
     <article className="rounded-xl border border-outline-variant/60 bg-white p-4">
@@ -378,6 +444,20 @@ function getCustomerMetrics(customers: CustomerReport[]) {
     }),
     { repeatCustomers: 0, optedInCustomers: 0, totalValue: 0 }
   );
+}
+
+function getFeedbackMetrics(feedback: AdminFeedback[]) {
+  if (feedback.length === 0) {
+    return { averageRating: 0 };
+  }
+
+  return {
+    averageRating: feedback.reduce((total, item) => total + item.rating, 0) / feedback.length
+  };
+}
+
+function shortId(id: string): string {
+  return id.replaceAll("-", "").slice(0, 8).toUpperCase();
 }
 
 function displayName(customer: CustomerReport): string {
