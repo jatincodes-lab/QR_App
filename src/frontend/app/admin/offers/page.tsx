@@ -142,7 +142,7 @@ export default function AdminOffersPage() {
               Create customer-facing promotions for the QR menu. Use these for discounts, combo messaging, and seasonal specials.
             </p>
           </div>
-          <Button type="button" variant="outline" onClick={() => workspace.selectedBranch && loadOffers(workspace.selectedBranch.branchId)}>
+          <Button type="button" variant="outline" onClick={() => workspace.selectedBranch && loadOffers(workspace.selectedBranch.branchId)} className="w-full sm:w-auto">
             <RefreshCw size={17} />
             Refresh
           </Button>
@@ -261,7 +261,7 @@ export default function AdminOffersPage() {
                         onChange={(next) => setForm({ ...form, imageUrl: next.imageUrl, imageAltText: next.imageAltText })}
                       />
                     </Field>
-                    <Button type="submit" disabled={savingKey === "offer"} className="justify-self-start">
+                    <Button type="submit" disabled={savingKey === "offer"} className="w-full justify-self-start sm:w-auto">
                       {savingKey === "offer" ? <Loader2 size={17} className="animate-spin" /> : <Plus size={17} />}
                       Add offer
                     </Button>
@@ -284,15 +284,15 @@ export default function AdminOffersPage() {
                     </div>
                   ) : (
                     sortedOffers.map((offer) => (
-                      <article key={offer.branchOfferId} className="flex items-start justify-between gap-3 rounded-xl border border-outline-variant/60 bg-white p-4">
+                      <article key={offer.branchOfferId} className="grid gap-3 rounded-xl border border-outline-variant/60 bg-white p-4 sm:flex sm:items-start sm:justify-between">
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-extrabold text-on-surface">{offer.title}</p>
-                          <p className="mt-1 text-xs text-on-surface-variant">{offer.subtitle || offer.discountText || "No subtitle"}</p>
+                          <p className="break-words text-sm font-extrabold text-on-surface">{offer.title}</p>
+                          <p className="mt-1 break-words text-xs leading-5 text-on-surface-variant">{offer.subtitle || offer.discountText || "No subtitle"}</p>
                           <p className="mt-1 text-xs text-on-surface-variant">
                             {formatOfferRule(offer)} - Order {offer.displayOrder}
                           </p>
                         </div>
-                        <Button type="button" size="sm" variant="outline" disabled={savingKey === offer.branchOfferId} onClick={() => turnOffOffer(offer)}>
+                        <Button type="button" variant="outline" disabled={savingKey === offer.branchOfferId} onClick={() => turnOffOffer(offer)} className="h-11 w-full sm:w-auto">
                           <Power size={14} />
                           Off
                         </Button>

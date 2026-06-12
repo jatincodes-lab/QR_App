@@ -562,18 +562,18 @@ function OrderCard({
           </div>
         ))}
       </div>
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="mt-3 grid gap-2 sm:flex sm:flex-wrap">
         {nextStatus ? (
-          <Button type="button" size="sm" disabled={savingKey === order.orderId} onClick={() => onMove(order, nextStatus)}>
+          <Button type="button" className="h-11 w-full sm:w-auto" disabled={savingKey === order.orderId} onClick={() => onMove(order, nextStatus)}>
             Move to {nextStatus}
           </Button>
         ) : null}
-        <Button type="button" size="sm" variant="outline" onClick={() => onBill(order)}>
+        <Button type="button" className="h-11 w-full sm:w-auto" variant="outline" onClick={() => onBill(order)}>
           <ReceiptText size={15} />
           Bill
         </Button>
         {!["Completed", "Cancelled"].includes(order.orderStatusCode) ? (
-          <Button type="button" size="sm" variant="outline" disabled={savingKey === order.orderId} onClick={() => onMove(order, "Cancelled")}>
+          <Button type="button" className="h-11 w-full sm:w-auto" variant="outline" disabled={savingKey === order.orderId} onClick={() => onMove(order, "Cancelled")}>
             <Ban size={15} />
             Cancel
           </Button>
@@ -609,8 +609,8 @@ function BillDialog({
 
   return (
     <Dialog>
-      <DialogContent className="max-w-5xl overflow-hidden bg-surface-container-lowest p-0">
-        <div className="flex items-start justify-between gap-4 border-b border-outline-variant/50 bg-white px-5 py-4">
+      <DialogContent className="max-h-[calc(100vh-1rem)] max-w-5xl overflow-hidden bg-surface-container-lowest p-0 sm:max-h-[92vh]">
+        <div className="flex items-start justify-between gap-4 border-b border-outline-variant/50 bg-white px-4 py-4 sm:px-5">
           <DialogHeader className="min-w-0">
             <DialogTitle className="flex items-center gap-2 text-primary">
               <ReceiptText size={20} />
@@ -631,8 +631,8 @@ function BillDialog({
           </div>
         ) : (
           <div>
-            <div className="grid max-h-[70vh] gap-0 overflow-y-auto lg:grid-cols-[minmax(0,1fr)_24rem]">
-              <section className="space-y-4 p-5">
+            <div className="grid max-h-[72vh] gap-0 overflow-y-auto lg:grid-cols-[minmax(0,1fr)_24rem]">
+              <section className="space-y-4 p-4 sm:p-5">
                 <div className="grid gap-3 sm:grid-cols-3">
                   <BillMetric label="Subtotal" value={formatMoney(state.order.subtotalAmount)} />
                   <BillMetric label="Bill total" value={formatMoney(bill?.totalAmount ?? state.order.totalAmount)} />
@@ -790,15 +790,15 @@ function BillDialog({
               </aside>
             </div>
 
-            <div className="flex flex-col-reverse gap-2 border-t border-outline-variant/50 bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-end">
-              <Button type="button" variant="outline" onClick={onClose}>
+            <div className="grid gap-2 border-t border-outline-variant/50 bg-white px-4 py-4 sm:flex sm:flex-row sm:items-center sm:justify-end sm:px-5">
+              <Button type="button" variant="outline" onClick={onClose} className="w-full sm:w-auto">
                 Close
               </Button>
-              <Button type="button" variant="outline" onClick={onPrint} disabled={!bill}>
+              <Button type="button" variant="outline" onClick={onPrint} disabled={!bill} className="w-full sm:w-auto">
                 <Printer size={16} />
                 Print
               </Button>
-              <Button type="button" onClick={onGenerate} disabled={isGenerating}>
+              <Button type="button" onClick={onGenerate} disabled={isGenerating} className="w-full sm:w-auto">
                 {isGenerating ? <Loader2 size={16} className="animate-spin" /> : <ReceiptText size={16} />}
                 {bill ? "Regenerate bill" : "Generate bill"}
               </Button>
@@ -824,7 +824,7 @@ function WaiterCallCard({ call, savingKey, onMove }: { call: WaiterCall; savingK
       </div>
       {call.note ? <p className="mt-3 rounded-lg bg-surface-container-low p-3 text-xs text-on-surface-variant">{call.note}</p> : null}
       {nextStatus ? (
-        <Button type="button" size="sm" className="mt-3" disabled={savingKey === call.waiterCallId} onClick={() => onMove(call, nextStatus)}>
+        <Button type="button" className="mt-3 h-11 w-full sm:w-auto" disabled={savingKey === call.waiterCallId} onClick={() => onMove(call, nextStatus)}>
           Move to {nextStatus}
         </Button>
       ) : null}
@@ -905,11 +905,11 @@ function OrderActionDialog({
           </div>
         </div>
 
-        <div className="flex flex-col-reverse gap-2 border-t border-outline-variant/60 bg-white px-5 py-4 sm:flex-row sm:justify-end">
-          <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
+        <div className="grid gap-2 border-t border-outline-variant/60 bg-white px-5 py-4 sm:flex sm:flex-row sm:justify-end">
+          <Button type="button" variant="outline" onClick={onClose} disabled={isSaving} className="w-full sm:w-auto">
             Keep order
           </Button>
-          <Button type="button" variant="destructive" onClick={onConfirm} disabled={isSaving || reasonLength === 0 || reasonLength > 300}>
+          <Button type="button" variant="destructive" onClick={onConfirm} disabled={isSaving || reasonLength === 0 || reasonLength > 300} className="w-full sm:w-auto">
             {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Ban size={16} />}
             Confirm cancel
           </Button>

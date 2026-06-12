@@ -186,9 +186,9 @@ export default function AdminKitchenPage() {
               Preparation-focused order board with table, item, variant, quantity, and customer notes.
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="grid gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
             <Badge variant={liveState === "live" ? "success" : "outline"}>{liveState === "live" ? "Live" : liveState === "connecting" ? "Connecting" : "Offline"}</Badge>
-            <Button type="button" variant="outline" onClick={() => workspace.selectedBranch && loadOrders(workspace.selectedBranch.branchId)}>
+            <Button type="button" variant="outline" onClick={() => workspace.selectedBranch && loadOrders(workspace.selectedBranch.branchId)} className="w-full sm:w-auto">
               <RefreshCw size={17} />
               Refresh
             </Button>

@@ -432,12 +432,12 @@ export default function AdminMenuPage() {
                     <CardTitle>Menu setup</CardTitle>
                     <CardDescription>Add categories and customer-facing items for {workspace.selectedBranch.name}.</CardDescription>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button type="button" variant="outline" onClick={handleOpenCreateCategory} disabled={isLoadingMenu}>
+                  <div className="grid gap-2 sm:flex sm:flex-wrap sm:justify-end">
+                    <Button type="button" variant="outline" onClick={handleOpenCreateCategory} disabled={isLoadingMenu} className="w-full sm:w-auto">
                       <Plus size={17} />
                       Add Category
                     </Button>
-                    <Button type="button" onClick={handleOpenCreateItem} disabled={isLoadingMenu || categories.length === 0}>
+                    <Button type="button" onClick={handleOpenCreateItem} disabled={isLoadingMenu || categories.length === 0} className="w-full sm:w-auto">
                       <Plus size={17} />
                       Add Item
                     </Button>
@@ -473,7 +473,7 @@ export default function AdminMenuPage() {
                                   <p className="mt-1 text-xs text-on-surface-variant">Order {category.displayOrder}</p>
                                 </div>
                                 <div className="flex shrink-0 gap-1">
-                                  <Button type="button" variant="outline" size="icon" onClick={() => handleStartEditCategory(category)} className="h-8 w-8 border-outline-variant/60" aria-label={`Edit ${category.name}`}>
+                    <Button type="button" variant="outline" size="icon" onClick={() => handleStartEditCategory(category)} className="border-outline-variant/60" aria-label={`Edit ${category.name}`}>
                                     <Pencil size={14} />
                                   </Button>
                                   <Button
@@ -482,7 +482,7 @@ export default function AdminMenuPage() {
                                     size="icon"
                                     onClick={() => handleDeactivateCategory(category)}
                                     disabled={savingKey === `category-${category.menuCategoryId}`}
-                                    className="h-8 w-8 border-destructive/30 text-destructive"
+                    className="border-destructive/30 text-destructive"
                                     aria-label={`Turn off ${category.name}`}
                                   >
                                     {savingKey === `category-${category.menuCategoryId}` ? <Loader2 size={14} className="animate-spin" /> : <Power size={14} />}
@@ -505,55 +505,70 @@ export default function AdminMenuPage() {
                         <p className="mt-1 text-sm text-on-surface-variant">Add a category, then add your first item above.</p>
                       </div>
                     ) : (
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Item</TableHead>
-                            <TableHead>Category</TableHead>
-                            <TableHead>Price</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
+                      <>
+                        <div className="grid gap-3 md:hidden">
                           {items.map((item) => (
-                            <TableRow key={item.menuItemId}>
-                              <TableCell>
-                                <div className="flex items-center gap-3">
-                                  <MenuItemImage imageAltText={item.imageAltText} imageUrl={item.imageUrl} name={item.name} />
-                                  <div className="min-w-0">
-                                    <p className="font-bold text-on-surface">{item.name}</p>
-                                    <p className="mt-1 line-clamp-1 text-xs text-on-surface-variant">{item.description || "No description"}</p>
-                                  </div>
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-on-surface-variant">{item.categoryName}</TableCell>
-                              <TableCell className="font-bold text-primary">{formatMoney(item.price)}</TableCell>
-                              <TableCell>
-                                <Badge variant={item.isAvailable ? "success" : "outline"}>{item.isAvailable ? "Available" : "Hidden"}</Badge>
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex justify-end gap-2">
-                                  <Button type="button" variant="outline" size="icon" onClick={() => handleStartEditItem(item)} className="h-8 w-8 border-outline-variant/60" aria-label={`Edit ${item.name}`}>
-                                    <Pencil size={14} />
-                                  </Button>
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="icon"
-                                    onClick={() => handleDeactivateItem(item)}
-                                    disabled={savingKey === `item-${item.menuItemId}`}
-                                    className="h-8 w-8 border-destructive/30 text-destructive"
-                                    aria-label={`Turn off ${item.name}`}
-                                  >
-                                    {savingKey === `item-${item.menuItemId}` ? <Loader2 size={14} className="animate-spin" /> : <Power size={14} />}
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            </TableRow>
+                            <MenuItemMobileCard
+                              key={item.menuItemId}
+                              item={item}
+                              savingKey={savingKey}
+                              onDeactivate={handleDeactivateItem}
+                              onEdit={handleStartEditItem}
+                            />
                           ))}
-                        </TableBody>
-                      </Table>
+                        </div>
+                        <div className="hidden overflow-x-auto md:block">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Item</TableHead>
+                                <TableHead>Category</TableHead>
+                                <TableHead>Price</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {items.map((item) => (
+                                <TableRow key={item.menuItemId}>
+                                  <TableCell>
+                                    <div className="flex items-center gap-3">
+                                      <MenuItemImage imageAltText={item.imageAltText} imageUrl={item.imageUrl} name={item.name} />
+                                      <div className="min-w-0">
+                                        <p className="font-bold text-on-surface">{item.name}</p>
+                                        <p className="mt-1 line-clamp-1 text-xs text-on-surface-variant">{item.description || "No description"}</p>
+                                      </div>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="text-on-surface-variant">{item.categoryName}</TableCell>
+                                  <TableCell className="font-bold text-primary">{formatMoney(item.price)}</TableCell>
+                                  <TableCell>
+                                    <Badge variant={item.isAvailable ? "success" : "outline"}>{item.isAvailable ? "Available" : "Hidden"}</Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex justify-end gap-2">
+                                      <Button type="button" variant="outline" size="icon" onClick={() => handleStartEditItem(item)} className="border-outline-variant/60" aria-label={`Edit ${item.name}`}>
+                                        <Pencil size={14} />
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() => handleDeactivateItem(item)}
+                                        disabled={savingKey === `item-${item.menuItemId}`}
+                                        className="border-destructive/30 text-destructive"
+                                        aria-label={`Turn off ${item.name}`}
+                                      >
+                                        {savingKey === `item-${item.menuItemId}` ? <Loader2 size={14} className="animate-spin" /> : <Power size={14} />}
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </>
                     )}
                   </>
                 )}
@@ -562,7 +577,7 @@ export default function AdminMenuPage() {
 
             {isCategoryDialogOpen ? (
               <Dialog>
-                <DialogContent className="max-w-lg p-6">
+                <DialogContent className="max-w-lg p-4 sm:p-6">
                   <DialogHeader>
                     <DialogTitle>{isEditingCategory ? "Edit category" : "Add category"}</DialogTitle>
                     <DialogDescription>{isEditingCategory ? "Update the category details shown on the menu." : "Create a category before adding menu items."}</DialogDescription>
@@ -603,11 +618,11 @@ export default function AdminMenuPage() {
                         required
                       />
                     </Field>
-                    <div className="flex flex-wrap justify-end gap-2">
-                      <Button type="button" variant="outline" onClick={handleCancelEditCategory}>
+                    <div className="grid gap-2 sm:flex sm:justify-end">
+                      <Button type="button" variant="outline" onClick={handleCancelEditCategory} className="w-full sm:w-auto">
                         Cancel
                       </Button>
-                      <Button type="submit" disabled={savingKey === "category" || (editingCategory ? savingKey === `category-edit-${editingCategory.menuCategoryId}` : false)}>
+                      <Button type="submit" disabled={savingKey === "category" || (editingCategory ? savingKey === `category-edit-${editingCategory.menuCategoryId}` : false)} className="w-full sm:w-auto">
                         {savingKey === "category" || (editingCategory ? savingKey === `category-edit-${editingCategory.menuCategoryId}` : false) ? (
                           <Loader2 size={17} className="animate-spin" />
                         ) : isEditingCategory ? (
@@ -625,8 +640,8 @@ export default function AdminMenuPage() {
 
             {isItemDialogOpen ? (
               <Dialog>
-                <DialogContent className="flex max-h-[calc(100vh-2rem)] w-[min(94vw,56rem)] max-w-none flex-col overflow-hidden p-0">
-                  <div className="shrink-0 border-b border-outline-variant/70 bg-surface-container-low px-6 py-5">
+                <DialogContent className="flex max-h-[calc(100vh-1rem)] w-[min(96vw,56rem)] max-w-none flex-col overflow-hidden p-0 sm:max-h-[calc(100vh-2rem)]">
+                  <div className="shrink-0 border-b border-outline-variant/70 bg-surface-container-low px-4 py-4 sm:px-6 sm:py-5">
                     <DialogHeader>
                       <DialogTitle className="text-xl font-black text-on-surface">{isEditingItem ? "Edit menu item" : "Add menu item"}</DialogTitle>
                       <DialogDescription className="max-w-2xl text-sm font-semibold text-on-surface-variant">
@@ -646,7 +661,7 @@ export default function AdminMenuPage() {
                     }}
                     className="flex min-h-0 w-full min-w-0 flex-1 flex-col"
                   >
-                    <div className="grid min-h-0 flex-1 gap-5 overflow-y-auto px-6 py-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto px-4 py-4 [scrollbar-width:none] sm:gap-5 sm:px-6 sm:py-6 [&::-webkit-scrollbar]:hidden">
                       <div className="grid w-full min-w-0 gap-4 rounded-xl border border-outline-variant/70 bg-white p-4">
                         <div className="grid gap-4">
                           <Field label="Category">
@@ -758,11 +773,8 @@ export default function AdminMenuPage() {
                         onChange={(nextForm) => (isEditingItem ? setEditingItemForm(nextForm) : setItemForm(nextForm))}
                       />
                     </div>
-                    <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-outline-variant/70 bg-surface-container-low px-6 py-4">
-                      <Button type="button" variant="outline" onClick={handleCancelEditItem}>
-                        Cancel
-                      </Button>
-                      <Button type="submit" disabled={savingKey === "item" || (editingItem ? savingKey === `item-edit-${editingItem.menuItemId}` : false) || categories.length === 0}>
+                    <div className="grid shrink-0 gap-2 border-t border-outline-variant/70 bg-surface-container-low px-4 py-4 sm:flex sm:flex-row-reverse sm:justify-start sm:px-6">
+                      <Button type="submit" disabled={savingKey === "item" || (editingItem ? savingKey === `item-edit-${editingItem.menuItemId}` : false) || categories.length === 0} className="w-full sm:w-auto">
                         {savingKey === "item" || (editingItem ? savingKey === `item-edit-${editingItem.menuItemId}` : false) ? (
                           <Loader2 size={17} className="animate-spin" />
                         ) : isEditingItem ? (
@@ -771,6 +783,9 @@ export default function AdminMenuPage() {
                           <Plus size={17} />
                         )}
                         {isEditingItem ? "Update item" : "Add item"}
+                      </Button>
+                      <Button type="button" variant="outline" onClick={handleCancelEditItem} className="w-full sm:w-auto">
+                        Cancel
                       </Button>
                     </div>
                   </form>
@@ -831,7 +846,7 @@ function ItemVariantsEditor({ form, onChange }: { form: ItemForm; onChange: (for
           <p className="text-sm font-extrabold text-on-surface">Portions / sizes</p>
           <p className="mt-1 text-xs text-on-surface-variant">Use for Half, Full, Quarter, Regular, 300ml, Large, and similar options.</p>
         </div>
-        <Button type="button" size="sm" variant="outline" onClick={addVariant}>
+        <Button type="button" variant="outline" onClick={addVariant} className="h-11 w-full sm:w-auto">
           <Plus size={14} />
           Add Variant
         </Button>
@@ -854,8 +869,8 @@ function ItemVariantsEditor({ form, onChange }: { form: ItemForm; onChange: (for
               <Field label="Order">
                 <Input type="number" min="1" value={variant.displayOrder} onChange={(event) => updateVariant(index, { displayOrder: event.target.value })} required />
               </Field>
-              <div className="flex items-end gap-2">
-                <label className="flex h-10 items-center gap-2 text-sm font-semibold text-on-surface">
+              <div className="grid gap-2 sm:flex sm:items-end">
+                <label className="flex h-11 items-center gap-2 rounded-lg border border-outline-variant/60 px-3 text-sm font-semibold text-on-surface sm:border-0 sm:px-0">
                   <input
                     type="checkbox"
                     checked={variant.isAvailable}
@@ -864,7 +879,7 @@ function ItemVariantsEditor({ form, onChange }: { form: ItemForm; onChange: (for
                   />
                   Available
                 </label>
-                <Button type="button" size="sm" variant="outline" onClick={() => removeVariant(index)} className="border-destructive/30 text-destructive">
+                <Button type="button" variant="outline" onClick={() => removeVariant(index)} className="h-11 border-destructive/30 text-destructive">
                   Remove
                 </Button>
               </div>
@@ -873,6 +888,54 @@ function ItemVariantsEditor({ form, onChange }: { form: ItemForm; onChange: (for
         </div>
       )}
     </section>
+  );
+}
+
+function MenuItemMobileCard({
+  item,
+  savingKey,
+  onDeactivate,
+  onEdit
+}: {
+  item: MenuItem;
+  savingKey: string | null;
+  onDeactivate: (item: MenuItem) => void;
+  onEdit: (item: MenuItem) => void;
+}) {
+  return (
+    <article className="rounded-xl border border-outline-variant/60 bg-white p-4">
+      <div className="flex items-start gap-3">
+        <MenuItemImage imageAltText={item.imageAltText} imageUrl={item.imageUrl} name={item.name} />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="min-w-0 flex-1 break-words text-sm font-extrabold text-on-surface">{item.name}</p>
+            <Badge variant={item.isAvailable ? "success" : "outline"}>{item.isAvailable ? "Available" : "Hidden"}</Badge>
+          </div>
+          <p className="mt-1 text-xs font-semibold text-on-surface-variant">{item.categoryName}</p>
+          <p className="mt-2 line-clamp-2 text-xs leading-5 text-on-surface-variant">{item.description || "No description"}</p>
+        </div>
+      </div>
+      <div className="mt-4 flex items-center justify-between gap-3 border-t border-outline-variant/50 pt-3">
+        <p className="text-base font-extrabold text-primary">{formatMoney(item.price)}</p>
+        <div className="grid grid-cols-2 gap-2">
+          <Button type="button" variant="outline" onClick={() => onEdit(item)} className="h-11 border-outline-variant/60" aria-label={`Edit ${item.name}`}>
+            <Pencil size={15} />
+            Edit
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onDeactivate(item)}
+            disabled={savingKey === `item-${item.menuItemId}`}
+            className="h-11 border-destructive/30 text-destructive"
+            aria-label={`Turn off ${item.name}`}
+          >
+            {savingKey === `item-${item.menuItemId}` ? <Loader2 size={15} className="animate-spin" /> : <Power size={15} />}
+            Off
+          </Button>
+        </div>
+      </div>
+    </article>
   );
 }
 
